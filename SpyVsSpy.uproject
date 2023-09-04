@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{4E726A6E-4E94-D2D6-BF40-8A9FBAFC87D1}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "SpyVsSpy",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"DynamicMeshRoomGen"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		}
+	]
+}
