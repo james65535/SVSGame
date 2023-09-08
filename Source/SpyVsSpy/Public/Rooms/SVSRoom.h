@@ -35,7 +35,8 @@ public:
 
 /**
  * Rooms are intended to only be visible when they are occupied by a player
- * When a room transitions from visible to invisible and vica versa, a transition effect is rendered
+ * When a room transitions from visible to invisible and vica versa,
+ * a transition effect is displayed to the player in the room
  */
 UCLASS()
 class SPYVSSPY_API ASVSRoom : public ADynamicRoom

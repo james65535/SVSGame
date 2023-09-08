@@ -107,7 +107,7 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 
 		/** Entering */
 		/** Determine which axis player is travelling: X or Y */
-		if (UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X) > UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X))
+		if (UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X) > UKismetMathLibrary::Abs(DistanceToPlayerCharacter.Y))
 		{
 			/** Is Player Entering from North or South Door */
 			if(DistanceToPlayerCharacter.X > 0.0f)
@@ -133,7 +133,7 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 			GetActorLocation(), PlayerCharacter->GetActorLocation());
 
 	/** Determine which axis player is travelling on X or Y */
-	if (UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X) > UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X))
+	if (UKismetMathLibrary::Abs(DistanceToPlayerCharacter.X) > UKismetMathLibrary::Abs(DistanceToPlayerCharacter.Y))
 	{
 		/** Is Player Exiting through North or South Door */
 		if(DistanceToPlayerCharacter.X > 0.0f)
@@ -163,22 +163,21 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		RoomHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
 		SetActorHiddenInGame(RoomHiddenInGame);
 		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);
-		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
-		UE_LOG(LogTemp, Warning, TEXT("Room Enter AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
-		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-		UE_LOG(LogTemp, Warning, TEXT("Room Enter Axis: %f"), CustomPrimitiveData.Axis);
-
+		UE_LOG(LogTemp, Warning, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+		
 		/** Update Walls */
 		TArray<UDynamicWall*> WallSet;
 		Execute_GetWalls(this, WallSet);
-		
 		for (UDynamicWall* DynamicWall : WallSet)
 		{
 			DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 			DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-			UE_LOG(LogTemp, Warning, TEXT("Updating wall: %s"), *DynamicWall->GetName());
 		}
 
+		/** Update Floor */
+		Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+		Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+		
 		/** Notify Room Manager that room is occupied */
 		if (IsValid(RoomManager))
 		{
@@ -199,14 +198,36 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
 	if(const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
-		/** Used by timeline finish func to hide actor and room furniture at end of vanish effect */
-		RoomHiddenInGame = true;
+		/** Hide
+		* Used by timeline finish func to hide actor and room furniture at end of vanish effect */
+		RoomHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
+		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);
+		UE_LOG(LogTemp, Warning, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+		
+		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+		UE_LOG(LogTemp, Warning, TEXT("Room Exit AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
+		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+		UE_LOG(LogTemp, Warning, TEXT("Room Exit Axis: %f"), CustomPrimitiveData.Axis);
+
+		/** Update Walls */
+		TArray<UDynamicWall*> WallSet;
+		Execute_GetWalls(this, WallSet);
+		
+		for (UDynamicWall* DynamicWall : WallSet)
+		{
+			DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+			DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+		}
+
+		/** Update Floor */
+		Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+		Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
 		
 		if (IsValid(AppearTimeline))
 		{
 			AppearTimeline->ReverseFromEnd();	
 		}
-		else { UE_LOG(LogTemp, Warning, TEXT("Room timeline for appear effect is null")); }
+		else { UE_LOG(LogTemp, Warning, TEXT("Room timeline for disappear effect is null")); }
 
 		if (IsValid(RoomManager))
 		{
@@ -218,7 +239,6 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 
 void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Timeline Update Running"));
 	TArray<UDynamicWall*> WallSet;
 	Execute_GetWalls(this, WallSet);
 	
@@ -227,9 +247,12 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 	{
 		// TODO need to flip effect since walls are mirrored
 		DynamicWall->SetCustomPrimitiveDataFloat(0, VisibilityInterp);
-		UE_LOG(LogTemp, Warning, TEXT("Timeline Updating wall: %s with: %f"), *DynamicWall->GetName(), VisibilityInterp);
+		// UE_LOG(LogTemp, Warning, TEXT("Timeline Updating wall: %s with: %f"), *DynamicWall->GetName(), VisibilityInterp);
 	}
-	GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(0, VisibilityInterp);
+
+	/** Apply effect to floor */
+	Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(0, VisibilityInterp);
+	//GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(0, VisibilityInterp);
 }
 
 void ASVSRoom::TimelineAppearFinish()
