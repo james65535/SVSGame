@@ -12,7 +12,7 @@ ANetSessionGameState::ANetSessionGameState()
 	bReplicates = true;
 }
 
-void ANetSessionGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps)
+void ANetSessionGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 

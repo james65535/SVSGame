@@ -64,9 +64,11 @@ private:
 	
 	/** Internal Methods for Door Opening / Closing */
 	/** Initiate Door Opening Sequence */
-	void OpenDoor();
+	UFUNCTION(NetMulticast, Reliable)
+	void NM_OpenDoor();
 	/** Initiate Door Closing Sequence */
-	void CloseDoor();
+	UFUNCTION(NetMulticast, Reliable)
+	void NM_CloseDoor();
 	// TODO Add net multicasts
 	/** Handle tasks upon door reaching Opened State */
 	void DoorOpened();

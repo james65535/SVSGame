@@ -7,6 +7,8 @@
 #include "InputActionValue.h"
 #include "SpyCharacter.generated.h"
 
+class ASVSRoom;
+class UIsoCameraComponent;
 class UPlayerInventoryComponent;
 class UPlayerInteractionComponent;
 
@@ -23,6 +25,9 @@ public:
 	// FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	// /** Returns FollowCamera subobject **/
 	// FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS Character")
+	void UpdateCameraLocation(const ASVSRoom* InRoom) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS Character")
 	UPlayerInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; };
@@ -30,7 +35,8 @@ public:
 	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; };
 	// TODO Implement
 	// UFUNCTION(BlueprintCallable, Category = "SVS Character")
-	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; } ;
+	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
+	
 private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "SVS Character")
@@ -45,10 +51,10 @@ private:
 	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	// class USpringArmComponent* CameraBoom;
 	// /** Follow camera */
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	// class UCameraComponent* FollowCamera;
-
+	 UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	 class UIsoCameraComponent* FollowCamera;
 	
+
 	
 #pragma region="MovementControls"
 	/** Movement Controls */

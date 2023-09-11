@@ -20,6 +20,10 @@ ARoomManager::ARoomManager()
 void ARoomManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	/** Run only on server if network game */
+	if (!HasAuthority()) { return; }
+	
 	UE_LOG(LogTemp, Warning, TEXT("Room Manager begin play"));
 
 	/** Collect all Room Actor References and update them with a reference to this manager */
@@ -37,7 +41,7 @@ void ARoomManager::BeginPlay()
 
 void ARoomManager::AddRoom_Implementation(const ASVSRoom* InDynamicRoom, const FGuid InRoomGuid)
 {
-	if (!IsValid(InDynamicRoom)){ return; }
+	if (!IsValid(InDynamicRoom) || !HasAuthority()) { return; }
 	
 	FRoomListing RoomListing;
 	RoomListing.Room = InDynamicRoom;
@@ -45,18 +49,22 @@ void ARoomManager::AddRoom_Implementation(const ASVSRoom* InDynamicRoom, const F
 	RoomCollection.Emplace(RoomListing);
 }
 
-void ARoomManager::SetRoomOccupied_Implementation(const ADynamicRoom* InDynamicRoom, const bool bIsOccupied,
-	const ASpyCharacter* PlayerCharacter)
+void ARoomManager::SetRoomOccupied_Implementation(const ASVSRoom* InRoom, const bool bIsOccupied, const ASpyCharacter* PlayerCharacter)
 {
-	if (!IsValid(InDynamicRoom)  || RoomCollection.Num() == 0) { return; }
+	if (!IsValid(InRoom) || RoomCollection.Num() == 0 || !HasAuthority()) { return; }
+
+	if (IsValid(PlayerCharacter))
+	{
+		PlayerCharacter->UpdateCameraLocation(InRoom);
+	}
+	OnRoomOccupied.Broadcast(InRoom, PlayerCharacter, bIsOccupied);
 	
 	for (int32 Index = 0; Index < RoomCollection.Num(); Index++)
 	{
-		if (RoomCollection[Index].Room == InDynamicRoom)
+		if (RoomCollection[Index].Room == InRoom)
 		{
 			RoomCollection[Index].bIsOccupied = bIsOccupied;
 			return;
 		} 
 	}
 }
-

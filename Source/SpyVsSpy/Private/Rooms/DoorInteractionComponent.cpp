@@ -5,6 +5,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Rooms/SVSDynamicDoor.h"
+#include "net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
 UDoorInteractionComponent::UDoorInteractionComponent()
@@ -45,25 +46,25 @@ bool UDoorInteractionComponent::Interact_Implementation()
 		case EDoorState::Opened:
 			{
 				// TODO Validation Check
-				CloseDoor();
+				NM_CloseDoor();
 				return true;
 			}
 		case EDoorState::Opening:
 			{
 				// TODO Validation Check
-				CloseDoor();
+				NM_CloseDoor();
 				return true;
 			}
 		case EDoorState::Closed:
 			{
 				// TODO Validation Check
-				OpenDoor();
+				NM_OpenDoor();
 				return true;
 			}
 		case EDoorState::Closing:
 			{
 				// TODO Validation Check
-				OpenDoor();
+				NM_OpenDoor();
 				return true;
 			}
 		case EDoorState::Locked:
@@ -76,7 +77,7 @@ bool UDoorInteractionComponent::Interact_Implementation()
 	}
 }
 
-void UDoorInteractionComponent::OpenDoor()
+void UDoorInteractionComponent::NM_OpenDoor_Implementation()
 {
 	if (IsValid(DoorOpenSfx))
 	{
@@ -87,7 +88,7 @@ void UDoorInteractionComponent::OpenDoor()
 	DoorTransitionTimeline->PlayFromStart();
 }
 
-void UDoorInteractionComponent::CloseDoor()
+void UDoorInteractionComponent::NM_CloseDoor_Implementation()
 {
 	if (IsValid(DoorCloseSfx))
 	{

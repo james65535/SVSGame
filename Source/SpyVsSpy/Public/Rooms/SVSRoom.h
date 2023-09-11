@@ -80,6 +80,10 @@ private:
 	/** Unique Room Identifier used by Room Manager */
 	FGuid RoomGuid;
 
+	/** Server and client RPCs to handle room overlaps and associated effects */
+	UFUNCTION()
+	void UnHideRoom(const ASpyCharacter* InSpyCharacter);
+
 	/** Properties Sent to Material for Warp In / Out Effect */
 	FName MPCDistanceHasEffectName = "HasEffect";
 	FName MPCDistanceEffectAxisName = "EffectAxis";
@@ -113,4 +117,5 @@ private:
 	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+	TArray<APlayerController*> OccupyingSpyControllers;
 };

@@ -11,6 +11,16 @@ class ASVSRoom;
 class ADynamicRoom;
 class ASpyCharacter;
 
+/** Begin Delegates */
+
+/**
+ * Notify listeners such as a player's camera that a player as entered or exited a room
+ * @input Pointer to room
+ * @input Pointer to player entering / exiting
+ * @input bIsEntering
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FRoomOccupiedDelegate, const ADynamicRoom*, const ASpyCharacter*, bool);
+
 USTRUCT()
 struct FRoomListing
 {
@@ -34,7 +44,9 @@ public:
 	void AddRoom(const ASVSRoom* InDynamicRoom, const FGuid InRoomGuid);
 	// TODO use array ref in case multiple characters are in the same room
 	UFUNCTION(Server, Reliable, Category = "SVS Room")
-	void SetRoomOccupied(const ADynamicRoom* InDynamicRoom, const bool bIsOccupied, const ASpyCharacter* PlayerCharacter);
+	void SetRoomOccupied(const ASVSRoom* InRoom, const bool bIsOccupied, const ASpyCharacter* PlayerCharacter);
+
+	FRoomOccupiedDelegate OnRoomOccupied;
 
 private:
 

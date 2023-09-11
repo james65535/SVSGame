@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Players/SpyCharacter.h"
-#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Players/PlayerInteractionComponent.h"
+#include "Rooms/SVSRoom.h"
+#include "Players/IsoCameraComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ASpyCharacter
@@ -22,7 +22,8 @@ ASpyCharacter::ASpyCharacter()
 	PlayerInteractionComponent = CreateDefaultSubobject<UPlayerInteractionComponent>("Player Interaction Component");
 	PlayerInteractionComponent->SetupAttachment(RootComponent);
 	PlayerInteractionComponent->SetRelativeLocation(FVector(25.0f, 0.0f, 0.0f));
-		
+	PlayerInteractionComponent->SetIsReplicated(true);
+	
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -47,7 +48,7 @@ ASpyCharacter::ASpyCharacter()
 	// CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 	//
 	// // Create a follow camera
-	// FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	FollowCamera = CreateDefaultSubobject<UIsoCameraComponent>(TEXT("FollowCamera"));
 	// FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	// FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
@@ -68,6 +69,13 @@ void ASpyCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+}
+
+void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
+{
+	UE_LOG(LogTemp, Warning, TEXT("Camera update called"));
+
+	if (!IsValid(FollowCamera) && !IsValid(InRoom)) { return; }
 }
 
 //////////////////////////////////////////////////////////////////////////
