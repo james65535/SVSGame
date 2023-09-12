@@ -32,6 +32,7 @@ void UPlayerInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 
 void UPlayerInteractionComponent::OnRep_LatestInteractableComponentFound()
 {
+	if (!IsValid(LatestInteractableComponentFound)) { return; }
 	UE_LOG(LogTemp, Warning, TEXT(
 			"Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound->GetName());
 }
@@ -49,7 +50,7 @@ void UPlayerInteractionComponent::BeginPlay()
 	/** Respond only to Custom Collision Channel 1: InteractChannel */
 	SetCollisionProfileName("Interact");
 	SetCollisionObjectType(ECC_GameTraceChannel1);
-	SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+	SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);	
 	
 	OnComponentBeginOverlap.AddDynamic(this, &UPlayerInteractionComponent::OnOverlapBegin);
 	OnComponentEndOverlap.AddDynamic(this, &UPlayerInteractionComponent::OnOverlapEnd);
@@ -72,14 +73,17 @@ void UPlayerInteractionComponent::OnOverlapBegin(UPrimitiveComponent* Overlapped
 
 void UPlayerInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (GetOwnerRole() != ROLE_Authority) { return; }
+	if (GetOwnerRole() != ROLE_Authority || !IsValid(LatestInteractableComponentFound)) { return; }
 	
 	// TODO Think about doing a validation check and also consider multiple actors
 	bCanInteractWithActor = false;
+	if (LatestInteractableComponentFound->GetOwner() == OtherActor)
+	{
+		LatestInteractableComponentFound = nullptr;
+		MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerInteractionComponent, LatestInteractableComponentFound, this);
+	}
 	UE_LOG(LogTemp, Warning, TEXT("We can no longer interact with actor: %s"), *OtherActor->GetName());
 }
-
-
 
 void UPlayerInteractionComponent::RequestInteractWithObject() const
 {
@@ -88,6 +92,8 @@ void UPlayerInteractionComponent::RequestInteractWithObject() const
 
 void UPlayerInteractionComponent::S_RequestInteractWithObject_Implementation() const
 {
+	if (!IsValid(LatestInteractableComponentFound)) { return; }
+	
 	UE_LOG(LogTemp, Warning, TEXT("Server request interfact with %s:"), *LatestInteractableComponentFound->GetName());
 	if (const IInteractInterface* InteractableComponent = Cast<IInteractInterface>(LatestInteractableComponentFound))
 	{

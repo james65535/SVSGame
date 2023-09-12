@@ -73,8 +73,23 @@ bool UDoorInteractionComponent::Interact_Implementation()
 				// UnlockDoor();
 				return true;
 			}
+		case EDoorState::Disabled:
+			{
+				// TODO Validation Check
+				return false;
+			}
 		default: return false;
 	}
+}
+
+void UDoorInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
+{
+	if (bIsEnabled)
+	{
+		DoorState = EDoorState::Closed;
+		return;
+	}
+	DoorState = EDoorState::Disabled;
 }
 
 void UDoorInteractionComponent::NM_OpenDoor_Implementation()
@@ -114,7 +129,7 @@ void UDoorInteractionComponent::DoorClosed()
 void UDoorInteractionComponent::TransitionDoor(float const DoorOpenedAmount)
 {
 	const FRotator CurrentRotation = FMath::Lerp(StartRotation,FinalRotation,DoorOpenedAmount);
-	if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanel())
+	if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorMesh())
 	{
 		DoorPanel->SetRelativeRotation(CurrentRotation);
 	}
@@ -127,7 +142,7 @@ void UDoorInteractionComponent::DoorTransitionTimelineUpdate(float const OpenAmo
 
 void UDoorInteractionComponent::DoorTransitionTimelineFinish()
 {
-	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanel())
+	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorMesh())
 	{
 		if (DoorPanel->GetRelativeRotation().Yaw > 0.0f)
 		{

@@ -24,6 +24,7 @@ enum class EDoorState
 	Opened = 2 UMETA(DisplayName = "Opened"),
 	Opening = 3 UMETA(DisplayName = "Opening"),
 	Locked = 4 UMETA(DisplayName = "Locked"),
+	Disabled = 5 UMETA(DisplayName = "Disabled"),
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -55,10 +56,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS Door")
 	EDoorState GetDoorState() const { return DoorState; }
 
+	UFUNCTION(BlueprintCallable, Category = "SVS Door")
+	void SetInteractionEnabled(const bool bIsEnabled);
+	
 private:
 
 	// UTrapComponent* TrapComponent;
-
+	
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS Door")
 	EDoorState DoorState = EDoorState::Closed;
 	

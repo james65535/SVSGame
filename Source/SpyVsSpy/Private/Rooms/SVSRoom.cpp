@@ -13,16 +13,11 @@
 #include "Engine/StaticMeshActor.h"
 #include "GameStates/NetSessionGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
-#include "net/UnrealNetwork.h"
-#include "Net/Core/PushModel/PushModel.h"
-
-// using ::UKismetMathLibrary; // TODO Figure this out
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	bReplicates = true;
-
+	
 	RoomTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("Room Trigger"));
 	RoomTrigger->SetupAttachment(RootComponent);
 	/** Initial size of trigger box, Box will scale with room
@@ -80,6 +75,10 @@ void ASVSRoom::BeginPlay()
 	for (UDynamicWall* Wall : DynamicWallSet)
 	{
 		Wall->SetCustomPrimitiveDataFloat(0, VisibilityDirection);
+		if(Wall->DynamicDoorOpts.bIsDoorEnabled)
+		{
+			Wall->HideDoor(true);
+		}
 	}
 	
 	/** Hide furniture */
@@ -178,6 +177,7 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	{
 		DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 		DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+		DynamicWall->HideDoor(RoomHiddenInGame);
 	}
 
 	/** Update Floor */
@@ -206,6 +206,7 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		}
 		else { UE_LOG(LogTemp, Warning, TEXT("Room could not update Room Manager when player entered")); }
 
+		SpyCharacter->UpdateCameraLocation(this);
 		/** Run Unhide Effect procedures */
 		UnHideRoom(SpyCharacter);
 	}
@@ -237,6 +238,7 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		{
 			DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 			DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+			DynamicWall->HideDoor(RoomHiddenInGame);
 		}
 
 		/** Update Floor */

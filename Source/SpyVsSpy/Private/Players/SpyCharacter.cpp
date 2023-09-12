@@ -7,9 +7,11 @@
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Players/IsoCameraActor.h"
 #include "Players/PlayerInteractionComponent.h"
 #include "Rooms/SVSRoom.h"
 #include "Players/IsoCameraComponent.h"
+#include "Players/SVSPlayerController.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ASpyCharacter
@@ -76,6 +78,11 @@ void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
 	UE_LOG(LogTemp, Warning, TEXT("Camera update called"));
 
 	if (!IsValid(FollowCamera) && !IsValid(InRoom)) { return; }
+    const ASVSPlayerController* PlayerController = Cast<ASVSPlayerController>(Controller);
+	if (AIsoCameraActor* IsoCameraActor = Cast<AIsoCameraActor>(PlayerController->GetViewTarget()))
+	{
+		IsoCameraActor->SetRoomTarget(InRoom);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -20,8 +20,12 @@ public:
 
 	ASVSDynamicDoor();
 
+	/** @return Provides just the door mesh and not the door frame mesh */
 	UFUNCTION(BlueprintCallable, Category = "SVS Door")
-	UStaticMeshComponent* GetDoorPanel() const { return DoorPanel; };
+	UStaticMeshComponent* GetDoorMesh() const { return Door; }
+
+	/** Enables and Disables the Door, leaving the door frame */
+	virtual void SetEnableDoorMesh_Implementation(bool bEnabled) override;
 
 private:
 
@@ -29,6 +33,6 @@ private:
 	UDoorInteractionComponent* DoorInteractionComponent;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly,  meta = (AllowPrivateAccess = "true"), Category = "SVS Door")
-	UStaticMeshComponent* DoorPanel;
+	UStaticMeshComponent* Door;
 	
 };
