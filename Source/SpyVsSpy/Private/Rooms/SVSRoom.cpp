@@ -8,7 +8,6 @@
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Rooms/RoomManager.h"
-#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "GameStates/NetSessionGameState.h"
@@ -50,7 +49,7 @@ void ASVSRoom::OnConstruction(const FTransform& Transform)
 void ASVSRoom::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	SetActorHiddenInGame(RoomHiddenInGame);
 
 	/** Configure room appear / vanish effect timeline */
@@ -98,7 +97,7 @@ void ASVSRoom::BeginPlay()
 			{
 				RoomManager->AddRoom(this, RoomGuid);
 			}
-			else { UE_LOG(LogTemp, Warning, TEXT("Room does not have a reference to Room Manager")); }
+			else { UE_LOG(LogTemp, Warning, TEXT("This Room does not have a reference to Room Manager")); }
 		}
 	}
 
@@ -163,7 +162,6 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 
 void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 {
-	UE_LOG(LogTemp, Warning, TEXT("Client Room unhide"));
 	/** Unhide */
 	RoomHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
 	SetActorHiddenInGame(RoomHiddenInGame);
@@ -194,10 +192,24 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 
 void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if(const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
+	if (GetLocalRole() == ROLE_SimulatedProxy) { return; }
+	
+	UE_LOG(LogTemp, Warning, TEXT("Room overlapbegin"));
+	if(ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
-		/** Effect should not appear on other player's client */
-		if (!SpyCharacter->IsLocallyControlled()) { return; }
+		OccupyingSpyCharacters.Emplace(SpyCharacter);
+		if (OccupyingSpyCharacters.Num() > 1)
+		{
+			for (ASpyCharacter* Spy : OccupyingSpyCharacters)
+			{
+				/** Effect should not appear on other player's client */
+				if (!Spy->IsLocallyControlled())
+				{
+					Spy->SetSpyHidden(false);
+					UE_LOG(LogTemp, Warning, TEXT("Room unhiding char"));
+				}
+			}
+		}
 		
 		/** Notify Room Manager that room is occupied */
 		if (IsValid(RoomManager) && HasAuthority())
@@ -205,21 +217,49 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 			RoomManager->SetRoomOccupied(this, true, SpyCharacter);
 		}
 		else { UE_LOG(LogTemp, Warning, TEXT("Room could not update Room Manager when player entered")); }
-
-		SpyCharacter->UpdateCameraLocation(this);
-		/** Run Unhide Effect procedures */
-		UnHideRoom(SpyCharacter);
+		// TODO Update for local multiplayer
+		if (SpyCharacter->IsLocallyControlled())
+		{
+			SpyCharacter->UpdateCameraLocation(this);
+			/** Run Unhide Effect procedures */
+			UnHideRoom(SpyCharacter);
+		}
 	}
 }
 
 void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if(const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
+	if(ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
-		/** Effect should not appear on other player's client */
+		// TODO update for local multi player
+		/** Hide Opposing character when someone leaves the room */
+		if (OccupyingSpyCharacters.Num() > 1)
+		{
+			bool bDidEnemySpyLeaveRoom = false;
+			for (ASpyCharacter* Spy : OccupyingSpyCharacters)
+			{
+				if (!Spy->IsLocallyControlled())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("--Room hiding char"));
+					/** Spy is the enemy spy and should be hidden */
+					Spy->SetSpyHidden(true);
+					if (Spy == SpyCharacter)
+					{
+						/** Enemy Spy left room, mark for removal from Occupants array */
+						bDidEnemySpyLeaveRoom = true;
+					}
+				}
+			}
+			if (bDidEnemySpyLeaveRoom)
+			{
+				/** Cleanup since the spy is no longer in the room */
+				OccupyingSpyCharacters.Remove(SpyCharacter);
+			}
+		}
+		/** Room Effect should not appear on other player's client */
 		if (!SpyCharacter->IsLocallyControlled()) { return; }
 
-		/** Hide
+		/** Hide Room
 		* Used by timeline finish func to hide actor and room furniture at end of vanish effect */
 		RoomHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
 		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);

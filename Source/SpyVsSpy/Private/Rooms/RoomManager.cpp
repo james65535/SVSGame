@@ -55,7 +55,7 @@ void ARoomManager::SetRoomOccupied_Implementation(const ASVSRoom* InRoom, const 
 
 	if (IsValid(PlayerCharacter))
 	{
-		PlayerCharacter->UpdateCameraLocation(InRoom);
+		//PlayerCharacter->UpdateCameraLocation(InRoom);
 	}
 	OnRoomOccupied.Broadcast(InRoom, PlayerCharacter, bIsOccupied);
 	

@@ -8,7 +8,6 @@
 #include "SpyCharacter.generated.h"
 
 class ASVSRoom;
-class UIsoCameraComponent;
 class UPlayerInventoryComponent;
 class UPlayerInteractionComponent;
 
@@ -20,11 +19,7 @@ class SPYVSSPY_API ASpyCharacter : public ACharacter
 public:
 	
 	ASpyCharacter();
-
-	/** Returns CameraBoom subobject **/
-	// FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	// /** Returns FollowCamera subobject **/
-	// FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS Character")
 	void UpdateCameraLocation(const ASVSRoom* InRoom) const;
@@ -36,6 +31,9 @@ public:
 	// TODO Implement
 	// UFUNCTION(BlueprintCallable, Category = "SVS Character")
 	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS Character")
+	void SetSpyHidden(const bool bIsSpyHidden);
 	
 private:
 
@@ -47,14 +45,15 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS Character")
 	UPlayerInteractionComponent* PlayerInteractionComponent;
 	
-	/** Camera boom positioning the camera behind the character */
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	// class USpringArmComponent* CameraBoom;
-	// /** Follow camera */
-	 UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	 class UIsoCameraComponent* FollowCamera;
-	
+	/** Follow camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UIsoCameraComponent* FollowCamera;
 
+	/** Controls whether the enemy character is visible to player */
+	UPROPERTY(ReplicatedUsing=OnRep_bIsHiddenInGame)
+	bool bIsHiddenInGame = true;
+	UFUNCTION()
+	void OnRep_bIsHiddenInGame() { SetActorHiddenInGame(bIsHiddenInGame); }
 	
 #pragma region="MovementControls"
 	/** Movement Controls */

@@ -27,7 +27,7 @@ void ANetSessionGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 void ANetSessionGameState::BeginPlay()
 {
 	/** Load RoomManager and persist reference for replication to clients */
-	if (!IsValid(RoomManager))
+	if (GetLocalRole() == ROLE_Authority && !IsValid(RoomManager))
 	{
 		if(ANetworkSessionGameMode* GameMode = Cast<ANetworkSessionGameMode>(AuthorityGameMode))
 		{

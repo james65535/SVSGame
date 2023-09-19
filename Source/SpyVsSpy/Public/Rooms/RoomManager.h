@@ -4,13 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Misc/Guid.h"
 #include "RoomManager.generated.h"
 
 class ASVSRoom;
 class ADynamicRoom;
 class ASpyCharacter;
-
+struct FGuid;
 /** Begin Delegates */
 
 /**

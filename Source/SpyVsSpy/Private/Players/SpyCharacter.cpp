@@ -12,12 +12,16 @@
 #include "Rooms/SVSRoom.h"
 #include "Players/IsoCameraComponent.h"
 #include "Players/SVSPlayerController.h"
+#include "net/UnrealNetwork.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ASpyCharacter
 
 ASpyCharacter::ASpyCharacter()
 {
+	bReplicates = true;
+	
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(35.0f, 90.0f);
 
@@ -42,27 +46,44 @@ ASpyCharacter::ASpyCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-
-	// Create a camera boom (pulls in towards the player if there is a collision)
-	// CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	// CameraBoom->SetupAttachment(RootComponent);
-	// CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	// CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-	//
-	// // Create a follow camera
+	
 	FollowCamera = CreateDefaultSubobject<UIsoCameraComponent>(TEXT("FollowCamera"));
-	// FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	// FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
-
+	
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+}
+
+void ASpyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
+	SharedParams.Condition = COND_SimulatedOnly;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyCharacter, bIsHiddenInGame, SharedParams);
 }
 
 void ASpyCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
+	UE_LOG(LogTemp, Warning, TEXT("Char: %s Role: %d"), *GetName(), GetLocalRole());
+	/** Hide opponents character on local client */
+	//!(GetLocalRole() == ROLE_SimulatedProxy) ? bIsHiddenInGame = true : bIsHiddenInGame = false; 
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Authority ran"));
+		bIsHiddenInGame = false;
+	} else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No Authority ran"));
+		bIsHiddenInGame = true;
+	}
+	SetActorHiddenInGame(bIsHiddenInGame);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyCharacter, bIsHiddenInGame, this);
+	
 	//Add Input Mapping Context
 	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
@@ -75,14 +96,19 @@ void ASpyCharacter::BeginPlay()
 
 void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("Camera update called"));
-
 	if (!IsValid(FollowCamera) && !IsValid(InRoom)) { return; }
+	
     const ASVSPlayerController* PlayerController = Cast<ASVSPlayerController>(Controller);
 	if (AIsoCameraActor* IsoCameraActor = Cast<AIsoCameraActor>(PlayerController->GetViewTarget()))
 	{
 		IsoCameraActor->SetRoomTarget(InRoom);
 	}
+}
+
+void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
+{
+	bIsHiddenInGame = bIsSpyHidden;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyCharacter, bIsHiddenInGame, this);
 }
 
 //////////////////////////////////////////////////////////////////////////

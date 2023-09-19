@@ -117,5 +117,5 @@ private:
 	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
-	TArray<APlayerController*> OccupyingSpyControllers;
+	TArray<ASpyCharacter*> OccupyingSpyCharacters;
 };
