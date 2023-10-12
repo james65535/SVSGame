@@ -20,27 +20,27 @@ public:
 	AIsoCameraActor();
 	virtual void BeginPlay() override;
 	
-	UFUNCTION(BlueprintCallable, Category = "SVS Camera")
+	UFUNCTION(BlueprintCallable, Category = "SVS|Camera")
 	void SetRoomTarget(const ASVSRoom* InRoom);
 
 	/** Camera Move to Target Timeline */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS Camera")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Camera")
 	UCurveFloat* MoveTimelineCurve;
 	FName MoveTimelineTrackName = "MoveTrack";
 	FName MoveTimelinePropertyName = "TravelDistance";
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS Camera")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Camera")
 	float MoveTimelineLength = 5.0f;
 
 private:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS Camera")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS|Camera")
 	FVector RoomLocationOffset = FVector(-600.0f, -600.0f, 800.0f);
 
 	/** Populated by Timeline */
 	FVector TargetRoomOffSetLocation = FVector::ZeroVector;
 
 	/** Timeline components for moving camera to view new room */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS|Room")
 	UTimelineComponent* MoveTimeline;
 	FOnTimelineFloat OnMoveTimelineUpdate;
 	FOnTimelineEvent OnMoveTimelineFinish;

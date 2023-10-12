@@ -10,7 +10,7 @@
 #include "Rooms/RoomManager.h"
 #include "Components/TimelineComponent.h"
 #include "Engine/StaticMeshActor.h"
-#include "GameStates/NetSessionGameState.h"
+#include "GameModes/SpyVsSpyGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
@@ -90,7 +90,7 @@ void ASVSRoom::BeginPlay()
 	{
 		/** Optimisticly Register with Room Manager, otherwise Room Manager will grab all rooms
 		 * if the below AddRoom is run before the Manager is created in world */
-		if (const ANetSessionGameState* GameState = Cast<ANetSessionGameState>(GetWorld()->GetGameState()))
+		if (const ASpyVsSpyGameState* GameState = Cast<ASpyVsSpyGameState>(GetWorld()->GetGameState()))
 		{
 			RoomManager = GameState->GetRoomManager();
 			if(IsValid(RoomManager))
@@ -100,7 +100,6 @@ void ASVSRoom::BeginPlay()
 			else { UE_LOG(LogTemp, Warning, TEXT("This Room does not have a reference to Room Manager")); }
 		}
 	}
-
 }
 
 FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* PlayerCharacter, const bool bIsEntering) const
@@ -318,7 +317,7 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 void ASVSRoom::TimelineAppearFinish()
 {
 	SetActorHiddenInGame(RoomHiddenInGame); // Will already be visible if timeline makes room Appear
-	
+	OnRoomOccupancyChange.Broadcast(this, RoomHiddenInGame);
 	/** Set Room Furniture visibility */
 	for (AStaticMeshActor* Furniture : FurnitureCollection)
 	{

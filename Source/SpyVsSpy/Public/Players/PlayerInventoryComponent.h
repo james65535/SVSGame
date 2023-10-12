@@ -18,11 +18,11 @@ public:
 	// Sets default values for this component's properties
 	UPlayerInventoryComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "SVS Character")
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Inventory")
 	bool AddInventoryItem(UInventoryItemComponent* InInventoryItem);
-	UFUNCTION(BlueprintCallable, Category = "SVS Character")
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Inventory")
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
-	UFUNCTION(BlueprintCallable, Category = "SVS Character")
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Inventory")
 	void GetInventoryItems(TArray<UInventoryItemComponent*>& InventoryItems) const;
 
 private:

@@ -33,6 +33,14 @@ public:
 	float AxisDirection = 0.0f;
 };
 
+/** Begin Delegates */
+/**
+ * Notify listeners such as Doors and Furniture that the occupancy status of the room has changed
+ * with a bool to denote of the room is occupied or not
+ * 
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRoomOccupancyChange, ASVSRoom*, bool);
+
 /**
  * Rooms are intended to only be visible when they are occupied by a player
  * When a room transitions from visible to invisible and vica versa,
@@ -53,24 +61,26 @@ public:
 	
 	/** Material properties for Warp In / Out Effect */
 	// TODO Confirm name and description
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	float VisibilityDirection = 0.0f;
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	float VanishEffect = 1.0f;
 
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	bool RoomHiddenInGame = true;
+
+	FOnRoomOccupancyChange OnRoomOccupancyChange;
 	
 	/** Vanish Effect timeline */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Room")
 	UCurveFloat* AppearTimelineCurve;
 	FName AppearTimelineTrackName = "VisibilityTrack";
 	FName AppearTimelinePropertyName = "AmountVisible";
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Room")
 	float AppearTimelineLength = 0.5f;
 
 	/** Manager coordinating Room activity and central point of access for Rooms */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "SVS Room")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "SVS|Room")
 	ARoomManager* RoomManager;
 	UFUNCTION(BlueprintCallable)
 	FGuid GetRoomGuid() const { return RoomGuid; };
@@ -97,7 +107,7 @@ private:
 
 	/** Timeline components for fade in / out effects */
 	/** Appear */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS Room")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS|Room")
 	UTimelineComponent* AppearTimeline;
 	FOnTimelineFloat OnAppearTimelineUpdate;
 	FOnTimelineEvent OnAppearTimelineFinish;
@@ -107,11 +117,11 @@ private:
 	void TimelineAppearFinish();
 
 	/** Used to determine if Player Occupies Room or Not */
-	UPROPERTY(VisibleAnywhere, Category = "SVS Room")
+	UPROPERTY(VisibleAnywhere, Category = "SVS|Room")
 	UBoxComponent* RoomTrigger;
-	UPROPERTY(EditDefaultsOnly, Category = "SVS Room")
+	UPROPERTY(EditDefaultsOnly, Category = "SVS|Room")
 	float RoomTriggerScaleMargin = 10.0f;
-	UPROPERTY(EditDefaultsOnly, Category = "SVS Room")
+	UPROPERTY(EditDefaultsOnly, Category = "SVS|Room")
 	float RoomTriggerHeight = 200.0f;
 	UFUNCTION()
 	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);

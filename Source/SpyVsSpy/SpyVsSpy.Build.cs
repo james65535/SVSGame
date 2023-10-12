@@ -8,6 +8,23 @@ public class SpyVsSpy : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "GeometryCore", "GeometryFramework", "GeometryScriptingCore", "GeometryScriptingEditor", "DynamicMeshRoomGen", "HeadMountedDisplay", "EnhancedInput", "NetCore" });
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core", 
+			"CoreUObject", 
+			"Engine", 
+			"InputCore",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			"GeometryCore", 
+			"GeometryFramework", 
+			"GeometryScriptingCore", 
+			"GeometryScriptingEditor", 
+			"DynamicMeshRoomGen", 
+			"HeadMountedDisplay", 
+			"EnhancedInput", 
+			"NetCore"
+		});
 	}
 }
