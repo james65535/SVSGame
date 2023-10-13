@@ -39,7 +39,7 @@ public:
  * with a bool to denote of the room is occupied or not
  * 
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRoomOccupancyChange, ASVSRoom*, bool);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRoomOccupancyChange, const ASVSRoom*, const bool);
 
 /**
  * Rooms are intended to only be visible when they are occupied by a player
@@ -67,7 +67,7 @@ public:
 	float VanishEffect = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
-	bool RoomHiddenInGame = true;
+	bool bRoomHiddenInGame = true;
 
 	FOnRoomOccupancyChange OnRoomOccupancyChange;
 	

@@ -2,6 +2,8 @@
 
 
 #include "Rooms/SVSRoom.h"
+
+#include "SVSLogger.h"
 #include "DynamicMeshRoomGen/Public/DynamicRoom.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Players/SpyCharacter.h"
@@ -50,7 +52,7 @@ void ASVSRoom::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	SetActorHiddenInGame(RoomHiddenInGame);
+	SetActorHiddenInGame(bRoomHiddenInGame);
 
 	/** Configure room appear / vanish effect timeline */
 	if (IsValid(AppearTimelineCurve))
@@ -62,7 +64,7 @@ void ASVSRoom::BeginPlay()
 		AppearTimeline->SetTimelineLength(AppearTimelineLength);
 		AppearTimeline->SetTimelineFinishedFunc(OnAppearTimelineFinish);
 	}
-	else { UE_LOG(LogTemp, Warning, TEXT("Room Appear Timeline Curve not valid")); }
+	else { UE_LOG(SVSLog, Warning, TEXT("Room Appear Timeline Curve not valid")); }
 
 	/** Add delegate for Room Trigger overlaps */
 	OnActorBeginOverlap.AddUniqueDynamic(this, &ASVSRoom::OnOverlapBegin);
@@ -74,16 +76,12 @@ void ASVSRoom::BeginPlay()
 	for (UDynamicWall* Wall : DynamicWallSet)
 	{
 		Wall->SetCustomPrimitiveDataFloat(0, VisibilityDirection);
-		if(Wall->DynamicDoorOpts.bIsDoorEnabled)
-		{
-			Wall->HideDoor(true);
-		}
 	}
 	
 	/** Hide furniture */
 	for (AStaticMeshActor* FurnitureItem : FurnitureCollection)
 	{
-		FurnitureItem->SetActorHiddenInGame(true);
+		if (IsValid(FurnitureItem)) { FurnitureItem->SetActorHiddenInGame(true); }
 	}
 
 	if(HasAuthority())
@@ -97,7 +95,7 @@ void ASVSRoom::BeginPlay()
 			{
 				RoomManager->AddRoom(this, RoomGuid);
 			}
-			else { UE_LOG(LogTemp, Warning, TEXT("This Room does not have a reference to Room Manager")); }
+			else { UE_LOG(SVSLogDebug, Warning, TEXT("This Room does not have a reference to Room Manager")); }
 		}
 	}
 }
@@ -162,10 +160,10 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 {
 	/** Unhide */
-	RoomHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
-	SetActorHiddenInGame(RoomHiddenInGame);
+	bRoomHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
+	SetActorHiddenInGame(bRoomHiddenInGame);
 	const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(InSpyCharacter, true);
-	UE_LOG(LogTemp, Warning, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+	UE_LOG(SVSLogDebug, Warning, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
 	/** Update Walls */
 	TArray<UDynamicWall*> WallSet;
@@ -174,7 +172,6 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	{
 		DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 		DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-		DynamicWall->HideDoor(RoomHiddenInGame);
 	}
 
 	/** Update Floor */
@@ -186,26 +183,27 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	{
 		AppearTimeline->PlayFromStart();	
 	}
-	else { UE_LOG(LogTemp, Warning, TEXT("Room timeline for appear effect is null")); }
+	else { UE_LOG(SVSLog, Warning, TEXT("Room timeline for appear effect is null")); }
 }
 
 void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
 	if (GetLocalRole() == ROLE_SimulatedProxy) { return; }
 	
-	UE_LOG(LogTemp, Warning, TEXT("Room overlapbegin"));
+	UE_LOG(SVSLogDebug, Warning, TEXT("Room overlapbegin"));
+
 	if(ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
 		OccupyingSpyCharacters.Emplace(SpyCharacter);
 		if (OccupyingSpyCharacters.Num() > 1)
 		{
+			/** Look for other spies in room and adjust their visiblity occordingly */
 			for (ASpyCharacter* Spy : OccupyingSpyCharacters)
 			{
-				/** Effect should not appear on other player's client */
 				if (!Spy->IsLocallyControlled())
 				{
 					Spy->SetSpyHidden(false);
-					UE_LOG(LogTemp, Warning, TEXT("Room unhiding char"));
+					UE_LOG(SVSLogDebug, Warning, TEXT("Room unhiding char"));
 				}
 			}
 		}
@@ -215,7 +213,7 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		{
 			RoomManager->SetRoomOccupied(this, true, SpyCharacter);
 		}
-		else { UE_LOG(LogTemp, Warning, TEXT("Room could not update Room Manager when player entered")); }
+		else { UE_LOG(SVSLog, Warning, TEXT("Room could not update Room Manager when player entered")); }
 		// TODO Update for local multiplayer
 		if (SpyCharacter->IsLocallyControlled())
 		{
@@ -239,7 +237,7 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 			{
 				if (!Spy->IsLocallyControlled())
 				{
-					UE_LOG(LogTemp, Warning, TEXT("--Room hiding char"));
+					UE_LOG(SVSLogDebug, Warning, TEXT("--Room hiding char"));
 					/** Spy is the enemy spy and should be hidden */
 					Spy->SetSpyHidden(true);
 					if (Spy == SpyCharacter)
@@ -260,14 +258,14 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 
 		/** Hide Room
 		* Used by timeline finish func to hide actor and room furniture at end of vanish effect */
-		RoomHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
+		bRoomHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
 		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);
-		UE_LOG(LogTemp, Warning, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+		UE_LOG(SVSLogDebug, Warning, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
 		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
-		UE_LOG(LogTemp, Warning, TEXT("Room Exit AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
+		UE_LOG(SVSLogDebug, Warning, TEXT("Room Exit AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
 		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-		UE_LOG(LogTemp, Warning, TEXT("Room Exit Axis: %f"), CustomPrimitiveData.Axis);
+		UE_LOG(SVSLogDebug, Warning, TEXT("Room Exit Axis: %f"), CustomPrimitiveData.Axis);
 
 		/** Update Walls */
 		TArray<UDynamicWall*> WallSet;
@@ -277,7 +275,6 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		{
 			DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 			DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-			DynamicWall->HideDoor(RoomHiddenInGame);
 		}
 
 		/** Update Floor */
@@ -288,13 +285,13 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		{
 			AppearTimeline->ReverseFromEnd();	
 		}
-		else { UE_LOG(LogTemp, Warning, TEXT("Room timeline for disappear effect is null")); }
+		else { UE_LOG(SVSLog, Warning, TEXT("Room timeline for disappear effect is null")); }
 
 		if (IsValid(RoomManager) && HasAuthority())
 		{
 			RoomManager->SetRoomOccupied(this, false, nullptr);
 		}
-		else { UE_LOG(LogTemp, Warning, TEXT("Room could not update Room Manager when player exited")); }
+		else { UE_LOG(SVSLog, Warning, TEXT("Room could not update Room Manager when player exited")); }
 	}
 }
 
@@ -316,11 +313,12 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 
 void ASVSRoom::TimelineAppearFinish()
 {
-	SetActorHiddenInGame(RoomHiddenInGame); // Will already be visible if timeline makes room Appear
-	OnRoomOccupancyChange.Broadcast(this, RoomHiddenInGame);
+	SetActorHiddenInGame(bRoomHiddenInGame); // Will already be visible if timeline makes room Appear
+	OnRoomOccupancyChange.Broadcast(this, bRoomHiddenInGame);
+
 	/** Set Room Furniture visibility */
 	for (AStaticMeshActor* Furniture : FurnitureCollection)
 	{
-		Furniture->SetActorHiddenInGame(RoomHiddenInGame);
+		if (IsValid(Furniture)) { Furniture->SetActorHiddenInGame(bRoomHiddenInGame); }
 	}
 }
