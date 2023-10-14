@@ -2,6 +2,8 @@
 
 
 #include "Players/PlayerInteractionComponent.h"
+
+#include "SVSLogger.h"
 #include "Players/InteractInterface.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -33,14 +35,12 @@ void UPlayerInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePro
 void UPlayerInteractionComponent::OnRep_LatestInteractableComponentFound()
 {
 	if (!IsValid(LatestInteractableComponentFound)) { return; }
-	UE_LOG(LogTemp, Warning, TEXT(
-			"Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound->GetName());
+	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound->GetName());
 }
 
 void UPlayerInteractionComponent::OnRep_bCanInteractWithActor()
 {
-	UE_LOG(LogTemp, Warning, TEXT(
-			"Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
+	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
 }
 
 void UPlayerInteractionComponent::BeginPlay()
@@ -82,7 +82,7 @@ void UPlayerInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedCo
 		LatestInteractableComponentFound = nullptr;
 		MARK_PROPERTY_DIRTY_FROM_NAME(UPlayerInteractionComponent, LatestInteractableComponentFound, this);
 	}
-	UE_LOG(LogTemp, Warning, TEXT("We can no longer interact with actor: %s"), *OtherActor->GetName());
+	UE_LOG(SVSLogDebug, Log, TEXT("Character: %s can no longer interact with actor: %s"), *GetOwner()->GetName(), *OtherActor->GetName());
 }
 
 void UPlayerInteractionComponent::RequestInteractWithObject() const
@@ -94,11 +94,11 @@ void UPlayerInteractionComponent::S_RequestInteractWithObject_Implementation() c
 {
 	if (!IsValid(LatestInteractableComponentFound)) { return; }
 	
-	UE_LOG(LogTemp, Warning, TEXT("Server request interfact with %s:"), *LatestInteractableComponentFound->GetName());
+	UE_LOG(SVSLogDebug, Log, TEXT("Server request interfact with %s:"), *LatestInteractableComponentFound->GetName());
 	if (const IInteractInterface* InteractableComponent = Cast<IInteractInterface>(LatestInteractableComponentFound))
 	{
 		const bool bSuccessful = InteractableComponent->Execute_Interact(LatestInteractableComponentFound);
-		UE_LOG(LogTemp, Warning, TEXT("Interaction success status: %s"), bSuccessful ? *FString("True") : *FString("False"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Interaction success status: %s"), bSuccessful ? *FString("True") : *FString("False"));
 	}
 	C_RequestInteractWithObject();
 }

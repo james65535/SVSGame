@@ -70,6 +70,15 @@ public:
 	bool bRoomHiddenInGame = true;
 
 	FOnRoomOccupancyChange OnRoomOccupancyChange;
+
+	// TODO Could update this to accomodate team play
+	/**
+	 * @brief Request room to hide the occupying characters or reveal them
+	 * @param RequestingCharacter Pointer to Requesting Player (they will not have their visibility changed)
+	 * @param bHideCharacters If Characters in room should be hidden or not
+	 */
+	UFUNCTION(BlueprintCallable)
+	void ChangeOpposingOccupantsVisibility(const ASpyCharacter* RequestingCharacter, const bool bHideCharacters);
 	
 	/** Vanish Effect timeline */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Room")

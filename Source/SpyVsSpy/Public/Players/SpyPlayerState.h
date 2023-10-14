@@ -89,6 +89,8 @@ protected:
 	/** Ability System Tags */
 	FGameplayTag SpyDeadTag;
 
+
+
 private:
 
 	/** Class Overrides */

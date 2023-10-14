@@ -32,18 +32,23 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	ASpyPlayerState* GetSpyPlayerState() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	virtual void UpdateCameraLocation(const ASVSRoom* InRoom) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	UPlayerInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; };
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; };
-	// TODO Implement
-	// UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	virtual void SetSpyHidden(const bool bIsSpyHidden);
+
+#pragma region="Health"
+	// TODO Implement
+	// UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
 
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Character")
 	FCharacterDiedDelegate OnCharacterDied;
@@ -61,32 +66,37 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Attributes")
 	float GetMaxHealth() const;
+#pragma endregion="Health"
 
-	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	ASpyPlayerState* GetSpyPlayerState() const;
-	
 private:
 
 	UPROPERTY()
 	ASpyPlayerState* SpyPlayerState;
 
+	/** Follow camera */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UIsoCameraComponent* FollowCamera;
+
+#pragma region="Inventory"
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	UPlayerInventoryComponent* PlayerInventoryComponent;
+#pragma endregion="Inventory"
+
+#pragma region="Interaction"
 	// TODO Implement
 	// UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), EditInstanceOnly, Category = "SVS|Character")
 	// UPlayerHealthComponent* PlayerHealthComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	UPlayerInteractionComponent* PlayerInteractionComponent;
-	
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UIsoCameraComponent* FollowCamera;
+#pragma endregion="Interaction"
 
-	/** Controls whether the enemy character is visible to player */
+#pragma region="CharacterVisibility"
+	/** Controls whether the character is visible to other players */
 	UPROPERTY(ReplicatedUsing=OnRep_bIsHiddenInGame)
 	bool bIsHiddenInGame = true;
 	UFUNCTION()
 	void OnRep_bIsHiddenInGame() { SetActorHiddenInGame(bIsHiddenInGame); }
+#pragma endregion="CharacterVisibility"
 	
 #pragma region="MovementControls"
 	/** MappingContext */
@@ -120,6 +130,31 @@ private:
 	
 protected:
 
+#pragma region="ClassOverrides"
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+#pragma endregion="ClassOverrides"
+
+	UFUNCTION()
+	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+	UFUNCTION()
+	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+
+#pragma region ="RoomTraversal"
+	/** State and Logic for processing when character enters and leaves rooms */
+	/** Track  which room the character is currently located in */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SVS|Room", meta = (AllowPrivateAccess = "true"))
+	ASVSRoom* CurrentRoom;
+	/** A transitory variable to track the new room during the process of character going from one room to another */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SVS|Room", meta = (AllowPrivateAccess = "true"))
+	ASVSRoom* RoomEntering;
+	/** Internal process to mutate character room pointers for when the character goes from room to room */
+	UFUNCTION()
+	void ProcessRoomChange(ASVSRoom* NewRoom);
+#pragma region ="RoomTraversal"
+
 #pragma region ="Combat"
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void HandlePrimaryAttack();
@@ -147,14 +182,12 @@ protected:
 	class USphereComponent* AttackZone;
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|Abilities")
 	UAnimMontage* AttackMontage;
-#pragma endregion="Combat"
 
-#pragma region="ClassOverrides"
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	virtual void BeginPlay() override;
-	virtual void PossessedBy(AController* NewController) override;
-	virtual void OnRep_PlayerState() override;
-#pragma endregion="ClassOverrides"
+	// TODO Rework this
+	/** Tag name which specifies which characters can participate in combat */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities|Combat", meta = (AllowPrivateAccess = "true"))
+	FName CombatantTag = "Spy";
+#pragma endregion="Combat"
 
 #pragma region="InputCallMethods"
 	/** Called for movement input */
@@ -201,4 +234,5 @@ protected:
 	FGameplayTag SpyDeadTag;
 	FGameplayTag EffectRemoveOnDeathTag;
 #pragma endregion="Ability System"
+	
 };

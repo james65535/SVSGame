@@ -2,6 +2,8 @@
 
 
 #include "Rooms/DoorInteractionComponent.h"
+
+#include "SVSLogger.h"
 #include "Components/AudioComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Rooms/SVSDynamicDoor.h"
@@ -32,7 +34,7 @@ void UDoorInteractionComponent::BeginPlay()
 			DoorTransitionTimelineCurve, OnDoorTransitionUpdate, AppearTimelinePropertyName, DoorTransitionTrackName);
 		DoorTransitionTimeline->SetTimelineFinishedFunc(OnDoorTransitionFinish);
 	}
-	else { UE_LOG(LogTemp, Warning, TEXT("Door transition timeline curve not valid")); }
+	else { UE_LOG(SVSLog, Warning, TEXT("Door transition timeline curve not valid")); }
 }
 
 bool UDoorInteractionComponent::Interact_Implementation()
@@ -98,7 +100,7 @@ void UDoorInteractionComponent::NM_OpenDoor_Implementation()
 	{
 		DoorOpenSfx->Play();
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Opening Door"));
+	UE_LOG(SVSLogDebug, Log, TEXT("Opening Door"));
 	DoorState = EDoorState::Opening;
 	DoorTransitionTimeline->PlayFromStart();
 }
@@ -106,23 +108,21 @@ void UDoorInteractionComponent::NM_OpenDoor_Implementation()
 void UDoorInteractionComponent::NM_CloseDoor_Implementation()
 {
 	if (IsValid(DoorCloseSfx))
-	{
-		DoorCloseSfx->Play();
-	}
-	UE_LOG(LogTemp, Warning, TEXT("Closing Door"));
+	{ DoorCloseSfx->Play(); }
+	UE_LOG(SVSLogDebug, Log, TEXT("Closing Door"));
 	DoorState = EDoorState::Closing;
 	DoorTransitionTimeline->ReverseFromEnd();
 }
 
 void UDoorInteractionComponent::DoorOpened()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Door is Open"));
+	UE_LOG(SVSLogDebug, Log, TEXT("Door is Open"));
 	OnDoorOpened.Broadcast();
 }
 
 void UDoorInteractionComponent::DoorClosed()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Door is Closed"));
+	UE_LOG(SVSLogDebug, Log, TEXT("Door is Closed"));
 	OnDoorClosed.Broadcast();
 }
 
@@ -130,9 +130,7 @@ void UDoorInteractionComponent::TransitionDoor(float const DoorOpenedAmount)
 {
 	const FRotator CurrentRotation = FMath::Lerp(StartRotation,FinalRotation,DoorOpenedAmount);
 	if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorMesh())
-	{
-		DoorPanel->SetRelativeRotation(CurrentRotation);
-	}
+	{ DoorPanel->SetRelativeRotation(CurrentRotation); }
 }
 
 void UDoorInteractionComponent::DoorTransitionTimelineUpdate(float const OpenAmount)

@@ -27,11 +27,11 @@ void ASVSDynamicDoor::BeginPlay()
 	if (ASVSRoom* SVSRoomA = Cast<ASVSRoom>(RoomA))
 	{
 		SVSRoomA->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange);
-	} else { UE_LOG(SVSLogDebug, Warning, TEXT("Door Could not add occupancy delegate to room ref A.")); }
+	} else { UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref A.")); }
 	if (ASVSRoom* SVSRoomB = Cast<ASVSRoom>(RoomB))
 	{
 		SVSRoomB->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange);
-	} else { UE_LOG(SVSLogDebug, Warning, TEXT("Door Could not add occupancy delegate to room ref B.")); }
+	} else { UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref B.")); }
 }
 
 void ASVSDynamicDoor::SetEnableDoorMesh_Implementation(const bool bEnabled)
@@ -62,7 +62,7 @@ void ASVSDynamicDoor::OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const b
 		/** Handle if both rooms hidden */
 		if (SVSRoomA->bRoomHiddenInGame && SVSRoomB->bRoomHiddenInGame)
 		{
-			UE_LOG(SVSLogDebug, Warning, TEXT("Door occupency delegate found both rooms hidden"));
+			UE_LOG(SVSLogDebug, Log, TEXT("Door occupency delegate found both rooms hidden"));
 			SetActorHiddenInGame(true);
 			return;
 		}
@@ -72,6 +72,6 @@ void ASVSDynamicDoor::OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const b
 	else
 	{
 		/** Rooms do not share the same visibility bool */
-		UE_LOG(SVSLogDebug, Warning, TEXT("Door occupency delegate triggered but neighboring rooms are not valid pointers"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Door occupency delegate triggered but neighboring rooms are not valid pointers"));
 	}
 }
