@@ -100,13 +100,11 @@ void ASpyCharacter::BeginPlay()
 	SetSpyHidden(bIsHiddenInGame);
 	
 	/** Add Input Mapping Context */
-	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
+	// if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	// {
+	// 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	// 	{ Subsystem->AddMappingContext(DefaultMappingContext, 0); }
+	// }
 
 	/** Add delegates for Character Overlaps */
 	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
@@ -115,8 +113,10 @@ void ASpyCharacter::BeginPlay()
 
 void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
 {
-	if (IsRunningDedicatedServer()) { return; }
-	UE_LOG(LogTemp, Warning, TEXT("Character Triggered Play Attack Anim Montage"));
+	if (IsRunningDedicatedServer())
+	{ return; }
+	
+	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Play Attack Anim Montage"));
 	PlayAnimMontage(AttackMontage);
 }
 
@@ -152,7 +152,6 @@ void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
 
 	/** Clean up temporary pointer used for traversal process */
 	RoomEntering = nullptr;
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Entering Room: %s"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), *CurrentRoom->GetName());
 }
 
 void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
@@ -160,8 +159,6 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 	/* If OtherActor is a Room then capture the room which character is trying to enter */
 	if (ASVSRoom* SVSRoomOverlapped = Cast<ASVSRoom>(OtherActor))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s overlapped room: %s"),IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), *OtherActor->GetName());
-		
 		/** Prep for room transfer if already in a room,
 		 * this multi part process helps reduce change of bugs due to character clipping
 		 * as they cannot be in a new room if they have not left the old room */
@@ -175,8 +172,6 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		else
 		{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s cannot process room change as they do not have authority or CurrentRoom is not null."), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName()); }
 	}
-	else
-	{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s overlapped with actor: %s which is not a room"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), *OtherActor->GetName()); }
 }
 
 void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
@@ -272,6 +267,8 @@ void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromL
 
 void ASpyCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	
 	// TODO Move input to controller
 	/** Set up action bindings */
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {

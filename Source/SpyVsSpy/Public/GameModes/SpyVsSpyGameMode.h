@@ -21,6 +21,7 @@ public:
 	ASpyVsSpyGameMode();
 	virtual void BeginPlay() override;
 	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual void RestartGame() override; // TODO review to see if controller resets are needed
 
 	ARoomManager* LoadRoomManager();
 
@@ -31,9 +32,6 @@ public:
 	/** Method for Player's to notify they are ready to play */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void PlayerNotifyIsReady(ASpyPlayerState* InPlayerState );
-
-	void RestartGame();
-
 
 private:
 

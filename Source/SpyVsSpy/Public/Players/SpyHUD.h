@@ -40,13 +40,13 @@ public:
 	 * @param bOverrideCommandLine Should the Game User Settings check for conflicting command line settings
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void SetScreenRes(FIntPoint InScreenRes, bool bOverrideCommandLine);
+	void SetScreenRes(const FIntPoint InScreenRes, const bool bOverrideCommandLine);
 	/**
 	 * Stores the Game User Settings to Disk
 	 * @param bOverrideCommandLine Should the Game User Settings override conflicting command line settings
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void ConfirmGameUserSettings(bool bOverrideCommandLine);
+	void ConfirmGameUserSettings(const bool bOverrideCommandLine);
 	
 	/**
 	 * UI Assets specify what elements are rendered in the Player's UI
@@ -138,10 +138,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SVS|UI")
 	TSubclassOf<UUIElementWidget> BaseUIWidgetClass;
 
-	/** Funcs to handle Widget Creation */
+	/** Methods to handle Widget Creation */
 	/** Add Game Mode UI to Game Base UI */
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	UUIElementWidget* AddSlotUI_Implementation(TSubclassOf<UUIElementWidget> InWidgetClass, FName InSlotName);
+	UUIElementWidget* AddSlotUI_Implementation(const TSubclassOf<UUIElementWidget> InWidgetClass, FName InSlotName);
 	/** Add Widget to Player Viewport Wrapper */
 	UUIElementWidget* AddWidget(const TSubclassOf<UUIElementWidget> InWidgetClass) const;
 };

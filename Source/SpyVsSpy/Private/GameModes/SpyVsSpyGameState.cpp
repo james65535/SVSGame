@@ -2,6 +2,8 @@
 
 
 #include "GameModes/SpyVsSpyGameState.h"
+
+#include "SVSLogger.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Rooms/RoomManager.h"
 #include "net/UnrealNetwork.h"
@@ -35,7 +37,7 @@ void ASpyVsSpyGameState::SetGameState(const ESpyGameState InGameState)
 	SpyGameState = InGameState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyVsSpyGameState, SpyGameState, this);
 	
-	// Manual invocation of OnRep_GameState so server will also run the method
+	/** Manual invocation of OnRep_GameState so server will also run the method */
 	if (HasAuthority())
 	{ OnRep_GameState(); }
 }
@@ -45,7 +47,7 @@ void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
 	SVSGameType = InGameType;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyVsSpyGameState, SVSGameType, this);
 	
-	// Manual invocation of OnRep_GameState so server will also run the method
+	/** Manual invocation of OnRep_GameState so server will also run the method */
 	if (HasAuthority())
 	{ OnRep_GameType(); }
 }
@@ -61,7 +63,7 @@ void ASpyVsSpyGameState::NM_MatchStart_Implementation()
 	MatchStartTime = GetServerWorldTimeSeconds();
 	SetGameState(ESpyGameState::Playing);
 	OnStartMatchDelegate.Broadcast(MatchStartTime);
-	UE_LOG(LogTemp, Warning, TEXT("Gamestate match start time: %f"), MatchStartTime);
+	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), MatchStartTime);
 }
 
 void ASpyVsSpyGameState::OnRep_ResultsUpdated()
@@ -70,9 +72,7 @@ void ASpyVsSpyGameState::OnRep_ResultsUpdated()
 	{
 		if(const ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(
 			PlayerState->GetPlayerController()))
-		{
-			PlayerController->RequestDisplayFinalResults();
-		}
+		{ PlayerController->RequestDisplayFinalResults(); }
 	}
 }
 
@@ -114,10 +114,9 @@ bool ASpyVsSpyGameState::CheckAllResultsIn() const
 {
 	const uint8 FinalNumPlayers = PlayerArray.Num();
 	if (FinalNumPlayers > 0 && Results.Num() == FinalNumPlayers)
-	{
-		return true;
-	}
-	UE_LOG(LogTemp, Warning, TEXT("GameState CheckAllResults has %i Players and %i Results."), FinalNumPlayers, Results.Num());
+	{ return true; }
+	
+	UE_LOG(SVSLog, Log, TEXT("GameState CheckAllResults has %i Players and %i Results."), FinalNumPlayers, Results.Num());
 	return false;
 }
 
@@ -127,7 +126,7 @@ void ASpyVsSpyGameState::OnRep_GameState() const
 
 void ASpyVsSpyGameState::OnRep_GameType() const
 {
-	// If Replicated with COND_SkipOwner then Authority will need to run this manually
+	/** If Replicated with COND_SkipOwner then Authority will need to run this manually */
 	OnGameTypeUpdateDelegate.Broadcast(SVSGameType);
 }
 
@@ -142,9 +141,7 @@ void ASpyVsSpyGameState::BeginPlay()
 			MARK_PROPERTY_DIRTY_FROM_NAME(ASpyVsSpyGameState, RoomManager, this);
 		}
 		if (!IsValid(RoomManager))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("GameState could not get game mode to load a room manager"))
-		}
+		{ UE_LOG(SVSLog, Warning, TEXT("GameState could not get game mode to load a room manager")); }
 	}
 	
 	Super::BeginPlay();
@@ -159,9 +156,9 @@ void ASpyVsSpyGameState::OnRep_RoomManager()
 {
 	if(IsValid(RoomManager))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Game State Updated Room Manager Reference"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Game State Updated Room Manager Reference"));
 	} else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Game State has an invalid Room Manager Reference"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Game State has an invalid Room Manager Reference"));
 	}
 }

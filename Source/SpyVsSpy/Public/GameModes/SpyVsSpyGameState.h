@@ -46,7 +46,7 @@ struct FGameResult
 };
 
 /**
- * 
+ * Track state related to online multiplayer versus game mode
  */
 
 /** Begin Delegates */

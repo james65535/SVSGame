@@ -12,10 +12,8 @@ class USpyAbilitySystemComponent;
 class USpyAttributeSet;
 class USaveGame;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveGameUpdate);
-
-// Enum to track the current state of the player
-UENUM()
+/** Enum to track the current state of the player */
+UENUM(BlueprintType)
 enum class EPlayerGameStatus : uint8
 {
 	None		UMETA(DisplayName = "None"),
@@ -24,6 +22,8 @@ enum class EPlayerGameStatus : uint8
 	Playing		UMETA(DisplayName = "Playing"),
 	Finished	UMETA(DisplayName = "Finished"),
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveGameUpdate);
 
 /**
  * 
@@ -62,13 +62,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	EPlayerGameStatus GetCurrentState() const { return CurrentStatus; }
-
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus);
 
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	bool IsWinner() const { return bIsWinner; }
-
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
 	
 protected:
@@ -89,8 +87,6 @@ protected:
 	/** Ability System Tags */
 	FGameplayTag SpyDeadTag;
 
-
-
 private:
 
 	/** Class Overrides */
@@ -104,5 +100,12 @@ private:
 
 	/** Game result winner state */
 	bool bIsWinner = false;
+
+	/** Save and Load Delegates */
+	void SavePlayerDelegate(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+	void LoadPlayerSaveDelegate(const FString& SlotName, const int32 UserIndex, USaveGame* LoadedGameData);
+	// TODO Build these properties out instead of being static
+	const FString SaveSlotName = TEXT("GeneralSaveSlot");
+	const uint32 SaveUserIndex = 0;
 
 };

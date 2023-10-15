@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/PlayerController.h"
+#include "InputActionValue.h"
 #include "EnhancedInput/Public/InputMappingContext.h"
+#include "GameFramework/PlayerController.h"
 #include "SpyPlayerController.generated.h"
 
 class ASpyHUD;
@@ -96,23 +97,79 @@ private:
 	void HUDDisplayGameTimeElapsedSeconds() const;
 	
 	/** Player HUD */
-	UPROPERTY(EditDefaultsOnly, Category = "SVS|UI")
+	UPROPERTY(VisibleInstanceOnly, Category = "SVS|UI")
 	ASpyHUD* PlayerHUD;
 	UPROPERTY(EditDefaultsOnly, Category = "SVS|UI")
 	UGameUIElementsRegistry* GameElementsRegistry;
-	UFUNCTION(BlueprintCallable, Category = "SVS")
-	void UpdateHUDWithGameUIElements(ESVSGameType InGameType);
-
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void UpdateHUDWithGameUIElements(const ESVSGameType InGameType) const;
+	/** Level Menu Display Requests */
+	UFUNCTION(BlueprintCallable, Category = "SVS|")
+	void RequestDisplayLevelMenu();
+	UFUNCTION(BlueprintCallable, Category = "SVS|")
+	void RequestHideLevelMenu();
+	
 	/** Enhanced Input Setup */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Input", meta = (AllowPrivateAccess))
 	TSoftObjectPtr<UInputMappingContext> GameInputMapping;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Input", meta = (AllowPrivateAccess))
 	TSoftObjectPtr<UInputMappingContext> MenuInputMapping;	
-	//UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enhanced Input", meta = (AllowPrivateAccess))
-	//class UTantrumnInputConfigRegistry* InputActions;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SVS|Input", meta = (AllowPrivateAccess))
+	class UPlayerInputConfigRegistry* InputActions;
 	/** Call to change Input Mapping Contexts for Controller */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Input")
 	void SetInputContext(TSoftObjectPtr<UInputMappingContext> InMappingContext);
+
+	/** Delegate related to Game State match start of play */
+	void StartMatchForPlayer(const float InMatchStartTime);
+	
+	/** Checks if player is allowed to input movement commands given current state of play */
+	bool CanProcessRequest() const;
+
+	/** Character Movement Requests */
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestMove(const FInputActionValue& ActionValue);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestNextTrap(const FInputActionValue& ActionValue);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestPreviousTrap(const FInputActionValue& ActionValue);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestInteract(const FInputActionValue& ActionValue);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestPrimaryAttack(const FInputActionValue& ActionValue);
+	
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestJump();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestStopJump();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestCrouch();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestStopCrouch();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestSprint();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestStopSprint();
+
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestLook(const FInputActionValue& ActionValue);
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestThrowObject(const FInputActionValue& ActionValue);
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestHoldObject();
+	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
+	// void RequestStopHoldObject();
+	/** Character Look Inputs */
+	// UPROPERTY(EditAnywhere,Category = "CharacterMovement")
+	// float BaseLookPitchRate = 90.0f;
+	// UPROPERTY(EditAnywhere,Category = "CharacterMovement")
+	// float BaseLookYawRate = 90.0f;
+	// /** Base lookup rate, in deg/sec.  Other scaling may affect final lookup rate */
+	// UPROPERTY(EditAnywhere, Category = "Look")
+	// float BaseLookUpRate = 90.0f;
+	// /** Base look right rate, in deg/sec.  Other scaling may affect final lookup rate */
+	// UPROPERTY(EditAnywhere, Category = "Look")
+	// float BaseLookRightRate = 90.0f;
 
 protected:
 

@@ -2,6 +2,8 @@
 
 
 #include "Players/IsoCameraActor.h"
+
+#include "SVSLogger.h"
 #include "Rooms/SVSRoom.h"
 #include "Components/TimelineComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -26,7 +28,7 @@ void AIsoCameraActor::BeginPlay()
 		MoveTimeline->SetTimelineLength(MoveTimelineLength);
 		MoveTimeline->SetTimelineFinishedFunc(OnMoveTimelineFinish);
 	}
-	else { UE_LOG(LogTemp, Warning, TEXT("Room Appear Timeline Curve not valid")); }
+	else { UE_LOG(SVSLog, Warning, TEXT("Room Appear Timeline Curve not valid")); }
 }
 
 void AIsoCameraActor::SetRoomTarget(const ASVSRoom* InRoom)
@@ -45,5 +47,4 @@ void AIsoCameraActor::TimelineMoveUpdate(float const MoveInterp)
 
 void AIsoCameraActor::TimelineMoveFinish()
 {
-	UE_LOG(LogTemp, Warning, TEXT("IsoCameraMoveComplete"));
 }
