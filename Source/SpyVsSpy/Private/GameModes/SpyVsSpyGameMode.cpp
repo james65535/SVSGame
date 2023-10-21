@@ -49,6 +49,14 @@ void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 	}
 }
 
+void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime)
+{
+	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
+	{
+		
+	}
+}
+
 void ASpyVsSpyGameMode::RestartGame()
 {
 	Super::RestartGame();

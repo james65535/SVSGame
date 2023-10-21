@@ -9,6 +9,7 @@
 #include "GameModes/SpyVsSpyGameState.h"
 #include "SpyHUD.generated.h"
 
+class UInventoryComponent;
 class ASpyPlayerController;
 class ASpyVsSpyGameMode;
 enum class EPlayerGameStatus : uint8;
@@ -65,7 +66,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplayMatchStartCountDownTime(const float InMatchStartCountDownTime) const ;
+	
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth) const;
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void DisplayCharacterInventory(const UInventoryComponent* InventoryComponent) const;
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void DisplaySelectedActorInventory(const AActor* InSelectedActor,  const UInventoryComponent* InventoryComponent) const;
+	
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void UpdateUIOnFinish() const;
 
@@ -82,7 +91,7 @@ public:
 	void HideLevelMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void UpdateDisplayedPlayerState(const EPlayerGameStatus InPlayerState) const;
+	void UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerState) const;
 
 private:
 

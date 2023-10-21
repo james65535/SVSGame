@@ -2,11 +2,14 @@
 
 
 #include "Players/SpyHUD.h"
+
+#include "SVSLogger.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UI/UIElementWidget.h"
 #include "UI/UIElementAsset.h"
 #include "Players/SpyPlayerController.h"
+#include "Items/InventoryComponent.h"
 
 void ASpyHUD::BeginPlay()
 {
@@ -101,6 +104,26 @@ void ASpyHUD::DisplayMatchStartCountDownTime(const float InMatchStartCountDownTi
 	LevelMenuWidget->HideGameMenu();
 }
 
+void ASpyHUD::DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth) const
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("InCurrent Health: %f InMaxHealth: %f"), InCurrentHealth, InMaxHealth);
+
+	if (IsValid(GameLevelWidget))
+	{ GameLevelWidget->DisplayCharacterHealth(InCurrentHealth, InMaxHealth); }
+}
+
+void ASpyHUD::DisplayCharacterInventory(const UInventoryComponent* InventoryComponent) const
+{
+	if (IsValid(GameLevelWidget))
+	{ GameLevelWidget->DisplayCharacterInventory(InventoryComponent); }
+}
+
+void ASpyHUD::DisplaySelectedActorInventory(const AActor* InSelectedActor,  const UInventoryComponent* InventoryComponent) const
+{
+	if (IsValid(GameLevelWidget))
+	{ GameLevelWidget->DisplaySelectedActorInventory(InSelectedActor, InventoryComponent); }
+}
+
 void ASpyHUD::UpdateUIOnFinish() const
 {
 	if (GameLevelWidget)
@@ -134,10 +157,10 @@ void ASpyHUD::HideLevelMenu()
 	LevelMenuWidget->HideGameMenu();
 }
 
-void ASpyHUD::UpdateDisplayedPlayerState(const EPlayerGameStatus InPlayerState) const
+void ASpyHUD::UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerState) const
 {
 	if (IsValid(GameLevelWidget))
-	{ GameLevelWidget->UpdateDisplayedPlayerState(InPlayerState); }
+	{ GameLevelWidget->UpdateDisplayedPlayerStatus(InPlayerState); }
 }
 
 UUIElementWidget* ASpyHUD::AddSlotUI_Implementation(const TSubclassOf<UUIElementWidget> InWidgetClass, FName InSlotName)
@@ -151,13 +174,13 @@ UUIElementWidget* ASpyHUD::AddSlotUI_Implementation(const TSubclassOf<UUIElement
 		check(BaseUIWidget);
 	}
 
-	if (UUIElementWidget* OutWidgetRef = CreateWidget<UUIElementWidget>(GetOwningPlayerController(), InWidgetClass))
+	if (UUIElementWidget* OutWidgetRef = CreateWidget<UUIElementWidget>(
+		GetOwningPlayerController(),
+		InWidgetClass))
 	{
 		BaseUIWidget->SetContentForSlot(InSlotName, OutWidgetRef);
 		if(BaseUIWidget->GetContentForSlot(InSlotName) != nullptr)
-		{
-			return OutWidgetRef;
-		}
+		{ return OutWidgetRef; }
 	}
 	return nullptr;
 }
@@ -166,7 +189,9 @@ UUIElementWidget* ASpyHUD::AddWidget(const TSubclassOf<UUIElementWidget> InWidge
 {
 	check(InWidgetClass);
 	
-	if(UUIElementWidget* ReturnWidget = CreateWidget<UUIElementWidget>(GetOwningPlayerController(), InWidgetClass))
+	if(UUIElementWidget* ReturnWidget = CreateWidget<UUIElementWidget>(
+		GetOwningPlayerController(),
+		InWidgetClass))
 	{
 		ReturnWidget->AddToPlayerScreen();
 		return ReturnWidget;

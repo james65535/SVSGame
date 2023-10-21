@@ -5,6 +5,7 @@
 
 #include "SVSLogger.h"
 #include "Rooms/DoorInteractionComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Rooms/SVSRoom.h"
 
 ASVSDynamicDoor::ASVSDynamicDoor()
@@ -12,40 +13,35 @@ ASVSDynamicDoor::ASVSDynamicDoor()
 	bReplicates = true;
 	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>("Door Interaction Component");
 	DoorInteractionComponent->SetIsReplicated(true);
-	Door = CreateDefaultSubobject<UStaticMeshComponent>("Door");
-	Door->SetupAttachment(GetRootComponent());
+
+	DoorPanel = CreateDefaultSubobject<UStaticMeshComponent>("Door Panel Mesh");
+	DoorPanel->SetupAttachment(RootComponent);
 }
 
 void ASVSDynamicDoor::BeginPlay()
 {
-	Super::BeginPlay();
-
-	/** Default to hiddena and rely on room delegate broadcasts to change */
+	/** Default to hidden and rely on room delegate broadcasts to change */
 	SetActorHiddenInGame(true);
 	
-	/** Setup Room Occupancy Change Room Delegates */
+	Super::BeginPlay();
+	
+	/** Setup Room Occupancy Change Delegates */
 	if (ASVSRoom* SVSRoomA = Cast<ASVSRoom>(RoomA))
-	{
-		SVSRoomA->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange);
-	} else { UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref A.")); }
+	{ SVSRoomA->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange); }
+	else
+	{ UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref A.")); }
+	
 	if (ASVSRoom* SVSRoomB = Cast<ASVSRoom>(RoomB))
-	{
-		SVSRoomB->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange);
-	} else { UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref B.")); }
+	{ SVSRoomB->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange); }
+	else
+	{ UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref B.")); }
 }
 
 void ASVSDynamicDoor::SetEnableDoorMesh_Implementation(const bool bEnabled)
 {
 	bEnableDoorMesh = bEnabled;
-	ToggleDoor(Door);
-	if (bEnabled)
-	{
-		GetStaticMeshComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);	
-	} else
-	{
-		GetStaticMeshComponent()->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Ignore);	
-	}
-		
+	ToggleDoor(DoorPanel);
+
 	if (IsValid(DoorInteractionComponent))
 	{
 		DoorInteractionComponent->SetInteractionEnabled(bEnabled);
@@ -60,18 +56,18 @@ void ASVSDynamicDoor::OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const b
 	if (IsValid(SVSRoomA) && IsValid(SVSRoomB))
 	{
 		/** Handle if both rooms hidden */
-		if (SVSRoomA->bRoomHiddenInGame && SVSRoomB->bRoomHiddenInGame)
+		if (SVSRoomA->bRoomLocallyHiddenInGame && SVSRoomB->bRoomLocallyHiddenInGame)
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("Door occupency delegate found both rooms hidden"));
+			UE_LOG(SVSLogDebug, Log, TEXT("Door occupancy delegate found both rooms hidden"));
 			SetActorHiddenInGame(true);
 			return;
 		}
 		SetActorHiddenInGame(false);
-		UE_LOG(SVSLog, Warning, TEXT("Door occupency delegate triggered but at least one room is still visible"));
+		UE_LOG(SVSLog, Warning, TEXT("Door occupancy delegate triggered but at least one room is still visible"));
 	}
 	else
 	{
 		/** Rooms do not share the same visibility bool */
-		UE_LOG(SVSLogDebug, Log, TEXT("Door occupency delegate triggered but neighboring rooms are not valid pointers"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Door occupancy delegate triggered but neighboring rooms are not valid pointers"));
 	}
 }

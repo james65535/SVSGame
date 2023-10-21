@@ -33,6 +33,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void PlayerNotifyIsReady(ASpyPlayerState* InPlayerState );
 
+	/** Method for Player's to notify they are ready to play */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
+	void SetMatchTime(const float InMatchTime);
+
 private:
 
 	// TODO this can be dropped in favour of DesiredGameType

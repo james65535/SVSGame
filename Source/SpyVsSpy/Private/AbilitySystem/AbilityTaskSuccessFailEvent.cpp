@@ -7,19 +7,19 @@
 
 UAbilityTaskSuccessFailEvent* UAbilityTaskSuccessFailEvent::WaitSuccessFailEvent(UGameplayAbility* OwningAbility, const FGameplayTag SuccessTag, const FGameplayTag FailTag, AActor* OptionalExternalTarget, const bool OnlyTriggerOnce,  const bool OnlyMatchExact)
 {
-	UAbilityTaskSuccessFailEvent* MyObj = NewAbilityTask<UAbilityTaskSuccessFailEvent>(OwningAbility);
-	MyObj->SuccessTag = SuccessTag;
-	MyObj->FailTag = FailTag;
-	MyObj->SetExternalTarget(OptionalExternalTarget);
-	MyObj->OnlyTriggerOnce = OnlyTriggerOnce;
-	MyObj->OnlyMatchExact = OnlyMatchExact;
+	UAbilityTaskSuccessFailEvent* AbilityTaskSuccessFailEvent = NewAbilityTask<UAbilityTaskSuccessFailEvent>(OwningAbility);
+	AbilityTaskSuccessFailEvent->SuccessTag = SuccessTag;
+	AbilityTaskSuccessFailEvent->FailTag = FailTag;
+	AbilityTaskSuccessFailEvent->SetExternalTarget(OptionalExternalTarget);
+	AbilityTaskSuccessFailEvent->OnlyTriggerOnce = OnlyTriggerOnce;
+	AbilityTaskSuccessFailEvent->OnlyMatchExact = OnlyMatchExact;
 
-	return MyObj;
+	return AbilityTaskSuccessFailEvent;
 }
 
 void UAbilityTaskSuccessFailEvent::SetExternalTarget(const AActor* Actor)
 {
-	if (Actor)
+	if (IsValid(Actor))
 	{
 		UseExternalTarget = true;
 		OptionalExternalTarget = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
@@ -28,7 +28,8 @@ void UAbilityTaskSuccessFailEvent::SetExternalTarget(const AActor* Actor)
 
 UAbilitySystemComponent* UAbilityTaskSuccessFailEvent::GetTargetAbilitySystemComponent() const
 {
-	if (UseExternalTarget) { return OptionalExternalTarget; }
+	if (UseExternalTarget)
+	{ return OptionalExternalTarget; }
 
 	return AbilitySystemComponent.Get();
 }
@@ -78,7 +79,8 @@ void UAbilityTaskSuccessFailEvent::SuccessEventContainerCallback(FGameplayTag Ma
 		SuccessEventReceived.Broadcast(MoveTemp(TempPayload));
 	}
 	
-	if (OnlyTriggerOnce) { EndTask(); }
+	if (OnlyTriggerOnce)
+	{ EndTask(); }
 }
 
 void UAbilityTaskSuccessFailEvent::FailEventCallback(const FGameplayEventData* Payload)
@@ -96,34 +98,27 @@ void UAbilityTaskSuccessFailEvent::FailEventContainerCallback(FGameplayTag Match
 		FailEventReceived.Broadcast(MoveTemp(TempPayload));
 	}
 	
-	if (OnlyTriggerOnce) { EndTask(); }
+	if (OnlyTriggerOnce)
+	{ EndTask(); }
 }
 
 void UAbilityTaskSuccessFailEvent::OnDestroy(bool AbilityEnding)
 {
-	UAbilitySystemComponent* ASC = GetTargetAbilitySystemComponent();
-	if (ASC && SuccessHandle.IsValid())
+	UAbilitySystemComponent* TargetAbilitySystemComponent = GetTargetAbilitySystemComponent();
+	if (TargetAbilitySystemComponent && SuccessHandle.IsValid())
 	{
 		if (OnlyMatchExact)
-		{
-			ASC->GenericGameplayEventCallbacks.FindOrAdd(SuccessTag).Remove(SuccessHandle);
-		}
+		{ TargetAbilitySystemComponent->GenericGameplayEventCallbacks.FindOrAdd(SuccessTag).Remove(SuccessHandle); }
 		else
-		{
-			ASC->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(SuccessTag), SuccessHandle);
-		}
+		{ TargetAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(SuccessTag), SuccessHandle); }
 	}
 
-	if (ASC && FailHandle.IsValid())
+	if (TargetAbilitySystemComponent && FailHandle.IsValid())
 	{
 		if (OnlyMatchExact)
-		{
-			ASC->GenericGameplayEventCallbacks.FindOrAdd(FailTag).Remove(FailHandle);
-		}
+		{ TargetAbilitySystemComponent->GenericGameplayEventCallbacks.FindOrAdd(FailTag).Remove(FailHandle); }
 		else
-		{
-			ASC->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(FailTag), FailHandle);
-		}
+		{ TargetAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(FailTag), FailHandle); }
 	}
 	
 	Super::OnDestroy(AbilityEnding);

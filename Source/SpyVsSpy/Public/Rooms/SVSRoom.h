@@ -67,7 +67,7 @@ public:
 	float VanishEffect = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
-	bool bRoomHiddenInGame = true;
+	bool bRoomLocallyHiddenInGame = true;
 
 	FOnRoomOccupancyChange OnRoomOccupancyChange;
 
@@ -93,6 +93,10 @@ public:
 	ARoomManager* RoomManager;
 	UFUNCTION(BlueprintCallable)
 	FGuid GetRoomGuid() const { return RoomGuid; };
+
+protected:
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 private:
 
@@ -137,4 +141,8 @@ private:
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
 	TArray<ASpyCharacter*> OccupyingSpyCharacters;
+	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing=OnRep_bRoomOccupied, Category = "SVS|Room")
+	bool bRoomOccupied; // TODO determine more robust way to handle this which provides security for player view and allows for opponent view
+	UFUNCTION()
+	void OnRep_bRoomOccupied() {}
 };

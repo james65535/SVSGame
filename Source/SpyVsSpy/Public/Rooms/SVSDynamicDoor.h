@@ -20,9 +20,9 @@ public:
 
 	ASVSDynamicDoor();
 
-	/** @return Provides just the door mesh and not the door frame mesh */
-	UFUNCTION(BlueprintCallable, Category = "SVS|Door")
-	UStaticMeshComponent* GetDoorMesh() const { return Door; }
+	/** @return Provides just the door panel mesh and not the door frame mesh */
+	UFUNCTION(BlueprintCallable)
+	UStaticMeshComponent* GetDoorPanelMesh() const { return DoorPanel; }
 
 	/** Enables and Disables the Door, leaving the door frame */
 	virtual void SetEnableDoorMesh_Implementation(const bool bEnabled) override;
@@ -30,16 +30,15 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
-private:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess = "true"), Category = "SVS|Door")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess))
 	UDoorInteractionComponent* DoorInteractionComponent;
 
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly,  meta = (AllowPrivateAccess = "true"), Category = "SVS|Door")
-	UStaticMeshComponent* Door;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Door")
+	UStaticMeshComponent* DoorPanel;
 
 	/** Responds to adjacent room occupancy changes by processing visibility requests */
-	UFUNCTION(BlueprintCallable, Category = "SVS|Door")
+	UFUNCTION(BlueprintCallable)
 	void OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const bool bIsRoomHidden );
 	
 };

@@ -3,17 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Players/InteractInterface.h"
-#include "Components/ActorComponent.h"
+#include "Items/InteractionComponent.h"
 #include "Components/TimelineComponent.h"
 #include "DoorInteractionComponent.generated.h"
 
 class UAudioComponent;
 class UTimelineComponent;
 
-UDELEGATE(Category = "SVS Door")
+UDELEGATE(Category = "SVS|Door")
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDoorOpened);
-UDELEGATE(Category = "SVS Door")
+UDELEGATE(Category = "SVS|Door")
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDoorClosed);
 
 UENUM(BlueprintType)
@@ -27,8 +26,8 @@ enum class EDoorState
 	Disabled = 5 UMETA(DisplayName = "Disabled"),
 };
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class SPYVSSPY_API UDoorInteractionComponent : public UActorComponent, public IInteractInterface
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class SPYVSSPY_API UDoorInteractionComponent : public UInteractionComponent
 {
 	GENERATED_BODY()
 
@@ -41,29 +40,28 @@ public:
 	FOnDoorClosed OnDoorClosed;
 
 	/** Timeline for door open / close */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS Door")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	UCurveFloat* DoorTransitionTimelineCurve;
 	FName DoorTransitionTrackName = "DoorTransitionTrack";
 	FName AppearTimelinePropertyName = "DoorTransitionAmount";
 
 	/** Interact Interface Override */
 	/** @return Success Status */
-	virtual bool Interact_Implementation() override;
+	virtual bool Interact_Implementation(AActor* InteractRequester) override;
 
-	UFUNCTION(BlueprintCallable, Category = "SVS Door")
+	UFUNCTION(BlueprintCallable)
 	bool IsOpen() const { return DoorState == EDoorState::Opened; }
 
-	UFUNCTION(BlueprintCallable, Category = "SVS Door")
+	UFUNCTION(BlueprintCallable)
 	EDoorState GetDoorState() const { return DoorState; }
-
-	UFUNCTION(BlueprintCallable, Category = "SVS Door")
-	void SetInteractionEnabled(const bool bIsEnabled);
+	
+	virtual void SetInteractionEnabled(const bool bIsEnabled) override;
 	
 private:
 
 	// UTrapComponent* TrapComponent;
 	
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"), Category = "SVS Door")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	EDoorState DoorState = EDoorState::Closed;
 	
 	/** Internal Methods for Door Opening / Closing */
@@ -82,7 +80,7 @@ private:
 	void TransitionDoor(float DoorOpenedAmount);
 	
 	/** Timeline components for Opening / Closing Door */
-	UPROPERTY(EditAnywhere, Category = "SVS Door")
+	UPROPERTY(EditAnywhere)
 	UTimelineComponent* DoorTransitionTimeline;
 	FOnTimelineFloat OnDoorTransitionUpdate;
 	FOnTimelineEvent OnDoorTransitionFinish;
@@ -98,15 +96,16 @@ private:
 	UPROPERTY(EditAnywhere)
 	float TimeToRotate = 1.0f;
 	float CurrentRotationTime = 0.0f;
-	UPROPERTY(EditAnywhere, Category = "SVS Door")
+	UPROPERTY(EditAnywhere)
 	FRuntimeFloatCurve OpenCurve;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess = "true"), Category = "SVS Door")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* DoorOpenSfx;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess = "true"), Category = "SVS Door")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* DoorCloseSfx;
 
 protected:
 
 	virtual void BeginPlay() override;
+	
 };

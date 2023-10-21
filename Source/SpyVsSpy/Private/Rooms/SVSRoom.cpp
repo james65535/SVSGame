@@ -10,10 +10,12 @@
 #include "Components/BoxComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Rooms/RoomManager.h"
+#include "Rooms/SpyFurniture.h"
 #include "Components/TimelineComponent.h"
-#include "Engine/StaticMeshActor.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
+#include "net/UnrealNetwork.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
 {
@@ -27,6 +29,8 @@ ASVSRoom::ASVSRoom() : ADynamicRoom()
 
 	/** Add room appear / vanish effect timeline */
 	AppearTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("Appear Timeline Component"));
+
+	bRoomOccupied = false;
 }
 
 void ASVSRoom::OnConstruction(const FTransform& Transform)
@@ -48,11 +52,22 @@ void ASVSRoom::OnConstruction(const FTransform& Transform)
 	RoomGuid = UKismetGuidLibrary::NewGuid();
 }
 
+void ASVSRoom::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASVSRoom, bRoomOccupied, SharedParams);
+}
+
 void ASVSRoom::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	SetActorHiddenInGame(bRoomHiddenInGame);
+	SetActorHiddenInGame(bRoomLocallyHiddenInGame);
 
 	/** Configure room appear / vanish effect timeline */
 	if (IsValid(AppearTimelineCurve))
@@ -77,7 +92,7 @@ void ASVSRoom::BeginPlay()
 	{ Wall->SetCustomPrimitiveDataFloat(0, VisibilityDirection); }
 	
 	/** Hide furniture */
-	for (AStaticMeshActor* FurnitureItem : FurnitureCollection)
+	for (AFurnitureBase* FurnitureItem : FurnitureCollection)
 	{
 		if (IsValid(FurnitureItem))
 		{ FurnitureItem->SetActorHiddenInGame(true); }
@@ -110,7 +125,7 @@ void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* Requesting
 			if (Spy != RequestingCharacter)
 			{
 				Spy->SetSpyHidden(bHideCharacters);
-				UE_LOG(SVSLogDebug, Log, TEXT("Room set character: %s hidden: %hhd"), *Spy->GetName(), bHideCharacters);
+				UE_LOG(SVSLogDebug, Log, TEXT("Room set %s Opposing Character: %s hidden: %s"), Spy->IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *Spy->GetName(), bHideCharacters ? *FString("Hidden") : *FString("Visible"));
 			}
 		}
 	}
@@ -177,8 +192,8 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 {
 	/** Unhide */
-	bRoomHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
-	SetActorHiddenInGame(bRoomHiddenInGame);
+	bRoomLocallyHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
+	SetActorHiddenInGame(bRoomLocallyHiddenInGame);
 	const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(InSpyCharacter, true);
 	UE_LOG(SVSLogDebug, Log, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
@@ -209,9 +224,17 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 	{
 		OccupyingSpyCharacters.Emplace(SpyCharacter);
 		
-		/** Notify Room Manager that room is occupied */
+		/** Notify Room Manager that room is occupied and update occupied status */
 		if (IsValid(RoomManager) && HasAuthority())
-		{ RoomManager->SetRoomOccupied(this, true, SpyCharacter); }
+		{
+			// RoomManager->SetRoomOccupied(this, true, SpyCharacter);
+			// if ()
+			// {
+			// 	bRoomOccupied = true;
+			// 	MARK_PROPERTY_DIRTY_FROM_NAME(ASVSRoom, bRoomOccupied, this);
+			// 	
+			// }
+		}
 		else { UE_LOG(SVSLog, Warning, TEXT("Room could not update Room Manager when player entered")); }
 		
 		/** Run client only Unhide logic */
@@ -224,32 +247,36 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
 	if(ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
+		OccupyingSpyCharacters.Remove(SpyCharacter);
+		
 		// TODO update for local multi player
+		// TODO Temporary Comment Out - Tested and looks good for removal
 		/** Hide Opposing character when someone leaves the room */
-		if (OccupyingSpyCharacters.Num() > 1)
-		{
-			bool bDidEnemySpyLeaveRoom = false;
-			for (ASpyCharacter* Spy : OccupyingSpyCharacters)
-			{
-				// TODO Update description of this logic - handling hiding local player on opposing player screen?
-				if (!Spy->IsLocallyControlled() && Spy == SpyCharacter)
-				{
-					/** Enemy Spy left room, mark for removal from Occupants array */
-					bDidEnemySpyLeaveRoom = true;
-				}
-			}
-			if (bDidEnemySpyLeaveRoom)
-			{
-				/** Cleanup since the spy is no longer in the room */
-				OccupyingSpyCharacters.Remove(SpyCharacter);
-			}
-		}
+		// if (OccupyingSpyCharacters.Num() > 1)
+		// {
+		// 	bool bDidEnemySpyLeaveRoom = false;
+		// 	for (ASpyCharacter* Spy : OccupyingSpyCharacters)
+		// 	{
+		// 		// TODO Update description of this logic - handling hiding local player on opposing player screen?
+		// 		if (!Spy->IsLocallyControlled() && Spy == SpyCharacter)
+		// 		{
+		// 			/** Enemy Spy left room, mark for removal from Occupants array */
+		// 			bDidEnemySpyLeaveRoom = true;
+		// 		}
+		// 	}
+		// 	if (bDidEnemySpyLeaveRoom)
+		// 	{
+		// 		/** Cleanup since the spy is no longer in the room */
+		// 		//OccupyingSpyCharacters.Remove(SpyCharacter);
+		// 	}
+		// }
+
 		/** Room Effect should not appear on other player's client */
 		if (!SpyCharacter->IsLocallyControlled()) { return; }
-
+		
 		/** Hide Room
 		* Used by timeline finish func to hide actor and room furniture at end of vanish effect */
-		bRoomHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
+		bRoomLocallyHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
 		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);
 		UE_LOG(SVSLogDebug, Log, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
@@ -299,13 +326,13 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 
 void ASVSRoom::TimelineAppearFinish()
 {
-	SetActorHiddenInGame(bRoomHiddenInGame); // Will already be visible if timeline makes room Appear
-	OnRoomOccupancyChange.Broadcast(this, bRoomHiddenInGame);
+	SetActorHiddenInGame(bRoomLocallyHiddenInGame); // Will already be visible if timeline makes room Appear
+	OnRoomOccupancyChange.Broadcast(this, bRoomLocallyHiddenInGame);
 
 	/** Set Room Furniture visibility */
-	for (AStaticMeshActor* Furniture : FurnitureCollection)
+	for (AFurnitureBase* Furniture : FurnitureCollection)
 	{
 		if (IsValid(Furniture))
-		{ Furniture->SetActorHiddenInGame(bRoomHiddenInGame); }
+		{ Furniture->SetActorHiddenInGame(bRoomLocallyHiddenInGame); }
 	}
 }

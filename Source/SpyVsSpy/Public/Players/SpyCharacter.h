@@ -13,8 +13,8 @@
 class USpyAbilitySystemComponent;
 class ASpyPlayerState;
 class ASVSRoom;
-class UPlayerInventoryComponent;
-class UPlayerInteractionComponent;
+class UInventoryComponent;
+class USpyInteractionComponent;
 class UGameplayEffect;
 class USpyGameplayAbility;
 class USpyAttributeSet;
@@ -38,25 +38,33 @@ public:
 	virtual void UpdateCameraLocation(const ASVSRoom* InRoom) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	UPlayerInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; };
+	UInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; };
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	UPlayerInteractionComponent* GetPlayerInteractionComponent() const { return PlayerInteractionComponent; };
+	USpyInteractionComponent* GetInteractionComponent() const { return SpyInteractionComponent; };
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	virtual void SetSpyHidden(const bool bIsSpyHidden);
 
+	/** Animation Montage for times of celebration such as winning race */
+	UFUNCTION()
+	bool PlayCelebrateMontage();
+
+	/** Activities needed after finishing a match */
+	UFUNCTION(NetMulticast, Reliable)
+	void NM_FinishedMatch();
+
 #pragma region="Health"
-	// TODO Implement
+	// TODO Implement or replace with GAS Attributeset
 	// UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
 
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Character")
 	FCharacterDiedDelegate OnCharacterDied;
 	
-	virtual void Die();
+	virtual void RequestDeath();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	virtual void FinishDying();
+	virtual void FinishDeath();
 
 	/** Can only be called by the Server. Removing on the Server will remove from Client too */
 	virtual void RemoveCharacterAbilities();
@@ -67,6 +75,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Attributes")
 	float GetMaxHealth() const;
 #pragma endregion="Health"
+
+#pragma region="Movement"
+	/** Called for movement input */
+	void Move(const FInputActionValue& Value);
+	/** Called for looking input */
+	//void Look(const FInputActionValue& Value);
+	/** Called for Interact Input */
+	void RequestSprint(const FInputActionValue& Value);
+	/** Called for Primary Attack Input */
+	void RequestPrimaryAttack(const FInputActionValue& Value);
+	/** Called for Next Trap Input */
+	void RequestNextTrap(const FInputActionValue& Value);
+	/** Called for Previous Trap Input */
+	void RequestPreviousTrap(const FInputActionValue& Value);
+	/** Called for Interact Input */
+	void RequestInteract();
+	/** Called for Trap Trigger */
+	void RequestTrapTrigger();
+#pragma endregion="Movement"
 
 private:
 
@@ -79,7 +106,7 @@ private:
 
 #pragma region="Inventory"
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
-	UPlayerInventoryComponent* PlayerInventoryComponent;
+	UInventoryComponent* PlayerInventoryComponent;
 #pragma endregion="Inventory"
 
 #pragma region="Interaction"
@@ -87,7 +114,7 @@ private:
 	// UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), EditInstanceOnly, Category = "SVS|Character")
 	// UPlayerHealthComponent* PlayerHealthComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
-	UPlayerInteractionComponent* PlayerInteractionComponent;
+	USpyInteractionComponent* SpyInteractionComponent;
 #pragma endregion="Interaction"
 
 #pragma region="CharacterVisibility"
@@ -98,7 +125,7 @@ private:
 	void OnRep_bIsHiddenInGame() { SetActorHiddenInGame(bIsHiddenInGame); }
 #pragma endregion="CharacterVisibility"
 	
-#pragma region="MovementControls"
+#pragma region="Movement"
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputMappingContext* DefaultMappingContext;
@@ -126,7 +153,7 @@ private:
 	/** Interact Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* InteractAction;
-#pragma endregion="MovementControls"
+#pragma endregion="Movement"
 	
 protected:
 
@@ -142,6 +169,12 @@ protected:
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVSAnimation")
+	UAnimMontage* CelebrateMontage = nullptr;
+	FOnMontageEnded MontageEndedDelegate;
+	UFUNCTION()
+	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	
 #pragma region ="RoomTraversal"
 	/** State and Logic for processing when character enters and leaves rooms */
 	/** Track  which room the character is currently located in */
@@ -153,7 +186,7 @@ protected:
 	/** Internal process to mutate character room pointers for when the character goes from room to room */
 	UFUNCTION()
 	void ProcessRoomChange(ASVSRoom* NewRoom);
-#pragma region ="RoomTraversal"
+#pragma endregion ="RoomTraversal"
 
 #pragma region ="Combat"
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
@@ -166,6 +199,16 @@ protected:
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void NM_PlayAttackAnimation(const float TimerValue = 0.3f);
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
+	void HandleTrapTrigger();
+	
+	/**
+	 * Plays an Attack Animation
+	 * @param TimerValue How much time it takes before another attack can execute.
+	 */
+	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "SVS|Abilities|Combat")
+	void NM_PlayTrapTriggerAnimation(const float TimerValue = 0.3f);
+
 	/**
 	 * Launches Character away from the provided FromLocation using the provided AttackForce.
 	 * @param FromLocation Location of attacker or cause of launch
@@ -173,7 +216,7 @@ protected:
 	*/
 	UFUNCTION(BlueprintCallable)
 	virtual void ApplyAttackImpactForce(const FVector FromLocation, const float InAttackForce) const override;
-	/** Internal Multicast Method for Appy Attack Impract Force Interface Override */
+	/** Internal Multicast Method for Appy Attack Impact Force Interface Override */
 	UFUNCTION(NetMulticast, Reliable)
 	void NM_ApplyAttackImpactForce(const FVector FromLocation, const float InAttackForce) const;
 
@@ -189,25 +232,8 @@ protected:
 	FName CombatantTag = "Spy";
 #pragma endregion="Combat"
 
-#pragma region="InputCallMethods"
-	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
-	/** Called for looking input */
-	//void Look(const FInputActionValue& Value);
-	/** Called for Interact Input */
-	void RequestSprint(const FInputActionValue& Value);
-	/** Called for Primary Attack Input */
-	void RequestPrimaryAttack(const FInputActionValue& Value);
-	/** Called for Next Trap Input */
-	void RequestNextTrap(const FInputActionValue& Value);
-	/** Called for Previous Trap Input */
-	void RequestPrevTrap(const FInputActionValue& Value);
-	/** Called for Interact Input */
-	void RequestInteract(const FInputActionValue& Value);
-#pragma endregion="InputCallMethods"
-
 #pragma region="Ability System"
-	/** Component of Playerstate */
+	/** Ability System Component is owned by Playerstate */
 	UPROPERTY()
 	USpyAbilitySystemComponent* SpyAbilitySystemComponent;
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
@@ -221,9 +247,9 @@ protected:
 
 	/** Add initial abilities and effects */
 	void AddStartupGameplayAbilities();
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SVS|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Abilities")
 	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SVS|Abilities")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Abilities")
 	TArray<TSubclassOf<USpyGameplayAbility>> GameplayAbilities;
 
 	friend USpyAttributeSet; // TODO 

@@ -20,7 +20,7 @@
 void ASpyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
 	check(SpyGameState);
 
@@ -182,6 +182,14 @@ void ASpyPlayerController::BeginPlay()
 	SpyGameState->OnStartMatchDelegate.AddUObject(this, &ThisClass::StartMatchForPlayer);
 }
 
+void ASpyPlayerController::OnRep_Pawn()
+{
+	Super::OnRep_Pawn();
+	
+	if (!IsValid(SpyCharacter))
+	{ SpyCharacter = CastChecked<ASpyCharacter>(GetCharacter()); }
+}
+
 void ASpyPlayerController::OnRetrySelected()
 {
 	S_RestartLevel();
@@ -208,9 +216,7 @@ void ASpyPlayerController::FinishedMatch()
 void ASpyPlayerController::RequestDisplayFinalResults() const
 {
 	if (!IsRunningDedicatedServer())
-	{
-		PlayerHUD->DisplayResults(SpyGameState->GetResults());
-	}
+	{ PlayerHUD->DisplayResults(SpyGameState->GetResults()); }
 }
 
 void ASpyPlayerController::S_RestartLevel_Implementation()
@@ -320,6 +326,7 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 	CachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 	if (!IsRunningDedicatedServer())
 	{
+		/** Handle Match Time */
 		GetWorld()->GetTimerManager().SetTimer(
 			MatchClockDisplayTimerHandle,
 			this,
@@ -327,6 +334,12 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 			MatchClockDisplayRateSeconds,
 			true);
 		PlayerHUD->ToggleDisplayGameTime(true);
+
+		/** Update Player Displays with character info */
+		PlayerHUD->DisplayCharacterHealth(
+			SpyPlayerState->GetHealth(),
+			SpyPlayerState->GetMaxHealth());
+		PlayerHUD->DisplayCharacterInventory(nullptr);  // TODO Finish
 	}
 }
 
@@ -339,22 +352,57 @@ bool ASpyPlayerController::CanProcessRequest() const
 
 void ASpyPlayerController::RequestMove(const FInputActionValue& ActionValue)
 {
+	if (!CanProcessRequest() || !IsValid(SpyCharacter))
+	{ return; }
+	
+	/** input is a Vector2D */
+	const FVector2D MovementVector = ActionValue.Get<FVector2D>();
+	
+	/** find out which way is forward */
+	const FRotator Rotation = GetControlRotation();
+	const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+	/** get forward vector */
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+	/** get right vector */
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	/** add movement */
+	SpyCharacter->AddMovementInput(ForwardDirection, MovementVector.Y);
+	SpyCharacter->AddMovementInput(RightDirection, MovementVector.X);
 }
 
 void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
 {
+	if (!CanProcessRequest() || !IsValid(SpyCharacter))
+	{ return; }
+
+	SpyCharacter->RequestNextTrap(ActionValue);
 }
 
 void ASpyPlayerController::RequestPreviousTrap(const FInputActionValue& ActionValue)
 {
+	if (!CanProcessRequest() || !IsValid(SpyCharacter))
+	{ return; }
+
+	SpyCharacter->RequestPreviousTrap(ActionValue);
 }
 
 void ASpyPlayerController::RequestInteract(const FInputActionValue& ActionValue)
 {
+	if (!CanProcessRequest() || !IsValid(SpyCharacter))
+	{ return; }
+
+	SpyCharacter->RequestInteract();
 }
 
 void ASpyPlayerController::RequestPrimaryAttack(const FInputActionValue& ActionValue)
 {
+	if (!CanProcessRequest() || !IsValid(SpyCharacter))
+	{ return; }
+
+	SpyCharacter->RequestPrimaryAttack(ActionValue);
 }
 
 void ASpyPlayerController::S_OnReadySelected_Implementation()

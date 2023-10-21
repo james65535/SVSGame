@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "SpyPlayerController.generated.h"
 
+class ASpyCharacter;
 class ASpyHUD;
 class ASpyVsSpyGameState;
 enum class ESVSGameType : uint8;
@@ -89,7 +90,10 @@ private:
 	/** Game Related */
 	UPROPERTY()
 	ASpyVsSpyGameState* SpyGameState;
-
+	UPROPERTY()
+	ASpyCharacter* SpyCharacter;
+	
+	
 	/** Values Used for Display Match Time to the Player */
 	FTimerHandle MatchClockDisplayTimerHandle;
 	const float MatchClockDisplayRateSeconds = 0.1f;
@@ -175,4 +179,5 @@ protected:
 
 	/** Class Overrides */
 	virtual void BeginPlay() override;
+	virtual void OnRep_Pawn() override;
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SVSLogger.h"
 #include "Abilities/GameplayAbility.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 #include "SpyGameplayAbility.generated.h"
@@ -20,9 +21,9 @@ public:
 	USpyGameplayAbility();
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "SVS|Abilities")
-	ESVSAbilityInputID AbilityInputID {ESVSAbilityInputID::None};
+	ESVSAbilityInputID AbilityInputID { ESVSAbilityInputID::None };
 
 	UFUNCTION(BlueprintCallable)
-	void PrintTest() { UE_LOG(LogTemp, Warning, TEXT("Ability log tester")); }
+	void PrintTest() { UE_LOG(SVSLogDebug, Log, TEXT("Ability log tester")); }
 	
 };

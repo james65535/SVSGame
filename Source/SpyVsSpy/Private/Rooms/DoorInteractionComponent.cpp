@@ -5,7 +5,9 @@
 
 #include "SVSLogger.h"
 #include "Components/AudioComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/TimelineComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Rooms/SVSDynamicDoor.h"
 #include "net/UnrealNetwork.h"
 
@@ -15,6 +17,7 @@ UDoorInteractionComponent::UDoorInteractionComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
+	
 
 	DoorState = EDoorState::Closed;
 	DoorTransitionTimeline = CreateDefaultSubobject<UTimelineComponent>("Door Transition Timeline");
@@ -23,6 +26,8 @@ UDoorInteractionComponent::UDoorInteractionComponent()
 
 void UDoorInteractionComponent::BeginPlay()
 {
+
+	
 	Super::BeginPlay();
 
 	if (IsValid(DoorTransitionTimelineCurve))
@@ -30,17 +35,23 @@ void UDoorInteractionComponent::BeginPlay()
 		//Add the float curve to the timeline and connect it to your timelines's interpolation function
 		OnDoorTransitionUpdate.BindUFunction(this, "DoorTransitionTimelineUpdate");
 		OnDoorTransitionFinish.BindUFunction(this, "DoorTransitionTimelineFinish");
+
 		DoorTransitionTimeline->AddInterpFloat(
-			DoorTransitionTimelineCurve, OnDoorTransitionUpdate, AppearTimelinePropertyName, DoorTransitionTrackName);
+			DoorTransitionTimelineCurve,
+			OnDoorTransitionUpdate,
+			AppearTimelinePropertyName,
+			DoorTransitionTrackName);
+		
 		DoorTransitionTimeline->SetTimelineFinishedFunc(OnDoorTransitionFinish);
 	}
-	else { UE_LOG(SVSLog, Warning, TEXT("Door transition timeline curve not valid")); }
+	else
+	{ UE_LOG(SVSLog, Warning, TEXT("Door transition timeline curve not valid")); }
 }
 
-bool UDoorInteractionComponent::Interact_Implementation()
+bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
 
-	UE_LOG(LogTemp, Warning, TEXT("Starting door state %d"), DoorState);
+	UE_LOG(SVSLogDebug, Log, TEXT("Starting door state %d"), DoorState);
 	// TODO Validate If Interaction is a valid one
 
 	switch (DoorState)
@@ -86,8 +97,24 @@ bool UDoorInteractionComponent::Interact_Implementation()
 
 void UDoorInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
 {
+	Super::SetInteractionEnabled(bIsEnabled);
+	
 	if (bIsEnabled)
 	{
+		if (IsValid(GetOwner<ASVSDynamicDoor>()))
+		{
+			if (UBoxComponent* OwnerCollisionVolume = GetOwner<ASVSDynamicDoor>()->GetCollisionVolume_Implementation())
+			{
+				/** Overlap Custom Collision Channel 1: InteractChannel */
+				OwnerCollisionVolume->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Overlap);
+				OwnerCollisionVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+			}
+			else
+			{ UE_LOG(SVSLog, Warning, TEXT("Door Interaction Component could not set interaction overlap for owner collision volume"));	}
+		}
+		else
+		{ UE_LOG(SVSLog, Warning, TEXT("Door Interaction Component could not get owner as a svsdynamicdoor")); }
+		
 		DoorState = EDoorState::Closed;
 		return;
 	}
@@ -97,9 +124,8 @@ void UDoorInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
 void UDoorInteractionComponent::NM_OpenDoor_Implementation()
 {
 	if (IsValid(DoorOpenSfx))
-	{
-		DoorOpenSfx->Play();
-	}
+	{ DoorOpenSfx->Play(); }
+	
 	UE_LOG(SVSLogDebug, Log, TEXT("Opening Door"));
 	DoorState = EDoorState::Opening;
 	DoorTransitionTimeline->PlayFromStart();
@@ -109,6 +135,7 @@ void UDoorInteractionComponent::NM_CloseDoor_Implementation()
 {
 	if (IsValid(DoorCloseSfx))
 	{ DoorCloseSfx->Play(); }
+	
 	UE_LOG(SVSLogDebug, Log, TEXT("Closing Door"));
 	DoorState = EDoorState::Closing;
 	DoorTransitionTimeline->ReverseFromEnd();
@@ -129,7 +156,7 @@ void UDoorInteractionComponent::DoorClosed()
 void UDoorInteractionComponent::TransitionDoor(float const DoorOpenedAmount)
 {
 	const FRotator CurrentRotation = FMath::Lerp(StartRotation,FinalRotation,DoorOpenedAmount);
-	if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorMesh())
+	if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanelMesh())
 	{ DoorPanel->SetRelativeRotation(CurrentRotation); }
 }
 
@@ -140,7 +167,7 @@ void UDoorInteractionComponent::DoorTransitionTimelineUpdate(float const OpenAmo
 
 void UDoorInteractionComponent::DoorTransitionTimelineFinish()
 {
-	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorMesh())
+	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanelMesh())
 	{
 		if (DoorPanel->GetRelativeRotation().Yaw > 0.0f)
 		{
@@ -154,4 +181,3 @@ void UDoorInteractionComponent::DoorTransitionTimelineFinish()
 		}
 	}
 }
-

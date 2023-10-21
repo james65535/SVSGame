@@ -43,18 +43,20 @@ void USpyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 	Super::PostGameplayEffectExecute(Data);
 }
 
-void USpyAttributeSet::AdjustAttributeForMaxChange(const FGameplayAttributeData& AffectedAttribute,
+void USpyAttributeSet::AdjustAttributeForMaxChange(
+	const FGameplayAttributeData& AffectedAttribute,
 	const FGameplayAttributeData& MaxAttribute, float NewMaxValue,
 	const FGameplayAttribute& AffectedAttributeProperty) const
 {
 	UAbilitySystemComponent* AbilityComp = GetOwningAbilitySystemComponent();
 	const float CurrentMaxValue = MaxAttribute.GetCurrentValue();
-	if(!FMath::IsNearlyEqual(CurrentMaxValue, NewMaxValue) && AbilityComp)
+	if (!FMath::IsNearlyEqual(CurrentMaxValue, NewMaxValue) && AbilityComp)
 	{
 		const float CurrentValue = AffectedAttribute.GetCurrentValue();
-		const float NewDelta = (CurrentMaxValue >= 1.0f) ?
-			(CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue :
-			NewMaxValue;
+		const float NewDelta = (
+			CurrentMaxValue >= 1.0f) ?
+				(CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue :
+				NewMaxValue;
 
 		AbilityComp->ApplyModToAttributeUnsafe(AffectedAttributeProperty, EGameplayModOp::Additive, NewDelta);
 	}

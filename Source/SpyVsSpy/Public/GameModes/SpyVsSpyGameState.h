@@ -6,6 +6,7 @@
 #include "GameFramework/GameState.h"
 #include "SpyVsSpyGameState.generated.h"
 
+class UInventoryBaseAsset;
 class ASpyCharacter;
 class ARoomManager;
 
@@ -99,9 +100,21 @@ public:
 	float GetMatchStartTime() const { return MatchStartTime; }
 	UFUNCTION(BlueprintCallable, Category = "SVS")
 	float GetMatchDeltaTime() const { return GetServerWorldTimeSeconds() - MatchStartTime; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS")
+	void SetPlayerMatchTime(const float InMatchStartTime);
+
+	void SetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
+	void OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter);
 	
 	FGameTypeUpdateDelegate OnGameTypeUpdateDelegate;
 
+protected:
+
+	/** Item array with which a player must fully possess to complete the map */
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	TArray<UInventoryBaseAsset*> RequiredMissionItems;
+	
 private:
 	
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing="OnRep_RoomManager", Category = "SVS|Room")
@@ -141,5 +154,11 @@ private:
 	/** Server - Client Time Sync handled by Player Controllers */ 
 	UPROPERTY(VisibleAnywhere, Category = "SVS")
 	float MatchStartTime;
+
+	/** Player Starting Match Time - Independant from game match time */ 
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_PlayerMatchStartTime, Category = "SVS")
+	float PlayerMatchStartTime = 0.0f;
+	UFUNCTION()
+	void OnRep_PlayerMatchStartTime();
 	
 };

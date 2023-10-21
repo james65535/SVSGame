@@ -24,7 +24,8 @@ public class SpyVsSpy : ModuleRules
 			"DynamicMeshRoomGen", 
 			"HeadMountedDisplay", 
 			"EnhancedInput", 
-			"NetCore"
+			"NetCore", 
+			"Niagara"
 		});
 	}
 }

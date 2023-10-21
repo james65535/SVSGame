@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "UIElementWidget.generated.h"
 
+class UInventoryComponent;
 enum class EPlayerGameStatus : uint8;
 
 USTRUCT(BlueprintType, Category = "SVS|UI")
@@ -83,11 +84,19 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayGameModeUI();
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
-	void UpdateDisplayedPlayerState(EPlayerGameStatus InPlayerStatus);
+	void UpdateDisplayedPlayerStatus(EPlayerGameStatus InPlayerStatus);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayGameMenu();
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void HideGameMenu();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void DisplayCharacterInventory(const UInventoryComponent* InCharacterInventory);
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void DisplaySelectedActorInventory(const AActor* InSelectedActor,  const UInventoryComponent* InventoryComponent);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth);
 	
 };

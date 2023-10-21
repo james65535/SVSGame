@@ -4,18 +4,16 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Players/IsoCameraActor.h"
-#include "Players/PlayerInteractionComponent.h"
 #include "Players/IsoCameraComponent.h"
 #include "Players/SpyPlayerController.h"
+#include "Players/SpyInteractionComponent.h"
 #include "Players/SpyCombatantInterface.h"
 #include "Players/SpyPlayerState.h"
+#include "Items/InventoryComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/InputComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "SVSLogger.h"
 #include "AbilitySystem/SpyGameplayAbility.h"
 #include "AbilitySystem/SpyAbilitySystemComponent.h"
@@ -28,9 +26,6 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
-//////////////////////////////////////////////////////////////////////////
-// ASpyCharacter
-
 ASpyCharacter::ASpyCharacter()
 {
 	bReplicates = true;
@@ -40,25 +35,25 @@ ASpyCharacter::ASpyCharacter()
 	bAbilitySystemComponentBound = false;
 	SpyDeadTag = FGameplayTag::RequestGameplayTag("State.Dead");
 	
-	// Set size for collision capsule
+	/** Set size for collision capsule */
 	GetCapsuleComponent()->InitCapsuleSize(35.0f, 90.0f);
 
-	PlayerInteractionComponent = CreateDefaultSubobject<UPlayerInteractionComponent>("Player Interaction Component");
-	PlayerInteractionComponent->SetupAttachment(RootComponent);
-	PlayerInteractionComponent->SetRelativeLocation(FVector(25.0f, 0.0f, 0.0f));
-	PlayerInteractionComponent->SetIsReplicated(true);
+	SpyInteractionComponent = CreateDefaultSubobject<USpyInteractionComponent>("Interaction Component");
+	SpyInteractionComponent->SetupAttachment(RootComponent);
+	SpyInteractionComponent->SetRelativeLocation(FVector(25.0f, 0.0f, 0.0f));
+	SpyInteractionComponent->SetIsReplicated(true);
 	
-	// Don't rotate when the controller rotates. Let that just affect the camera.
+	/** Don't rotate when the controller rotates. Let that just affect the camera. */
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
+	/** Configure character movement */
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
+	/** Note: For faster iteration times these variables, and many more, can be tweaked in the
+	 * Character Blueprint instead of recompiling to adjust them */
 	GetCharacterMovement()->JumpZVelocity = 700.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
@@ -74,9 +69,6 @@ ASpyCharacter::ASpyCharacter()
 	AttackZone->SetHiddenInGame(false);
 	AttackZone->SetVisibility(true);
 	AttackZone->SetRelativeLocation(FVector(30.0f, 0.0f, 40.0f));
-	
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
 void ASpyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -91,67 +83,51 @@ void ASpyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyCharacter, bIsHiddenInGame, SharedParams);
 }
 
+void ASpyCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	BindAbilitySystemComponentInput();
+}
+
+void ASpyCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (!IsValid(SpyPlayerState))
+	{ SpyPlayerState = GetPlayerStateChecked<ASpyPlayerState>(); }
+	
+	AbilitySystemComponentInit();
+	AddStartupGameplayAbilities();
+}
+
+ASpyPlayerState* ASpyCharacter::GetSpyPlayerState() const
+{
+	return CastChecked<ASpyPlayerState>(GetPlayerState(), ECastCheckedType::NullAllowed);
+}
+
+void ASpyCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	if (!IsValid(SpyPlayerState))
+	{ SpyPlayerState = GetPlayerState<ASpyPlayerState>(); }
+	
+	AbilitySystemComponentInit();
+	BindAbilitySystemComponentInput();
+}
+
 void ASpyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
 	/** Hide opponents character on local client */
-	GetLocalRole() == ROLE_AutonomousProxy ? bIsHiddenInGame = false : bIsHiddenInGame = true;
+	GetLocalRole() == ROLE_SimulatedProxy ? bIsHiddenInGame = true : bIsHiddenInGame = false;
 	SetSpyHidden(bIsHiddenInGame);
-	
-	/** Add Input Mapping Context */
-	// if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	// {
-	// 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-	// 	{ Subsystem->AddMappingContext(DefaultMappingContext, 0); }
-	// }
 
 	/** Add delegates for Character Overlaps */
 	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
 	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
-}
-
-void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
-{
-	if (IsRunningDedicatedServer())
-	{ return; }
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Play Attack Anim Montage"));
-	PlayAnimMontage(AttackMontage);
-}
-
-void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
-{
-	checkfSlow(NewRoom, "SpyCharacter attempted to change current room but room pointer is null");
-
-	/** If character is local then hide characters in the room we are leaving */
-	if (GetLocalRole() == ROLE_AutonomousProxy && IsValid(CurrentRoom))
-	{ CurrentRoom->ChangeOpposingOccupantsVisibility(this, true); }
-	
-	/** Handle Remote character */
-	if (GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		/* Is new room occupied by local player */
-		if (!NewRoom->bRoomHiddenInGame)
-		{ SetSpyHidden(false); }
-		/* Is old room occupied by local player */
-		else if (IsValid(CurrentRoom) && !CurrentRoom->bRoomHiddenInGame)
-		{ SetSpyHidden(true); }
-	}
-	
-	/** The room we entered is now officially the current room */
-	CurrentRoom = NewRoom;
-	
-	/** Update camera for local character */
-	if (GetLocalRole() == ROLE_AutonomousProxy && IsValid(CurrentRoom))
-	{ UpdateCameraLocation(CurrentRoom); }
-	
-	/** If character is local then Unhide characters in the room we entered */
-	if (GetLocalRole() == ROLE_AutonomousProxy)
-	{RoomEntering->ChangeOpposingOccupantsVisibility(this, false); }
-
-	/** Clean up temporary pointer used for traversal process */
-	RoomEntering = nullptr;
 }
 
 void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
@@ -168,9 +144,10 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		 * existing room traversal checks require the previous current room to end overlap so
 		 * we provide need a way to avoid this check at start of game */
 		if (!IsValid(CurrentRoom))
-		{ ProcessRoomChange(RoomEntering); }
-		else
-		{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s cannot process room change as they do not have authority or CurrentRoom is not null."), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName()); }
+		{
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is entering room for the first time this game"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+			ProcessRoomChange(RoomEntering);
+		}
 	}
 }
 
@@ -183,149 +160,107 @@ void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		if (OverlapEndRoom == CurrentRoom && IsValid(RoomEntering))
 		{ ProcessRoomChange(RoomEntering); }
 		else
-		{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s ended overlap with room: %s but could not processroomchange"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), *OtherActor->GetName()); }
+		{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s ended overlap with room: %s but could not processroomchange as RoomEntering is not valid"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), *OtherActor->GetName()); }
 	}
 }
 
-void ASpyCharacter::HandlePrimaryAttack()
+void ASpyCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	if (GetLocalRole() != ROLE_Authority){ return; }
+	if (!IsValid(SpyPlayerState) ||
+		!SpyPlayerState->IsWinner()
+		|| Montage != CelebrateMontage)
+	{ return; }
+
+	PlayAnimMontage(CelebrateMontage, 1.0f, TEXT("Winner"));
+}
+
+void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
+{
+	checkfSlow(NewRoom, "SpyCharacter attempted to change current room but room pointer is null");
 	
-	UE_LOG(SVSLogDebug, Log, TEXT("Handling Attack"));
-
-	// TODO Update to accomodate the movement of the attacking weapon and time delays which may occur
-	/** Check if weapon attack capsule collides with a valid target */
-	TArray<AActor*> ActorsArray;
-	AttackZone->GetOverlappingActors(ActorsArray);
-	int Count = 0;
-	if (ActorsArray.Num() > 0)
+	/** If character is local then hide any other characters in the room we are leaving */
+	if (GetLocalRole() == ROLE_AutonomousProxy && IsValid(CurrentRoom))
+	{ CurrentRoom->ChangeOpposingOccupantsVisibility(this, true); }
+	
+	/** Handle Remote character changing room */
+	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
-		for (AActor* Actor : ActorsArray)
+		// TODO check room is occupied flag
+		
+		/* Is new room occupied by local player */
+		if (NewRoom->bRoomLocallyHiddenInGame == false)
 		{
-			if (Actor &&
-				Actor != this &&
-				Actor->ActorHasTag(CombatantTag) &&
-				UKismetSystemLibrary::DoesImplementInterface(Actor, USpyCombatantInterface::StaticClass()) &&
-				UKismetSystemLibrary::DoesImplementInterface(Actor, UAbilitySystemInterface::StaticClass()))
-			{
-				UE_LOG(SVSLogDebug, Log, TEXT("Found Enemy: %s"), *Actor->GetName());
-				/** Don't process attack if enemy is dead */
-				if (Cast<IAbilitySystemInterface>(Actor)->GetAbilitySystemComponent()->HasMatchingGameplayTag(
-						FGameplayTag::RequestGameplayTag("State.Dead")))
-				{
-					UE_LOG(SVSLogDebug, Log, TEXT("Found IsDead")) // TODO Revisit this to remove or buildout
-					continue;
-				}
-
-				UE_LOG(SVSLogDebug, Log, TEXT("Applying Attack Force"))
-				// TODO sort out attack force and consider multiplayer aspect/multicast
-				constexpr float AttackForce = 750.0f;
-				Cast<ISpyCombatantInterface>(Actor)->ApplyAttackImpactForce(GetActorLocation(), AttackForce);
-
-				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.Hit");
-				FGameplayEventData Payload = FGameplayEventData();
-				Payload.Instigator = GetInstigator();
-				Payload.Target = Actor;
-				Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(Actor);
-				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
-
-				++Count;
-			}
+			SetSpyHidden(false);
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s simulated proxy set character visible"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+		}
+		/* Is old room occupied by local player */
+		else if (IsValid(CurrentRoom) && !CurrentRoom->bRoomLocallyHiddenInGame)
+		{
+			SetSpyHidden(true);
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s simulated proxy set character invisible"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
 		}
 	}
 	
-	/** if our Count returns 0, it means we did not hit an enemy and we should end our ability */
-	if (Count == 0)
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Spy Attack hit zero combatants"))
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.NoHit");
-		FGameplayEventData Payload = FGameplayEventData();
-		Payload.Instigator = GetInstigator();
-		Payload.TargetData = FGameplayAbilityTargetDataHandle();
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
-	}
-}
-
-void ASpyCharacter::ApplyAttackImpactForce(const FVector FromLocation, const float InAttackForce) const
-{
-	if (GetLocalRole() != ROLE_Authority) { return; }
-	NM_ApplyAttackImpactForce(FromLocation, InAttackForce);
-}
-
-void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromLocation,
-	const float InAttackForce) const
-{
-	const FVector TargetLocation = GetActorLocation();
-	const FVector Direction = UKismetMathLibrary::GetDirectionUnitVector(FromLocation, TargetLocation);
-
-	UE_LOG(SVSLogDebug, Log, TEXT("Launching character after attack"));
-	GetCharacterMovement()->Launch(FVector(
-		Direction.X * InAttackForce,
-		Direction.Y * InAttackForce,
-		abs(Direction.Z + 1) * InAttackForce));
-}
-
-void ASpyCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	/** The room we entered is now officially the current room */
+	CurrentRoom = NewRoom;
 	
-	// TODO Move input to controller
-	/** Set up action bindings */
-	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		/** Jumping */
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	/** Update camera for local character */
+	if (GetLocalRole() == ROLE_AutonomousProxy && IsValid(CurrentRoom))
+	{ UpdateCameraLocation(CurrentRoom); }
+	
+	/** If character is local then Unhide characters in the room we entered */
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{ RoomEntering->ChangeOpposingOccupantsVisibility(this, false); }
 
-		/** Moving */
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASpyCharacter::Move);
-
-		/** Looking */
-		//EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASpyCharacter::Look);
-
-		/** Sprinting */
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ThisClass::RequestSprint);
-
-		/** Primary Attack */
-		EnhancedInputComponent->BindAction(PrimaryAttackAction, ETriggerEvent::Started, this, &ThisClass::RequestPrimaryAttack);
-
-		/** Next Trap */
-		EnhancedInputComponent->BindAction(NextTrapAction, ETriggerEvent::Completed, this, &ThisClass::RequestNextTrap);
-
-		/** Previous Trap */
-		EnhancedInputComponent->BindAction(PrevTrapAction, ETriggerEvent::Completed, this, &ThisClass::RequestPrevTrap);
-		
-		/** Interacting */
-		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Completed, this, &ThisClass::RequestInteract);
-	}
-
-	BindAbilitySystemComponentInput();
+	/** Clean up temporary pointer used for traversal process */
+	RoomEntering = nullptr;
 }
 
-void ASpyCharacter::PossessedBy(AController* NewController)
+void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
 {
-	Super::PossessedBy(NewController);
-
-	if (!IsValid(SpyPlayerState))
-	{
-		SpyPlayerState = GetPlayerState<ASpyPlayerState>();	
-	}
-	
-	AbilitySystemComponentInit();
-	AddStartupGameplayAbilities();
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Ran SetSpyHidden with value: %s"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), bIsSpyHidden ? *FString("Hidden") : *FString("Visible"));
+	bIsHiddenInGame = bIsSpyHidden;
+	SetActorHiddenInGame(bIsSpyHidden);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyCharacter, bIsHiddenInGame, this); // TODO this probably doesn't need to be replicated since hiding a local only thing
 }
 
-void ASpyCharacter::OnRep_PlayerState()
+bool ASpyCharacter::PlayCelebrateMontage()
 {
-	Super::OnRep_PlayerState();
+	const bool bPlayedSuccessfully = PlayAnimMontage(CelebrateMontage, 1.0f) > 0.f;
 
-	if (!IsValid(SpyPlayerState))
+	if (bPlayedSuccessfully)
 	{
-		SpyPlayerState = GetPlayerState<ASpyPlayerState>();
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+		if (!MontageEndedDelegate.IsBound())
+		{ MontageEndedDelegate.BindUObject(this, &ThisClass::OnMontageEnded); }
+
+		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, CelebrateMontage);
 	}
+
+	return bPlayedSuccessfully;
+}
+
+void ASpyCharacter::NM_FinishedMatch_Implementation()
+{
+	if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetController()))
+	{ SpyPlayerController->FinishedMatch(); }
+	GetCharacterMovement()->DisableMovement();
+	PlayCelebrateMontage();
+}
+
+void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
+{
+	/** Just process this logic on the client if all pointers are valid */
+	if (!IsValid(FollowCamera) ||
+		!IsValid(InRoom) ||
+		!IsLocallyControlled() ||
+		GetLocalRole() != ROLE_AutonomousProxy)
+	{ return; }
 	
-	AbilitySystemComponentInit();
-	BindAbilitySystemComponentInput();
+	const ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(Controller);
+	if (AIsoCameraActor* IsoCameraActor = Cast<AIsoCameraActor>(PlayerController->GetViewTarget()))
+	{ IsoCameraActor->SetRoomTarget(InRoom); }
 }
 
 void ASpyCharacter::BindAbilitySystemComponentInput()
@@ -406,30 +341,14 @@ void ASpyCharacter::AddStartupGameplayAbilities()
 	{ UE_LOG(SVSLog, Warning, TEXT("Adding startup abilities already done or ability component pointer is null")); }
 }
 
-void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
+void ASpyCharacter::RemoveCharacterAbilities()
 {
-	/** Just process this logic on the client if all pointers are valid */
-	if (!IsValid(FollowCamera) ||
-		!IsValid(InRoom) ||
-		!IsLocallyControlled() ||
-		GetLocalRole() != ROLE_AutonomousProxy)
-			{ return; }
-	
-    const ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(Controller);
-	if (AIsoCameraActor* IsoCameraActor = Cast<AIsoCameraActor>(PlayerController->GetViewTarget()))
-	{ IsoCameraActor->SetRoomTarget(InRoom); }
 }
 
-void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
+void ASpyCharacter::RequestDeath()
 {
-	bIsHiddenInGame = bIsSpyHidden;
-	SetActorHiddenInGame(bIsSpyHidden);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyCharacter, bIsHiddenInGame, this); // TODO this probably doesn't need to be replicated since hiding a local only thing
-}
-
-void ASpyCharacter::Die()
-{
-	if (!IsValid(SpyAbilitySystemComponent)) { return; }
+	if (!IsValid(SpyAbilitySystemComponent))
+	{ return; }
 	
 	/** Only runs on Server */
 	RemoveCharacterAbilities();
@@ -448,7 +367,7 @@ void ASpyCharacter::Die()
 
 	SpyAbilitySystemComponent->AddLooseGameplayTag(SpyDeadTag);
 
-	//TODO replace with a locally executed GameplayCue
+	// TODO replace with a locally executed GameplayCue
 	// if (DeathSound)
 	// {
 	// 	UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
@@ -460,46 +379,168 @@ void ASpyCharacter::Die()
 	// }
 	// else
 	// {
-	// 	FinishDying();
+	// 	FinishDeath();
 	// }
 
-	FinishDying();
+	FinishDeath();
 }
 
-void ASpyCharacter::RemoveCharacterAbilities()
-{
-}
-
-float ASpyCharacter::GetHealth() const
-{
-	if (IsValid(SpyPlayerState))
-	{
-		return SpyPlayerState->GetHealth();
-	}
-	return 0.0f;
-}
-
-float ASpyCharacter::GetMaxHealth() const
-{
-	if (IsValid(SpyPlayerState))
-	{
-		return SpyPlayerState->GetMaxHealth();
-	}
-	return 0.0f;
-}
-
-ASpyPlayerState* ASpyCharacter::GetSpyPlayerState() const
-{
-	return CastChecked<ASpyPlayerState>(GetPlayerState(), ECastCheckedType::NullAllowed);
-}
-
-void ASpyCharacter::FinishDying()
+void ASpyCharacter::FinishDeath()
 {
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (!HasAuthority())
 	{ return; }
 	
 	Destroy();
+}
+
+void ASpyCharacter::HandlePrimaryAttack()
+{
+	if (GetLocalRole() != ROLE_Authority)
+	{ return; }
+	
+	UE_LOG(SVSLogDebug, Log, TEXT("Handling Attack"));
+
+	// TODO Update to accomodate the movement of the attacking weapon and time delays which may occur
+	/** Check if weapon attack capsule collides with a valid target */
+	TArray<AActor*> ActorsArray;
+	AttackZone->GetOverlappingActors(ActorsArray);
+	int Count = 0;
+	if (ActorsArray.Num() > 0)
+	{
+		for (AActor* Actor : ActorsArray)
+		{
+			if (Actor &&
+				Actor != this &&
+				Actor->ActorHasTag(CombatantTag) &&
+				UKismetSystemLibrary::DoesImplementInterface(Actor, USpyCombatantInterface::StaticClass()) &&
+				UKismetSystemLibrary::DoesImplementInterface(Actor, UAbilitySystemInterface::StaticClass()))
+			{
+				UE_LOG(SVSLogDebug, Log, TEXT("Found Enemy: %s"), *Actor->GetName());
+				/** Don't process attack if enemy is dead */
+				if (Cast<IAbilitySystemInterface>(Actor)->GetAbilitySystemComponent()->HasMatchingGameplayTag(
+						FGameplayTag::RequestGameplayTag("State.Dead")))
+				{
+					UE_LOG(SVSLogDebug, Log, TEXT("Found IsDead")) // TODO Revisit this to remove or buildout
+					continue;
+				}
+
+				UE_LOG(SVSLogDebug, Log, TEXT("Applying Attack Force"))
+				// TODO sort out attack force and consider multiplayer aspect/multicast
+				constexpr float AttackForce = 750.0f;
+				Cast<ISpyCombatantInterface>(Actor)->ApplyAttackImpactForce(GetActorLocation(), AttackForce);
+
+				const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.Hit");
+				FGameplayEventData Payload = FGameplayEventData();
+				Payload.Instigator = GetInstigator();
+				Payload.Target = Actor;
+				Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(Actor);
+				UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+
+				++Count;
+			}
+		}
+	}
+	
+	/** if our Count returns 0, it means we did not hit an enemy and we should end our ability */
+	if (Count == 0)
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT("Spy Attack hit zero combatants"))
+		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.NoHit");
+		FGameplayEventData Payload = FGameplayEventData();
+		Payload.Instigator = GetInstigator();
+		Payload.TargetData = FGameplayAbilityTargetDataHandle();
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+	}
+}
+
+void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
+{
+	if (IsRunningDedicatedServer())
+	{ return; }
+	
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Triggered Play Attack Anim Montage"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+	PlayAnimMontage(AttackMontage);
+}
+
+void ASpyCharacter::HandleTrapTrigger()
+{
+	if (GetLocalRole() != ROLE_Authority)
+	{ return; }
+	
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Victim: %s Handling Trap Trigger"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Instigator: %s Handling Trap Trigger"), GetInstigator()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetInstigator()->GetName());
+	// TODO sort out attack force and consider multiplayer aspect/multicast
+	constexpr float AttackForce = 1500.0f;
+	FVector AttackOrigin = FVector::ZeroVector;
+	if (IsValid(GetInteractionComponent()->GetLatestInteractableComponent()) && IsValid(GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()))
+	{
+		AttackOrigin = GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()->GetActorLocation();
+	}
+	Cast<ISpyCombatantInterface>(this)->ApplyAttackImpactForce(AttackOrigin, AttackForce);
+
+	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
+	FGameplayEventData Payload = FGameplayEventData();
+	Payload.Instigator = GetInstigator(); // TODO should probably find a way to feed in furniture actor
+	Payload.Target = this;
+	Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(this);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+	
+	/** if our Count returns 0, it means we did not hit an enemy and we should end our ability */
+	// TODO determine what would cause this trap tripper to no hit
+	// if (Count == 0)
+	// {
+	// 	UE_LOG(SVSLogDebug, Log, TEXT("Spy Attack hit zero combatants"))
+	// 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.NoHit");
+	// 	FGameplayEventData Payload = FGameplayEventData();
+	// 	Payload.Instigator = GetInstigator();
+	// 	Payload.TargetData = FGameplayAbilityTargetDataHandle();
+	// 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+	// }
+}
+
+void ASpyCharacter::NM_PlayTrapTriggerAnimation_Implementation(const float TimerValue)
+{
+	if (IsRunningDedicatedServer())
+	{ return; }
+	
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Triggered Play Trap Trigger Anim Montage"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+	PlayAnimMontage(AttackMontage); // TODO update
+}
+
+void ASpyCharacter::ApplyAttackImpactForce(const FVector FromLocation, const float InAttackForce) const
+{
+	if (GetLocalRole() != ROLE_Authority)
+	{ return; }
+	
+	NM_ApplyAttackImpactForce(FromLocation, InAttackForce);
+}
+
+void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromLocation,
+	const float InAttackForce) const
+{
+	const FVector TargetLocation = GetActorLocation();
+	const FVector Direction = UKismetMathLibrary::GetDirectionUnitVector(FromLocation, TargetLocation);
+
+	UE_LOG(SVSLogDebug, Log, TEXT("Launching character after attack"));
+	GetCharacterMovement()->Launch(FVector(
+		Direction.X * InAttackForce,
+		Direction.Y * InAttackForce,
+		Direction.Z)); // TODO was: abs(Direction.Z + 1) * InAttackForce)
+}
+
+float ASpyCharacter::GetHealth() const
+{
+	if (IsValid(SpyPlayerState))
+	{ return SpyPlayerState->GetHealth(); }
+	return -1.0f; /** Return non-sensical value to indicate there is an issue */
+}
+
+float ASpyCharacter::GetMaxHealth() const
+{
+	if (IsValid(SpyPlayerState))
+	{ return SpyPlayerState->GetMaxHealth(); }
+	return -1.0f; /** Return non-sensical value to indicate there is an issue */
 }
 
 void ASpyCharacter::Move(const FInputActionValue& Value)
@@ -509,7 +550,7 @@ void ASpyCharacter::Move(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		/**find out which way is forward */
+		/** find out which way is forward */
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
@@ -565,7 +606,7 @@ void ASpyCharacter::RequestNextTrap(const FInputActionValue& Value)
 	// }
 }
 
-void ASpyCharacter::RequestPrevTrap(const FInputActionValue& Value)
+void ASpyCharacter::RequestPreviousTrap(const FInputActionValue& Value)
 {
 	// if (Inventory.Weapons.Num() < 2)
 	// {
@@ -600,11 +641,15 @@ void ASpyCharacter::RequestPrevTrap(const FInputActionValue& Value)
 // 	}
 // }
 
-void ASpyCharacter::RequestInteract(const FInputActionValue& Value)
+void ASpyCharacter::RequestInteract()
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
-	if (IsValid(PlayerInteractionComponent) && GetPlayerInteractionComponent()->bCanInteractWithActor)
-	{ GetPlayerInteractionComponent()->RequestInteractWithObject(); }
+	if (IsValid(SpyInteractionComponent) && GetInteractionComponent()->bCanInteractWithActor)
+	{ GetInteractionComponent()->RequestInteractWithObject(); }
 }
 
-
+void ASpyCharacter::RequestTrapTrigger()
+{
+	SpyAbilitySystemComponent->AbilityLocalInputPressed(
+			static_cast<int32>(ESVSAbilityInputID::TrapTriggerAction));
+}

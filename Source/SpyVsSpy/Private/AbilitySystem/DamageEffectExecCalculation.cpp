@@ -57,7 +57,8 @@ void UDamageEffectExecCalculation::Execute_Implementation(
 		DefensePower);
 
 	/** Avoid Divide by Zero In Damage Calculation */
-	if (DefensePower == 1.0f){ DefensePower = 1.0f; }
+	if (DefensePower == 1.0f)
+	{ DefensePower = 1.0f; }
 
 	float AttackPower = 0.0f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(

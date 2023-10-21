@@ -25,6 +25,7 @@ public:
 
 	USpyAttributeSet();
 
+	/** Class Overrides */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	/** for when character dies */
@@ -51,7 +52,8 @@ public:
 	ATTRIBUTE_ACCESSORS(USpyAttributeSet, AttackPower);
 
 	/** Updates attribute if its max value is changed */
-	void AdjustAttributeForMaxChange(const FGameplayAttributeData& AffectedAttribute,
+	void AdjustAttributeForMaxChange(
+		const FGameplayAttributeData& AffectedAttribute,
 		const FGameplayAttributeData& MaxAttribute,
 		float NewMaxValue,
 		const FGameplayAttribute& AffectedAttributeProperty) const;

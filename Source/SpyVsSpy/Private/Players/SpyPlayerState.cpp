@@ -100,7 +100,8 @@ float ASpyPlayerState::GetMaxHealth() const
 
 void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 {
-	if (!HasAuthority()){ return; }
+	if (!HasAuthority())
+	{ return; }
 	
 	CurrentStatus = PlayerGameStatus;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyPlayerState, CurrentStatus, this);
@@ -116,27 +117,30 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 	if(const ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetOwner()))
 	{
 		if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(SpyPlayerController->GetHUD()))
-		{ PlayerHUD->UpdateDisplayedPlayerState(CurrentStatus); }
+		{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 	}
 }
 
 void ASpyPlayerState::OnRep_CurrentStatus()
 {
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{ return; }
+	
 	if (!IsValid(GetPlayerController()))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Spy playerstate cannot get player controller"));
+		UE_LOG(SVSLogDebug, Log, TEXT("Spy playerstate cannot get player controller to update displayed playerstatus"));
 		return;
 	}
 	
 	if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(GetPlayerController()->GetHUD()))
-	{ PlayerHUD->UpdateDisplayedPlayerState(CurrentStatus); }
+	{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 }
 
 void ASpyPlayerState::OnRep_PlayerName()
 {
 	Super::OnRep_PlayerName();
 
-	if (const ASpyPlayerController* SpyPlayerController =  Cast<ASpyPlayerController>(
+	if (const ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(
 		GetPlayerController()))
 	{ SpyPlayerController->OnPlayerStateReceived.Broadcast(); }
 }
@@ -200,5 +204,5 @@ void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 	if (IsValid(SpyCharacter) &&
 		!IsAlive() &&
 		!AbilitySystemComponent->HasMatchingGameplayTag(SpyDeadTag))
-	{ SpyCharacter->FinishDying(); }
+	{ SpyCharacter->FinishDeath(); }
 }

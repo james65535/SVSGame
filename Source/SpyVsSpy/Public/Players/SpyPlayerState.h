@@ -68,6 +68,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	bool IsWinner() const { return bIsWinner; }
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Save")
+	void SetPlayerRemainingMatchTime(const float InMatchTime) { PlayerRemainingMatchTime = InMatchTime; }
 	
 protected:
 
@@ -86,6 +89,8 @@ protected:
 
 	/** Ability System Tags */
 	FGameplayTag SpyDeadTag;
+
+	float PlayerRemainingMatchTime = 0.0f;
 
 private:
 
