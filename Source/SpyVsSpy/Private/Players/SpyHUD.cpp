@@ -157,10 +157,10 @@ void ASpyHUD::HideLevelMenu()
 	LevelMenuWidget->HideGameMenu();
 }
 
-void ASpyHUD::UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerState) const
+void ASpyHUD::UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerStatus) const
 {
 	if (IsValid(GameLevelWidget))
-	{ GameLevelWidget->UpdateDisplayedPlayerStatus(InPlayerState); }
+	{ GameLevelWidget->UpdateDisplayedPlayerStatus(InPlayerStatus); }
 }
 
 UUIElementWidget* ASpyHUD::AddSlotUI_Implementation(const TSubclassOf<UUIElementWidget> InWidgetClass, FName InSlotName)

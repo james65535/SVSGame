@@ -6,6 +6,8 @@
 #include "AbilitySystemComponent.h"
 #include "SpyAbilitySystemComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FReceivedDamageDelegate, const USpyAbilitySystemComponent*, SourceAbilitySystemComponent, float, DamageDone);
+
 /**
  * 
  */
@@ -22,6 +24,14 @@ public:
 	 * Boolean to gate the setup of abilities as it can either start in
 	 * SetupPlayerInputComponent() or OnRep_PlayerState() due race conditions
 	 */
-	bool bCharacterAbilitiesGiven ;
+	bool bCharacterAbilitiesGiven = false;
+	bool bAbilitySystemInitiated = false;
+
+	FReceivedDamageDelegate ReceivedDamageDelegate;
+	
+	UFUNCTION(BlueprintCallable, Category = "SVS|Ability")
+	void ReceiveDamage(const USpyAbilitySystemComponent* SourceAbilitySystemComponent, float DamageDone);
+
+	virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
 	
 };

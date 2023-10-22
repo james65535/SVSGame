@@ -349,13 +349,21 @@ void ASpyCharacter::RequestDeath()
 {
 	if (!IsValid(SpyAbilitySystemComponent))
 	{ return; }
+
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s has requested death, may they be at peace"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
 	
 	/** Only runs on Server */
 	RemoveCharacterAbilities();
 
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetCharacterMovement()->GravityScale = 0;
-	GetCharacterMovement()->Velocity = FVector(0);
+	GetCapsuleComponent()->DestroyComponent();
+	GetMesh()->SetCollisionProfileName("Ragdoll", true);
+	GetMesh()->SetAllBodiesSimulatePhysics(true);
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->WakeAllRigidBodies();
+	GetCharacterMovement()->SetMovementMode(MOVE_None);
+	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// GetCharacterMovement()->GravityScale = 0;
+	// GetCharacterMovement()->Velocity = FVector(0);
 	
 	SpyPlayerState->ReduceRemainingMatchTime();
 	OnCharacterDied.Broadcast(this);
@@ -383,7 +391,13 @@ void ASpyCharacter::RequestDeath()
 	// 	FinishDeath();
 	// }
 
-	FinishDeath();
+	// TODO could get rid of timer and respond to a notify
+	GetWorld()->GetTimerManager().SetTimer(
+			FinishDeathTimerHandle,
+			this,
+			&ThisClass::FinishDeath,
+			FinishDeathRateSeconds,
+			false);
 }
 
 void ASpyCharacter::FinishDeath()
@@ -391,8 +405,9 @@ void ASpyCharacter::FinishDeath()
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (!HasAuthority())
 	{ return; }
-	
-	Destroy();
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
+	// TODO this should all be clean up stuff
+	//Destroy();
 }
 
 void ASpyCharacter::HandlePrimaryAttack()
@@ -474,18 +489,19 @@ void ASpyCharacter::HandleTrapTrigger()
 	// TODO sort out attack force and consider multiplayer aspect/multicast
 	constexpr float AttackForce = 1500.0f;
 	FVector AttackOrigin = FVector::ZeroVector;
+
 	if (IsValid(GetInteractionComponent()->GetLatestInteractableComponent()) && IsValid(GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()))
-	{
-		AttackOrigin = GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()->GetActorLocation();
-	}
+	{ AttackOrigin = GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()->GetActorLocation(); }
+
 	Cast<ISpyCombatantInterface>(this)->ApplyAttackImpactForce(AttackOrigin, AttackForce);
 
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
 	FGameplayEventData Payload = FGameplayEventData();
-	Payload.Instigator = GetInstigator(); // TODO should probably find a way to feed in furniture actor
+	Payload.Instigator = this; // TODO should probably find a way to feed in furniture actor
 	Payload.Target = this;
 	Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(this);
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, Payload);
 	
 	/** if our Count returns 0, it means we did not hit an enemy and we should end our ability */
 	// TODO determine what would cause this trap tripper to no hit
@@ -542,6 +558,11 @@ float ASpyCharacter::GetMaxHealth() const
 	if (IsValid(SpyPlayerState))
 	{ return SpyPlayerState->GetMaxHealth(); }
 	return -1.0f; /** Return non-sensical value to indicate there is an issue */
+}
+
+bool ASpyCharacter::IsAlive()
+{
+	return GetHealth() >= 1.0f;
 }
 
 void ASpyCharacter::Move(const FInputActionValue& Value)

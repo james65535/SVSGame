@@ -54,26 +54,20 @@ public:
 	void NM_FinishedMatch();
 
 #pragma region="Health"
-	// TODO Implement or replace with GAS Attributeset
-	// UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	//UPlayerHealthComponent* GetPlayerHealthComponent() const { return PlayerHealthComponent; }
-
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Character")
 	FCharacterDiedDelegate OnCharacterDied;
-	
 	virtual void RequestDeath();
 
-	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	virtual void FinishDeath();
 
 	/** Can only be called by the Server. Removing on the Server will remove from Client too */
 	virtual void RemoveCharacterAbilities();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Attributes")
-	float GetHealth() const;
-
+	virtual float GetHealth() const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character|Attributes")
-	float GetMaxHealth() const;
+	virtual float GetMaxHealth() const;
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
+	virtual bool IsAlive();
 #pragma endregion="Health"
 
 #pragma region="Movement"
@@ -255,6 +249,13 @@ protected:
 	friend USpyAttributeSet; // TODO 
 	UPROPERTY()
 	TObjectPtr<USpyAttributeSet> Attributes;
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	virtual void FinishDeath();
+
+	FTimerHandle FinishDeathTimerHandle;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Character|Death")
+	float FinishDeathRateSeconds = 10.0f;
 
 	/** GAS related tags */
 	FGameplayTag SpyDeadTag;

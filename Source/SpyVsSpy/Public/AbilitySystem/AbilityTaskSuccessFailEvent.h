@@ -29,7 +29,7 @@ class SPYVSSPY_API UAbilityTaskSuccessFailEvent : public UAbilityTask
 	 * It will keep listening as long as OnlyTriggerOnce = false
 	 * If OnlyMatchExact = false it will trigger for nested tags
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Ability|Tasks", meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "TRUE"))
+	UFUNCTION(BlueprintCallable, Category = "SVS|Ability|Tasks", meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "TRUE"))
 	static UAbilityTaskSuccessFailEvent* WaitSuccessFailEvent(UGameplayAbility* OwningAbility, const FGameplayTag SuccessTag, const FGameplayTag FailTag, AActor* OptionalExternalTarget, const bool OnlyTriggerOnce,  const bool OnlyMatchExact);
 
 	void SetExternalTarget(const AActor* Actor);

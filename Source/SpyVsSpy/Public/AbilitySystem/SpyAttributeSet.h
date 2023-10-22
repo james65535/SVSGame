@@ -50,7 +50,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AttackPower, Category = "SVS|Attributes|Combat")
 	FGameplayAttributeData AttackPower;
 	ATTRIBUTE_ACCESSORS(USpyAttributeSet, AttackPower);
-
+	
 	/** Updates attribute if its max value is changed */
 	void AdjustAttributeForMaxChange(
 		const FGameplayAttributeData& AffectedAttribute,

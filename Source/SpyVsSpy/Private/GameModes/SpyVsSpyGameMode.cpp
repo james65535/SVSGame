@@ -28,9 +28,9 @@ void ASpyVsSpyGameMode::BeginPlay()
 
 		// TODO replace with desiredgametype
 		if (bToggleInitialMainMenu)
-		{ SVSGameState->SetGameState(ESpyMatchState::None); }
+		{ SVSGameState->SetMatchState(ESpyMatchState::None); }
 		else
-		{ SVSGameState->SetGameState(ESpyMatchState::Waiting); }
+		{ SVSGameState->SetMatchState(ESpyMatchState::Waiting); }
 	}
 }
 
@@ -129,7 +129,7 @@ void ASpyVsSpyGameMode::DisplayCountDown()
 	GetWorld()->GetTimerManager().SetTimer(
 		CountdownTimerHandle,
 		this,
-		&ASpyVsSpyGameMode::StartGame,
+		&ThisClass::StartGame,
 		GameCountDownDuration,
 		false);
 

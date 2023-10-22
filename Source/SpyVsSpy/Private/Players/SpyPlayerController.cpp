@@ -270,6 +270,10 @@ void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
 	SpyPlayerState->SavePlayerInfo();
 }
 
+void ASpyPlayerController::TakeAllFromTargetInventory()
+{
+}
+
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds() const
 {
 	const float ElapsedTime = SpyGameState->GetServerWorldTimeSeconds() - CachedMatchStartTime;
@@ -360,7 +364,7 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 
 bool ASpyPlayerController::CanProcessRequest() const
 {
-	if (SpyGameState && SpyGameState->IsGameInPlay())
+	if (SpyGameState && SpyGameState->IsMatchInPlay())
 	{ return (SpyPlayerState->GetCurrentState() == EPlayerGameStatus::Playing); }
 	return false;
 }

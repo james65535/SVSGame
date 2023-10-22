@@ -42,10 +42,15 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	FDoRepLifetimeParams AutonomousPushedRepNotifyAlwaysParams;
+	AutonomousPushedRepNotifyAlwaysParams.bIsPushBased = true;
+	AutonomousPushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
+	//AutonomousPushedRepNotifyAlwaysParams.Condition = COND_AutonomousOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, AutonomousPushedRepNotifyAlwaysParams);
+
 	FDoRepLifetimeParams PushedRepNotifyParams;
 	PushedRepNotifyParams.bIsPushBased = true;
 	PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_OnChanged;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, PushedRepNotifyParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, PlayerRemainingMatchTime, PushedRepNotifyParams);
 }
 
@@ -144,10 +149,11 @@ void ASpyPlayerState::OnRep_CurrentStatus()
 {
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{ return; }
-	
+
+	UE_LOG(SVSLog, Warning, TEXT("Spy playerstate received replication for current status: %hhd"), CurrentStatus);
 	if (!IsValid(GetPlayerController()))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Spy playerstate cannot get player controller to update displayed playerstatus"));
+		UE_LOG(SVSLog, Warning, TEXT("Spy playerstate cannot get player controller to update displayed playerstatus"));
 		return;
 	}
 	
@@ -223,5 +229,5 @@ void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 	if (IsValid(SpyCharacter) &&
 		!IsAlive() &&
 		!AbilitySystemComponent->HasMatchingGameplayTag(SpyDeadTag))
-	{ SpyCharacter->FinishDeath(); }
+	{ SpyCharacter->RequestDeath(); }
 }

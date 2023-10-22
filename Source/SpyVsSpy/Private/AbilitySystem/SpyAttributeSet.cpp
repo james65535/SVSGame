@@ -3,6 +3,9 @@
 
 #include "AbilitySystem/SpyAttributeSet.h"
 
+#include "AttributeSet.h"
+#include "GameplayEffectExtension.h"
+#include "SVSLogger.h"
 #include "net/UnrealNetwork.h"
 
 USpyAttributeSet::USpyAttributeSet()
@@ -28,6 +31,7 @@ void USpyAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 
+
 	if (Attribute == GetMaxHealthAttribute())
 	{
 		AdjustAttributeForMaxChange(
@@ -37,10 +41,28 @@ void USpyAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 			GetHealthAttribute());
 	}
 }
-
+// TODO where is this? Replaced by damage calc? Does damage calc modify health like this?
 void USpyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
+
+	
+	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+	{
+		// Convert into -Health and then clamp
+		SetHealth(FMath::Clamp(GetHealth() - GetDamage(), 0.0f, GetMaxHealth()));
+		SetDamage(0.0f);
+	}
+
+	// if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	// {
+	// 	SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+	//
+	// 	if (TargetCharacter)
+	// 	{
+	// 		TargetCharacter->HandleHealthChanged(DeltaValue, SourceTags);
+	// 	}
+	// }
 }
 
 void USpyAttributeSet::AdjustAttributeForMaxChange(
@@ -54,7 +76,7 @@ void USpyAttributeSet::AdjustAttributeForMaxChange(
 	{
 		const float CurrentValue = AffectedAttribute.GetCurrentValue();
 		const float NewDelta = (
-			CurrentMaxValue >= 1.0f) ?
+			CurrentMaxValue > 0.0f) ?
 				(CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue :
 				NewMaxValue;
 
@@ -64,6 +86,7 @@ void USpyAttributeSet::AdjustAttributeForMaxChange(
 
 void USpyAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Health OnRep with Value: %f"), OldValue.GetCurrentValue());
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USpyAttributeSet, Health, OldValue);
 }
 

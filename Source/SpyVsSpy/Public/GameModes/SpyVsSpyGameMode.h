@@ -8,7 +8,6 @@
 #include "GameFramework/GameMode.h"
 #include "SpyVsSpyGameMode.generated.h"
 
-enum class ESpyMatchState : uint8;
 class ARoomManager;
 class ASpyPlayerController;
 

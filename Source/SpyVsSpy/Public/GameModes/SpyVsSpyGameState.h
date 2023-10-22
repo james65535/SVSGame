@@ -72,12 +72,12 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	void SetGameState(const ESpyMatchState InGameState);
+	void SetMatchState(const ESpyMatchState InMatchState);
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	ESpyMatchState GetGameState() const { return SpyGameState; };
+	ESpyMatchState GetMatchState() const { return SpyMatchState; };
 	/** Quick Check to Determine if Game State is Playing */
 	UFUNCTION(BlueprintPure)
-	bool IsGameInPlay() const { return SpyGameState == ESpyMatchState::Playing;}
+	bool IsMatchInPlay() const { return SpyMatchState == ESpyMatchState::Playing;}
 
 	/** Game Type Public Accessors */
 	/** Set the Game Type - Should Correspond with GameMode */
@@ -131,12 +131,12 @@ private:
 	void OnRep_RoomManager();
 
 	/** The State of the Game */
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameState, Category = "SVS|GameState")
-	ESpyMatchState SpyGameState = ESpyMatchState::None;
-	UPROPERTY()
-	ESpyMatchState OldSpyGameState = ESpyMatchState::None;
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_SpyMatchState, Category = "SVS|GameState")
+	ESpyMatchState SpyMatchState = ESpyMatchState::None;
 	UFUNCTION()
-	void OnRep_GameState() const;
+	void OnRep_SpyMatchState() const;
+	UPROPERTY()
+	ESpyMatchState OldSpyMatchState = ESpyMatchState::None;
 
 	/** The type of game being played - is correlated to which gamemode is selected */
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameType, Category = "SVS|GameState")

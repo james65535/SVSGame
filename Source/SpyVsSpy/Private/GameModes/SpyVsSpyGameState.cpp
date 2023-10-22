@@ -27,7 +27,7 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	SharedParamsRepNotifyAlwaysSkipOwner.Condition = COND_SkipOwner;
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RoomManager, SharedParamsRepNotifyAlwaysSkipOwner);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyGameState, SharedParamsRepNotifyAlwaysSkipOwner);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyMatchState, SharedParamsRepNotifyAlwaysSkipOwner);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SVSGameType, SharedParamsRepNotifyAlwaysSkipOwner);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Results, SharedParamsRepNotifyAlwaysSkipOwner);
 
@@ -38,15 +38,15 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerMatchStartTime, SharedParamsRepNotifyChanged);
 }
 
-void ASpyVsSpyGameState::SetGameState(const ESpyMatchState InGameState)
+void ASpyVsSpyGameState::SetMatchState(const ESpyMatchState InSpyMatchState)
 {
-	OldSpyGameState = SpyGameState;
-	SpyGameState = InGameState;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyGameState, this);
+	OldSpyMatchState = SpyMatchState;
+	SpyMatchState = InSpyMatchState;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchState, this);
 	
 	/** Manual invocation of OnRep_GameState so server will also run the method */
 	if (HasAuthority())
-	{ OnRep_GameState(); }
+	{ OnRep_MatchState(); }
 }
 
 void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
@@ -68,7 +68,7 @@ void ASpyVsSpyGameState::NM_MatchStart_Implementation()
 {
 	ClearResults();
 	MatchStartTime = GetServerWorldTimeSeconds();
-	SetGameState(ESpyMatchState::Playing);
+	SetMatchState(ESpyMatchState::Playing);
 	OnStartMatchDelegate.Broadcast(MatchStartTime);
 	UpdatePlayerStateMatchTime();
 	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), MatchStartTime);
@@ -108,9 +108,9 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 	// if(CheckAllResultsIn())
 	// {
 		/** Results Replication Is Pushed to Mark Dirty */
-		SpyGameState = ESpyMatchState::GameOver;
+		SpyMatchState = ESpyMatchState::GameOver;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyGameState, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchState, this);
 		
 		/** if running a local game then need to call the OnRep function manually */
 		if (HasAuthority() && !IsRunningDedicatedServer())
@@ -128,7 +128,7 @@ bool ASpyVsSpyGameState::CheckAllResultsIn() const
 	return false;
 }
 
-void ASpyVsSpyGameState::OnRep_GameState() const
+void ASpyVsSpyGameState::OnRep_SpyMatchState() const
 {
 }
 

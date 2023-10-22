@@ -12,7 +12,7 @@
 class UInventoryComponent;
 class ASpyPlayerController;
 class ASpyVsSpyGameMode;
-enum class EPlayerGameStatus : uint8;
+enum class EPlayerMatchStatus : uint8;
 
 /**
  * 
@@ -91,7 +91,7 @@ public:
 	void HideLevelMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerState) const;
+	void UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerStatus) const;
 
 private:
 

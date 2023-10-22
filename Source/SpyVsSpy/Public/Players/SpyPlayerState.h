@@ -107,7 +107,7 @@ private:
 	virtual void OnRep_PlayerName() override;
 	
 	/** Player Status in the game */
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentStatus)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")
 	EPlayerGameStatus CurrentStatus = EPlayerGameStatus::None;
 	UFUNCTION()
 	virtual void OnRep_CurrentStatus();

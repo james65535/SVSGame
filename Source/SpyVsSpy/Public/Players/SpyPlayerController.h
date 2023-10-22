@@ -85,6 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerName(const FString& InPlayerName);
 
+	/** UFUNCTION Wrapper for parent class SetName method */
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	void TakeAllFromTargetInventory();
+
 private:
 
 	/** Game Related */
