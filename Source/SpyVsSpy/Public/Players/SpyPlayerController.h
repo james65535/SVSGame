@@ -93,12 +93,12 @@ private:
 	UPROPERTY()
 	ASpyCharacter* SpyCharacter;
 	
-	
 	/** Values Used for Display Match Time to the Player */
 	FTimerHandle MatchClockDisplayTimerHandle;
 	const float MatchClockDisplayRateSeconds = 0.1f;
 	float CachedMatchStartTime = 0.0f;
-	void HUDDisplayGameTimeElapsedSeconds() const;
+	void CalculateGameTimeElapsedSeconds() const;
+	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
 	
 	/** Player HUD */
 	UPROPERTY(VisibleInstanceOnly, Category = "SVS|UI")

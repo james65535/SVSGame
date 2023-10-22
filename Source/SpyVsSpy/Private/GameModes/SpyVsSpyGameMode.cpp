@@ -28,9 +28,9 @@ void ASpyVsSpyGameMode::BeginPlay()
 
 		// TODO replace with desiredgametype
 		if (bToggleInitialMainMenu)
-		{ SVSGameState->SetGameState(ESpyGameState::None); }
+		{ SVSGameState->SetGameState(ESpyMatchState::None); }
 		else
-		{ SVSGameState->SetGameState(ESpyGameState::Waiting); }
+		{ SVSGameState->SetGameState(ESpyMatchState::Waiting); }
 	}
 }
 
@@ -49,12 +49,13 @@ void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 	}
 }
 
-void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime)
+void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime) const
 {
 	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
-	{
-		
-	}
+	{ SVSGameState->SetPlayerMatchTime(InMatchTime); }
+
+	if (InMatchTime <=  1.0f)
+	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State was supplied a PlayerMatchTime less than 1 second, ridiculous!")); }
 }
 
 void ASpyVsSpyGameMode::RestartGame()
@@ -81,10 +82,7 @@ void ASpyVsSpyGameMode::AttemptStartGame()
 void ASpyVsSpyGameMode::StartGame()
 {
 	if (!HasAuthority())
-	{
-		UE_LOG(SVSLog, Warning, TEXT("This System does not have authority to start game"));
-		return;
-	}
+	{ return; }
 	
 	for (FConstControllerIterator Iterator = GetWorld()->GetControllerIterator(); Iterator; ++Iterator)
 	{
@@ -149,7 +147,7 @@ bool ASpyVsSpyGameMode::CheckAllPlayersStatus(const EPlayerGameStatus StateToChe
 		{
 			if (PlayerState->GetCurrentState() != StateToCheck)
 			{
-				UE_LOG(SVSLog, Warning, TEXT("PlayerID: %i did not match requested state"), PlayerState->GetPlayerId())
+				UE_LOG(SVSLogDebug, Log, TEXT("PlayerID: %i did not match requested state"), PlayerState->GetPlayerId())
 				return false;
 			}
 			Count++;

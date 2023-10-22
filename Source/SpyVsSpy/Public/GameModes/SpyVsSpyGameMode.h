@@ -8,7 +8,7 @@
 #include "GameFramework/GameMode.h"
 #include "SpyVsSpyGameMode.generated.h"
 
-enum class ESpyGameState : uint8;
+enum class ESpyMatchState : uint8;
 class ARoomManager;
 class ASpyPlayerController;
 
@@ -33,9 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void PlayerNotifyIsReady(ASpyPlayerState* InPlayerState );
 
-	/** Method for Player's to notify they are ready to play */
+	/** Set the player match starting time - not the game match time */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
-	void SetMatchTime(const float InMatchTime);
+	void SetMatchTime(const float InMatchTime) const;
 
 private:
 

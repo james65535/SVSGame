@@ -46,6 +46,7 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	PushedRepNotifyParams.bIsPushBased = true;
 	PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_OnChanged;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, PushedRepNotifyParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, PlayerRemainingMatchTime, PushedRepNotifyParams);
 }
 
 void ASpyPlayerState::BeginPlay()
@@ -104,7 +105,7 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 	{ return; }
 	
 	CurrentStatus = PlayerGameStatus;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyPlayerState, CurrentStatus, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, CurrentStatus, this);
 
 	/** If Player is Ready then notify game mode */
 	if (PlayerGameStatus == EPlayerGameStatus::Ready)
@@ -119,6 +120,24 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 		if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(SpyPlayerController->GetHUD()))
 		{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 	}
+}
+
+void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTime)
+{
+	if (!HasAuthority())
+	{ return; }
+	
+	PlayerRemainingMatchTime = InMatchTime;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
+}
+
+void ASpyPlayerState::ReduceRemainingMatchTime()
+{
+	if (!HasAuthority())
+	{ return; }
+	
+	PlayerRemainingMatchTime -= TimeReductionInSeconds;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
 }
 
 void ASpyPlayerState::OnRep_CurrentStatus()

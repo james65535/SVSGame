@@ -270,9 +270,23 @@ void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
 	SpyPlayerState->SavePlayerInfo();
 }
 
-void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds() const
+void ASpyPlayerController::CalculateGameTimeElapsedSeconds() const
 {
-	PlayerHUD->SetMatchTimerSeconds(SpyGameState->GetServerWorldTimeSeconds() - CachedMatchStartTime);
+	const float ElapsedTime = SpyGameState->GetServerWorldTimeSeconds() - CachedMatchStartTime;
+	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
+
+	if (!IsRunningDedicatedServer())
+	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
+
+	if (TimeLeft <= 0.0f)
+	{
+		// TODO call spy lost
+	}
+}
+
+void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const
+{
+	PlayerHUD->SetMatchTimerSeconds(InTimeToDisplay);
 }
 
 void ASpyPlayerController::SetInputContext(TSoftObjectPtr<UInputMappingContext> InMappingContext)
@@ -324,18 +338,19 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 	NM_SetControllerGameInputMode(EPlayerInputMode::GameOnly);
 	SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
 	CachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
+
+	/** Handle Match Time */
+	GetWorld()->GetTimerManager().SetTimer(
+		MatchClockDisplayTimerHandle,
+		this,
+		&ThisClass::CalculateGameTimeElapsedSeconds,
+		MatchClockDisplayRateSeconds,
+		true);
+	
+	/** Update Player Displays with character info */
 	if (!IsRunningDedicatedServer())
 	{
-		/** Handle Match Time */
-		GetWorld()->GetTimerManager().SetTimer(
-			MatchClockDisplayTimerHandle,
-			this,
-			&ThisClass::HUDDisplayGameTimeElapsedSeconds,
-			MatchClockDisplayRateSeconds,
-			true);
 		PlayerHUD->ToggleDisplayGameTime(true);
-
-		/** Update Player Displays with character info */
 		PlayerHUD->DisplayCharacterHealth(
 			SpyPlayerState->GetHealth(),
 			SpyPlayerState->GetMaxHealth());

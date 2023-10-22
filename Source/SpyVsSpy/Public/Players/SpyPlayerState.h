@@ -69,8 +69,14 @@ public:
 	bool IsWinner() const { return bIsWinner; }
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
 
-	UFUNCTION(BlueprintCallable, Category = "SVS|Save")
-	void SetPlayerRemainingMatchTime(const float InMatchTime) { PlayerRemainingMatchTime = InMatchTime; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	void SetPlayerRemainingMatchTime(const float InMatchTime);
+	
+	UFUNCTION(BlueprintPure, Category = "SVS|Player")
+	float GetPlayerRemainingMatchTime() const { return PlayerRemainingMatchTime; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	void ReduceRemainingMatchTime();
 	
 protected:
 
@@ -90,7 +96,10 @@ protected:
 	/** Ability System Tags */
 	FGameplayTag SpyDeadTag;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Replicated, Category = "SVS|Player")
 	float PlayerRemainingMatchTime = 0.0f;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
+	float TimeReductionInSeconds = 30.0f;
 
 private:
 
@@ -112,5 +121,7 @@ private:
 	// TODO Build these properties out instead of being static
 	const FString SaveSlotName = TEXT("GeneralSaveSlot");
 	const uint32 SaveUserIndex = 0;
+
+	
 
 };

@@ -12,7 +12,7 @@ class ARoomManager;
 
 // ENUM to track the current state of the game
 UENUM(BlueprintType)
-enum class ESpyGameState : uint8
+enum class ESpyMatchState : uint8
 {
 	None		UMETA(DisplayName = "None"),
 	Waiting		UMETA(DisplayName = "Waiting"),
@@ -71,37 +71,37 @@ public:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UFUNCTION(BlueprintCallable, Category = "SVS")
-	void SetGameState(const ESpyGameState InGameState);
-	UFUNCTION(BlueprintCallable, Category = "SVS")
-	ESpyGameState GetGameState() const { return SpyGameState; };
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void SetGameState(const ESpyMatchState InGameState);
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	ESpyMatchState GetGameState() const { return SpyGameState; };
 	/** Quick Check to Determine if Game State is Playing */
 	UFUNCTION(BlueprintPure)
-	bool IsGameInPlay() const { return SpyGameState == ESpyGameState::Playing;}
+	bool IsGameInPlay() const { return SpyGameState == ESpyMatchState::Playing;}
 
 	/** Game Type Public Accessors */
 	/** Set the Game Type - Should Correspond with GameMode */
-	UFUNCTION(BlueprintCallable, Category = "SVS")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetGameType(const ESVSGameType InGameType);
 	/** Get the Game Type - Should Correspond with GameMode */
-	UFUNCTION(BlueprintCallable, Category = "SVS")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	ESVSGameType GetGameType() const { return SVSGameType;}
 	
-	UFUNCTION(BlueprintCallable, Category = "Tantrumn")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	const TArray<FGameResult>& GetResults() { return Results; }
 	UFUNCTION()
 	void ClearResults();
 	
 	/** Methods relating to Match Start and Time Management */
-	UFUNCTION(NetMulticast, Reliable, Category = "SVS")
+	UFUNCTION(NetMulticast, Reliable, Category = "SVS|GameState")
 	void NM_MatchStart();
 	FStartMatch OnStartMatchDelegate;
-	UFUNCTION(BlueprintCallable, Category = "SVS")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	float GetMatchStartTime() const { return MatchStartTime; }
-	UFUNCTION(BlueprintCallable, Category = "SVS")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	float GetMatchDeltaTime() const { return GetServerWorldTimeSeconds() - MatchStartTime; }
 
-	UFUNCTION(BlueprintCallable, Category = "SVS")
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetPlayerMatchTime(const float InMatchStartTime);
 
 	void SetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
@@ -114,31 +114,38 @@ protected:
 	/** Item array with which a player must fully possess to complete the map */
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	TArray<UInventoryBaseAsset*> RequiredMissionItems;
+
+	/** Player Starting Match Time - Independent from game match time */ 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Replicated, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	float PlayerMatchStartTime = 0.0f;
+
+	UFUNCTION()
+	void UpdatePlayerStateMatchTime();
 	
 private:
 	
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing="OnRep_RoomManager", Category = "SVS|Room")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing="OnRep_RoomManager", Category = "SVS|GameState|Room")
 	ARoomManager* RoomManager;
 
 	UFUNCTION()
 	void OnRep_RoomManager();
 
 	/** The State of the Game */
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameState, Category = "SVS")
-	ESpyGameState SpyGameState = ESpyGameState::None;
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameState, Category = "SVS|GameState")
+	ESpyMatchState SpyGameState = ESpyMatchState::None;
 	UPROPERTY()
-	ESpyGameState OldSpyGameState = ESpyGameState::None;
+	ESpyMatchState OldSpyGameState = ESpyMatchState::None;
 	UFUNCTION()
 	void OnRep_GameState() const;
 
 	/** The type of game being played - is correlated to which gamemode is selected */
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameType, Category = "SVS")
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameType, Category = "SVS|GameState")
 	ESVSGameType SVSGameType = ESVSGameType::None;
 	UFUNCTION()
 	void OnRep_GameType() const;
 
 	/** Game Results */
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_ResultsUpdated, Category = "SVS")
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_ResultsUpdated, Category = "SVS|GameState")
 	TArray<FGameResult> Results;
 	UFUNCTION()
 	void OnRep_ResultsUpdated();
@@ -149,16 +156,9 @@ private:
 	bool CheckAllResultsIn() const ;
 
 	/** Game Time Values */
-	UPROPERTY(VisibleAnywhere, Category = "SVS")
+	UPROPERTY(VisibleAnywhere, Category = "SVS|GameState")
 	float CountDownStartTime;
 	/** Server - Client Time Sync handled by Player Controllers */ 
-	UPROPERTY(VisibleAnywhere, Category = "SVS")
+	UPROPERTY(VisibleAnywhere, Category = "SVS|GameState")
 	float MatchStartTime;
-
-	/** Player Starting Match Time - Independant from game match time */ 
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_PlayerMatchStartTime, Category = "SVS")
-	float PlayerMatchStartTime = 0.0f;
-	UFUNCTION()
-	void OnRep_PlayerMatchStartTime();
-	
 };

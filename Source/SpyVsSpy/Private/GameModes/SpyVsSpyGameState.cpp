@@ -21,23 +21,24 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	FDoRepLifetimeParams SharedParams;
-	SharedParams.bIsPushBased = true;
-	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
-	SharedParams.Condition = COND_SkipOwner;
+	FDoRepLifetimeParams SharedParamsRepNotifyAlwaysSkipOwner;
+	SharedParamsRepNotifyAlwaysSkipOwner.bIsPushBased = true;
+	SharedParamsRepNotifyAlwaysSkipOwner.RepNotifyCondition = REPNOTIFY_Always;
+	SharedParamsRepNotifyAlwaysSkipOwner.Condition = COND_SkipOwner;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RoomManager, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyGameState, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SVSGameType, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Results, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RoomManager, SharedParamsRepNotifyAlwaysSkipOwner);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyGameState, SharedParamsRepNotifyAlwaysSkipOwner);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SVSGameType, SharedParamsRepNotifyAlwaysSkipOwner);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Results, SharedParamsRepNotifyAlwaysSkipOwner);
 
 	FDoRepLifetimeParams SharedParamsRepNotifyChanged;
-	SharedParams.bIsPushBased = true;
-	SharedParams.RepNotifyCondition = REPNOTIFY_OnChanged;
+	SharedParamsRepNotifyChanged.bIsPushBased = true;
+	SharedParamsRepNotifyChanged.RepNotifyCondition = REPNOTIFY_OnChanged;
+	
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerMatchStartTime, SharedParamsRepNotifyChanged);
 }
 
-void ASpyVsSpyGameState::SetGameState(const ESpyGameState InGameState)
+void ASpyVsSpyGameState::SetGameState(const ESpyMatchState InGameState)
 {
 	OldSpyGameState = SpyGameState;
 	SpyGameState = InGameState;
@@ -67,8 +68,9 @@ void ASpyVsSpyGameState::NM_MatchStart_Implementation()
 {
 	ClearResults();
 	MatchStartTime = GetServerWorldTimeSeconds();
-	SetGameState(ESpyGameState::Playing);
+	SetGameState(ESpyMatchState::Playing);
 	OnStartMatchDelegate.Broadcast(MatchStartTime);
+	UpdatePlayerStateMatchTime();
 	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), MatchStartTime);
 }
 
@@ -106,7 +108,7 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 	// if(CheckAllResultsIn())
 	// {
 		/** Results Replication Is Pushed to Mark Dirty */
-		SpyGameState = ESpyGameState::GameOver;
+		SpyGameState = ESpyMatchState::GameOver;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyGameState, this);
 		
@@ -197,13 +199,17 @@ void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
 	TryFinaliseScoreBoard();
 }
 
-void ASpyVsSpyGameState::OnRep_PlayerMatchStartTime()
+void ASpyVsSpyGameState::UpdatePlayerStateMatchTime()
 {
+	if (!HasAuthority())
+	{ return; }
+	
 	for (APlayerState* PlayerState : PlayerArray)
 	{
-		ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState);
-		if (IsValid(SpyPlayerState) && SpyPlayerState->GetLocalRole() == ROLE_AutonomousProxy)
+		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
 		{ SpyPlayerState->SetPlayerRemainingMatchTime(PlayerMatchStartTime); }
+		else
+		{ UE_LOG(SVSLogDebug, Log, TEXT("SpyGameState could not set player match time")); }
 	}
 }
 

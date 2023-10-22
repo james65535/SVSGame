@@ -356,7 +356,8 @@ void ASpyCharacter::RequestDeath()
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetCharacterMovement()->GravityScale = 0;
 	GetCharacterMovement()->Velocity = FVector(0);
-
+	
+	SpyPlayerState->ReduceRemainingMatchTime();
 	OnCharacterDied.Broadcast(this);
 	
 	SpyAbilitySystemComponent->CancelAllAbilities();
