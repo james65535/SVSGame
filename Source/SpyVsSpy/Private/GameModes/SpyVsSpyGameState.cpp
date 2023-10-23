@@ -38,7 +38,7 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerMatchStartTime, SharedParamsRepNotifyChanged);
 }
 
-void ASpyVsSpyGameState::SetMatchState(const ESpyMatchState InSpyMatchState)
+void ASpyVsSpyGameState::SetSpyMatchState(const ESpyMatchState InSpyMatchState)
 {
 	OldSpyMatchState = SpyMatchState;
 	SpyMatchState = InSpyMatchState;
@@ -46,7 +46,7 @@ void ASpyVsSpyGameState::SetMatchState(const ESpyMatchState InSpyMatchState)
 	
 	/** Manual invocation of OnRep_GameState so server will also run the method */
 	if (HasAuthority())
-	{ OnRep_MatchState(); }
+	{ OnRep_SpyMatchState(); }
 }
 
 void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
@@ -56,7 +56,7 @@ void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
 	
 	/** Manual invocation of OnRep_GameState so server will also run the method */
 	if (HasAuthority())
-	{ OnRep_GameType(); }
+	{ OnRep_SVSGameType(); }
 }
 
 void ASpyVsSpyGameState::ClearResults()
@@ -68,7 +68,7 @@ void ASpyVsSpyGameState::NM_MatchStart_Implementation()
 {
 	ClearResults();
 	MatchStartTime = GetServerWorldTimeSeconds();
-	SetMatchState(ESpyMatchState::Playing);
+	SetSpyMatchState(ESpyMatchState::Playing);
 	OnStartMatchDelegate.Broadcast(MatchStartTime);
 	UpdatePlayerStateMatchTime();
 	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), MatchStartTime);
@@ -84,7 +84,7 @@ void ASpyVsSpyGameState::OnRep_ResultsUpdated()
 	}
 }
 
-void ASpyVsSpyGameState::PlayerRequestSubmitResults(const ASpyCharacter* InSpyCharacter)
+void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacter, bool bPlayerTimeExpired)
 {
 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter->GetPlayerState()))
 	{
@@ -95,9 +95,13 @@ void ASpyVsSpyGameState::PlayerRequestSubmitResults(const ASpyCharacter* InSpyCh
 			FGameResult Result;
 			Result.Time = GetServerWorldTimeSeconds() - MatchStartTime;
 			Result.Name = SpyPlayerState->GetPlayerName();
-			const bool IsWinner = Results.Num() == 0;
+			
+			bool IsWinner = false;
+			if (!bPlayerTimeExpired)
+			{ IsWinner = Results.Num() == 0; }
 			SpyPlayerState->SetIsWinner(IsWinner);
 			Result.bIsWinner = IsWinner;
+			
 			Results.Add(Result);
 		}
 	}
@@ -105,8 +109,8 @@ void ASpyVsSpyGameState::PlayerRequestSubmitResults(const ASpyCharacter* InSpyCh
 
 void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 {
-	// if(CheckAllResultsIn())
-	// {
+	if(CheckAllResultsIn())
+	{
 		/** Results Replication Is Pushed to Mark Dirty */
 		SpyMatchState = ESpyMatchState::GameOver;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
@@ -115,7 +119,7 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 		/** if running a local game then need to call the OnRep function manually */
 		if (HasAuthority() && !IsRunningDedicatedServer())
 		{ OnRep_ResultsUpdated(); }
-	//}
+	}
 }
 
 bool ASpyVsSpyGameState::CheckAllResultsIn() const
@@ -132,7 +136,7 @@ void ASpyVsSpyGameState::OnRep_SpyMatchState() const
 {
 }
 
-void ASpyVsSpyGameState::OnRep_GameType() const
+void ASpyVsSpyGameState::OnRep_SVSGameType() const
 {
 	/** If Replicated with COND_SkipOwner then Authority will need to run this manually */
 	OnGameTypeUpdateDelegate.Broadcast(SVSGameType);
@@ -176,15 +180,11 @@ void ASpyVsSpyGameState::SetRequiredMissionItems(const TArray<UInventoryBaseAsse
 
 void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
 {
-	
-	if (!HasAuthority() ||
-		!IsValid(InSpyCharacter) ||
-		!InSpyCharacter->GetPlayerInventoryComponent()->IsValidLowLevelFast())
+	if (!IsValid(InSpyCharacter) || !IsValid(InSpyCharacter->GetPlayerInventoryComponent()) )
 	{ return; }
 	
 	TArray<UInventoryBaseAsset*> PlayerInventory;
 	InSpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
-
 	if (PlayerInventory.Num() < 1)
 	{ return; }
 	
@@ -195,6 +195,17 @@ void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
 	}
 
 	PlayerRequestSubmitResults(InSpyCharacter);
+	InSpyCharacter->NM_FinishedMatch();
+	TryFinaliseScoreBoard();
+}
+
+void ASpyVsSpyGameState::NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter)
+{
+	if (!HasAuthority() ||
+	!IsValid(InSpyCharacter))
+	{ return; }
+	
+	PlayerRequestSubmitResults(InSpyCharacter, true);
 	InSpyCharacter->NM_FinishedMatch();
 	TryFinaliseScoreBoard();
 }

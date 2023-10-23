@@ -3,12 +3,15 @@
 
 #include "Items/InventoryComponent.h"
 
-#include "SVSLogger.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Items/InventoryBaseAsset.h"
 #include "Items/InventoryItemComponent.h"
 #include "Items/InventoryWeaponAsset.h"
+#include "Players/SpyCharacter.h"
+#include "Players/SpyPlayerController.h"
+#include "net/UnrealNetwork.h"
+#include "Net/Core/PushModel/PushModel.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -16,15 +19,33 @@ UInventoryComponent::UInventoryComponent()
 
 }
 
-bool UInventoryComponent::AddInventoryItem(FPrimaryAssetId InInventoryItemAssetId)
+void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (!InInventoryItemAssetId.IsValid() || InventoryAssetIdCollection.Num() >= MaxInventorySize)
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
+	SharedParams.Condition = COND_AutonomousOnly;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, InventoryCollection, SharedParams);
+}
+
+bool UInventoryComponent::AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets)
+{
+	const uint16 ArrayCountTotalBeforeEmplace = InventoryCollection.Num();
+	for (UInventoryBaseAsset* ItemAsset : InventoryItemAssets)
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Could not add item %s as the asset id was not valid or max inventory has been reached: %i out of %i"), *InInventoryItemAssetId.ToString(), InventoryAssetIdCollection.Num(), MaxInventorySize);
-		return false;
+		InventoryCollection.Emplace(ItemAsset);
+		if (InventoryCollection.Num() >= MaxInventorySize)
+		{ return false; }
 	}
 	
-	// if (InventoryCollection.Emplace(InInventoryItem) >= 0) { return true; }
+	if (InventoryCollection.Num() > ArrayCountTotalBeforeEmplace)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, InventoryCollection, this);
+		return true;
+	}
 	
 	return false;
 }
@@ -49,6 +70,15 @@ void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInve
 	InInventoryItems = InventoryCollection;
 }
 
+void UInventoryComponent::OnRep_InventoryCollection() const
+{
+	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
+	{
+		if (ASpyPlayerController* SpyPlayerController = SpyCharacter->GetController<ASpyPlayerController>())
+		{ SpyPlayerController->C_DisplayCharacterInventory(); }
+	}
+}
+
 void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId InInventoryAssetId)
 {
 	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
@@ -70,8 +100,6 @@ void UInventoryComponent::OnInventoryAssetLoad(const FPrimaryAssetId InInventory
 	{
 		if (UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InInventoryAssetId)))
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("Loaded Inventory Asset: %s"), *InventoryAsset->InventoryItemName.ToString());
-
 			// TODO this might need to be moved so load can be used more generically
 			if (UInventoryWeaponAsset* InventoryWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAsset))
 			{

@@ -2,6 +2,8 @@
 
 
 #include "Rooms/SpyLevelEndTrigger.h"
+
+#include "SVSLogger.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Players/SpyCharacter.h"
 
@@ -17,9 +19,9 @@ void ASpyLevelEndTrigger::BeginPlay()
 
 void ASpyLevelEndTrigger::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if (HasAuthority())
+	if (ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
-		if (ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
+		if (IsValid(SpyGameState) && HasAuthority())
 		{ SpyGameState->OnPlayerReachedEnd(SpyCharacter); }
 	}
 }

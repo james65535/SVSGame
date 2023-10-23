@@ -20,10 +20,10 @@ public:
 	ASpyFurniture();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Furniture")
-	UFurnitureInteractionComponent* GetInteractionComponent() const { return FurnitureInteractionComponent; };
+	UFurnitureInteractionComponent* GetInteractionComponent() const { return FurnitureInteractionComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Furniture")
-	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; };
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 	
 protected:
 	
@@ -34,9 +34,9 @@ protected:
 	bool bInteractionEnabled = true;
 	
 	UFUNCTION()
-	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 	UFUNCTION()
-	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+	void OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor);
 
 	UPROPERTY(BlueprintReadOnly, EditInstanceOnly, Meta = (AllowPrivateAccess = "true"), Category = "SVS|Furniture")
 	UInventoryComponent* InventoryComponent;

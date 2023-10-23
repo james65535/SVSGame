@@ -7,6 +7,7 @@
 #include "SVSDynamicDoor.generated.h"
 
 class UDoorInteractionComponent;
+class ASVSRoom;
 
 /**
  * 

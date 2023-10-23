@@ -82,8 +82,8 @@ void ASVSRoom::BeginPlay()
 	else { UE_LOG(SVSLog, Warning, TEXT("Room Appear Timeline Curve not valid")); }
 
 	/** Add delegate for Room Trigger overlaps */
-	OnActorBeginOverlap.AddUniqueDynamic(this, &ASVSRoom::OnOverlapBegin);
-	OnActorEndOverlap.AddUniqueDynamic(this, &ASVSRoom::OnOverlapEnd);
+	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
+	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
 
 	/** Set initial state of the warp in/out effect */
 	// TODO Check if we need to do this for each component - Walls / Floor(s)

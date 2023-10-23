@@ -5,6 +5,7 @@
 
 #include "SVSLogger.h"
 #include "Items/InteractInterface.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 
@@ -35,17 +36,6 @@ void USpyInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME_WITH_PARAMS_FAST(USpyInteractionComponent, bCanInteractWithActor, SharedParams);
 }
 
-void USpyInteractionComponent::OnRep_LatestInteractableComponentFound()
-{
-	if (!IsValid(LatestInteractableComponentFound)) { return; }
-	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound->GetName());
-}
-
-void USpyInteractionComponent::OnRep_bCanInteractWithActor()
-{
-	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
-}
-
 void USpyInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -67,10 +57,7 @@ void USpyInteractionComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedCom
 	for (UActorComponent* Component : OtherActor->GetComponentsByInterface(UInteractInterface::StaticClass()))
 	{
 		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s overlapped with interactable actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
-		bCanInteractWithActor = true;
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bCanInteractWithActor, this);
-		LatestInteractableComponentFound = Component;
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, LatestInteractableComponentFound, this);
+		SetLatestInteractableComponentFound(Component);
 		
 		// TODO Consider impact of handling multiple interactable actors
 		return;
@@ -79,39 +66,69 @@ void USpyInteractionComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedCom
 
 void USpyInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (GetOwnerRole() != ROLE_Authority || !IsValid(LatestInteractableComponentFound))
+	if (GetOwnerRole() != ROLE_Authority || !IsValid(LatestInteractableComponentFound.GetObjectRef()))
 	{ return; }
-	
-	// TODO Think about doing a validation check and also consider multiple actors
-	bCanInteractWithActor = false;
-	if (LatestInteractableComponentFound->GetOwner() == OtherActor)
+
+	if (LatestInteractableComponentFound->Execute_GetInteractableOwner(LatestInteractableComponentFound.GetObjectRef()) == OtherActor)
 	{
 		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s ended overlap with interactable actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
-		LatestInteractableComponentFound = nullptr;
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, LatestInteractableComponentFound, this);
+		SetLatestInteractableComponentFound(nullptr);
 	}
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s no longer overlapping with actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
 }
 
-void USpyInteractionComponent::RequestInteractWithObject() const
+bool USpyInteractionComponent::CanInteractWithKnownInteractionInterface() const
 {
+	return bCanInteractWithActor;
+}
+
+void USpyInteractionComponent::OnRep_LatestInteractableComponentFound()
+{
+	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return; }
+	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound.GetObjectRef()->GetName());
+}
+
+void USpyInteractionComponent::SetLatestInteractableComponentFound(UActorComponent* InFoundInteractableComponent)
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{ return; }
+	
+	if (UKismetSystemLibrary::DoesImplementInterface(InFoundInteractableComponent, UInteractInterface::StaticClass()))
+	{ LatestInteractableComponentFound = InFoundInteractableComponent; }
+	else
+	{ LatestInteractableComponentFound = nullptr; }
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, LatestInteractableComponentFound, this)
+
+	if (IsValid(LatestInteractableComponentFound.GetObjectRef()))
+	{ bCanInteractWithActor = true; }
+	else
+	{ bCanInteractWithActor = false; }
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bCanInteractWithActor, this);
+}
+
+void USpyInteractionComponent::OnRep_bCanInteractWithActor()
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
+}
+
+void USpyInteractionComponent::RequestInteractWithObject()
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
 	S_RequestInteractWithObject();
 }
 
-void USpyInteractionComponent::S_RequestInteractWithObject_Implementation() const
+void USpyInteractionComponent::S_RequestInteractWithObject_Implementation()
 {
-	if (!IsValid(LatestInteractableComponentFound)) { return; }
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("Server request interact with %s:"), *LatestInteractableComponentFound->GetName());
-	if (const IInteractInterface* InteractableComponent = Cast<IInteractInterface>(LatestInteractableComponentFound))
-	{
-		const bool bSuccessful = InteractableComponent->Execute_Interact(LatestInteractableComponentFound, GetOwner());
-		UE_LOG(SVSLogDebug, Log, TEXT("Interaction success status: %s"), bSuccessful ? *FString("True") : *FString("False"));
-	}
-	C_RequestInteractWithObject();
+	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return; }
+
+	const bool bSuccessful = LatestInteractableComponentFound->Execute_Interact(LatestInteractableComponentFound.GetObjectRef(), GetOwner());
+	UE_LOG(SVSLogDebug, Log, TEXT("Interaction success status: %s"), bSuccessful ? *FString("True") : *FString("False"));
+
+	if (bSuccessful)
+	{ C_RequestInteractWithObject(); }
 }
 
-void USpyInteractionComponent::C_RequestInteractWithObject_Implementation() const
+void USpyInteractionComponent::C_RequestInteractWithObject_Implementation()
 {
 
 }

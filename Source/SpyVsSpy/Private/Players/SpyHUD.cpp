@@ -10,6 +10,7 @@
 #include "UI/UIElementAsset.h"
 #include "Players/SpyPlayerController.h"
 #include "Items/InventoryComponent.h"
+#include "Players/SpyCharacter.h"
 
 void ASpyHUD::BeginPlay()
 {
@@ -25,8 +26,8 @@ void ASpyHUD::BeginPlay()
 	SpyPlayerController = Cast<ASpyPlayerController>(GetOwningPlayerController());
 	check(SpyPlayerController);
 
-	/** Reduce displayed timer to max 1 digit fractional, ex from 2.54 to 2.5 */
-	FloatDisplayFormat.SetMaximumFractionalDigits(1);
+	/** Reduce displayed timer to max fractional digit, ex from 2.54 to 2.5 */
+	FloatDisplayFormat.SetMaximumFractionalDigits(0);
 }
 
 void ASpyHUD::CreateScreenResOpts(TMap<FString, FIntPoint>& ScreenResOpts)
@@ -112,16 +113,26 @@ void ASpyHUD::DisplayCharacterHealth(const float InCurrentHealth, const float In
 	{ GameLevelWidget->DisplayCharacterHealth(InCurrentHealth, InMaxHealth); }
 }
 
-void ASpyHUD::DisplayCharacterInventory(const UInventoryComponent* InventoryComponent) const
+void ASpyHUD::DisplayCharacterInventory() const
 {
-	if (IsValid(GameLevelWidget))
-	{ GameLevelWidget->DisplayCharacterInventory(InventoryComponent); }
+	if (!IsValid(GameLevelWidget) ||
+		!IsValid(SpyPlayerController) ||
+		!IsValid(SpyPlayerController->GetSpyCharacter()) ||
+		!IsValid(SpyPlayerController->GetSpyCharacter()->GetPlayerInventoryComponent()))
+	{ return; }
+
+	GameLevelWidget->DisplayCharacterInventory(
+		SpyPlayerController->
+			GetSpyCharacter()->
+				GetPlayerInventoryComponent());
 }
 
-void ASpyHUD::DisplaySelectedActorInventory(const AActor* InSelectedActor,  const UInventoryComponent* InventoryComponent) const
+void ASpyHUD::DisplaySelectedActorInventory(const UInventoryComponent* TargetInventoryComponent) const
 {
-	if (IsValid(GameLevelWidget))
-	{ GameLevelWidget->DisplaySelectedActorInventory(InSelectedActor, InventoryComponent); }
+	if (!IsValid(GameLevelWidget) || !IsValid(TargetInventoryComponent))
+	{ return; }
+
+	GameLevelWidget->DisplaySelectedActorInventory(TargetInventoryComponent);
 }
 
 void ASpyHUD::UpdateUIOnFinish() const

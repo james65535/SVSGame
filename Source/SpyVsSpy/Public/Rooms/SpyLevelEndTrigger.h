@@ -22,9 +22,9 @@ protected:
 
 private:
 
-	// Custom Overlap function to ovveride the actor BeginOverLap
+	// Custom Overlap function to override the actor BeginOverLap
 	UFUNCTION()
-	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 
 	UPROPERTY()
 	ASpyVsSpyGameMode* GameModeRef;

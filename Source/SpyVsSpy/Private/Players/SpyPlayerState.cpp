@@ -42,11 +42,11 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	FDoRepLifetimeParams AutonomousPushedRepNotifyAlwaysParams;
-	AutonomousPushedRepNotifyAlwaysParams.bIsPushBased = true;
-	AutonomousPushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
-	//AutonomousPushedRepNotifyAlwaysParams.Condition = COND_AutonomousOnly;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, AutonomousPushedRepNotifyAlwaysParams);
+	FDoRepLifetimeParams OwnerOnlyPushedRepNotifyAlwaysParams;
+	OwnerOnlyPushedRepNotifyAlwaysParams.bIsPushBased = true;
+	OwnerOnlyPushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
+	OwnerOnlyPushedRepNotifyAlwaysParams.Condition = COND_OwnerOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, OwnerOnlyPushedRepNotifyAlwaysParams);
 
 	FDoRepLifetimeParams PushedRepNotifyParams;
 	PushedRepNotifyParams.bIsPushBased = true;
@@ -61,7 +61,7 @@ void ASpyPlayerState::BeginPlay()
 	/** Update player controller with pointer to self */
 	if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetPlayerController()))
 	{
-		if (!IsValid(SpyPlayerController->SpyPlayerState))
+		if (!IsValid(SpyPlayerController->GetSpyPlayerState()))
 		{
 			SpyPlayerController->SetSpyPlayerState(this);
 			if (!IsRunningDedicatedServer())
@@ -119,12 +119,6 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 		check(SVSGameMode);
 		SVSGameMode->PlayerNotifyIsReady(this);
 	}
-	
-	if(const ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetOwner()))
-	{
-		if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(SpyPlayerController->GetHUD()))
-		{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
-	}
 }
 
 void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTime)
@@ -147,15 +141,8 @@ void ASpyPlayerState::ReduceRemainingMatchTime()
 
 void ASpyPlayerState::OnRep_CurrentStatus()
 {
-	if (GetLocalRole() == ROLE_SimulatedProxy)
+	if (!IsValid(GetPlayerController()) || IsRunningDedicatedServer())
 	{ return; }
-
-	UE_LOG(SVSLog, Warning, TEXT("Spy playerstate received replication for current status: %hhd"), CurrentStatus);
-	if (!IsValid(GetPlayerController()))
-	{
-		UE_LOG(SVSLog, Warning, TEXT("Spy playerstate cannot get player controller to update displayed playerstatus"));
-		return;
-	}
 	
 	if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(GetPlayerController()->GetHUD()))
 	{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }

@@ -28,9 +28,9 @@ void ASpyVsSpyGameMode::BeginPlay()
 
 		// TODO replace with desiredgametype
 		if (bToggleInitialMainMenu)
-		{ SVSGameState->SetMatchState(ESpyMatchState::None); }
+		{ SVSGameState->SetSpyMatchState(ESpyMatchState::None); }
 		else
-		{ SVSGameState->SetMatchState(ESpyMatchState::Waiting); }
+		{ SVSGameState->SetSpyMatchState(ESpyMatchState::Waiting); }
 	}
 }
 
@@ -56,6 +56,15 @@ void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime) const
 
 	if (InMatchTime <=  1.0f)
 	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State was supplied a PlayerMatchTime less than 1 second, ridiculous!")); }
+}
+
+void ASpyVsSpyGameMode::RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems)
+{
+	if (InRequiredMissionItems.Num() < 1)
+	{ return; }
+	
+	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
+	{ SVSGameState->SetRequiredMissionItems(InRequiredMissionItems); }
 }
 
 void ASpyVsSpyGameMode::RestartGame()

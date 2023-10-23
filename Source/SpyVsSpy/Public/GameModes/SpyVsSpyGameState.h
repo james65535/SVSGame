@@ -72,9 +72,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	void SetMatchState(const ESpyMatchState InMatchState);
+	void SetSpyMatchState(const ESpyMatchState InSpyMatchState);
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	ESpyMatchState GetMatchState() const { return SpyMatchState; };
+	ESpyMatchState GetSpyMatchState() const { return SpyMatchState; }
 	/** Quick Check to Determine if Game State is Playing */
 	UFUNCTION(BlueprintPure)
 	bool IsMatchInPlay() const { return SpyMatchState == ESpyMatchState::Playing;}
@@ -109,6 +109,9 @@ public:
 	
 	FGameTypeUpdateDelegate OnGameTypeUpdateDelegate;
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter);
+
 protected:
 
 	/** Item array with which a player must fully possess to complete the map */
@@ -139,10 +142,10 @@ private:
 	ESpyMatchState OldSpyMatchState = ESpyMatchState::None;
 
 	/** The type of game being played - is correlated to which gamemode is selected */
-	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_GameType, Category = "SVS|GameState")
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_SVSGameType, Category = "SVS|GameState")
 	ESVSGameType SVSGameType = ESVSGameType::None;
 	UFUNCTION()
-	void OnRep_GameType() const;
+	void OnRep_SVSGameType() const;
 
 	/** Game Results */
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_ResultsUpdated, Category = "SVS|GameState")
@@ -150,7 +153,7 @@ private:
 	UFUNCTION()
 	void OnRep_ResultsUpdated();
 	/** Can be called during and after play */
-	void PlayerRequestSubmitResults(const ASpyCharacter* InSpyCharacter);
+	void PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacter, bool bPlayerTimeExpired = false);
 	/** Check if all results are in then let clients know the final results */
 	void TryFinaliseScoreBoard();
 	bool CheckAllResultsIn() const ;

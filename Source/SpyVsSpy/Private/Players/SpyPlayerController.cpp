@@ -11,11 +11,16 @@
 #include "Players/SpyHUD.h"
 #include "Players/SpyPlayerState.h"
 #include "Players/SpyCharacter.h"
+#include "Players/SpyInteractionComponent.h"
+#include "Items/InventoryComponent.h"
 #include "UI/GameUIElementsRegistry.h"
 #include "UI/UIElementAsset.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "GameModes/SpyVsSpyGameMode.h"
+#include "Items/InteractInterface.h"
+#include "Items/InventoryBaseAsset.h"
 #include "Players/PlayerInputConfigRegistry.h"
+#include "net/UnrealNetwork.h"
 
 void ASpyPlayerController::BeginPlay()
 {
@@ -28,8 +33,8 @@ void ASpyPlayerController::BeginPlay()
 	if (!IsRunningDedicatedServer())
 	{
 		/** Specify HUD Representation at start of play */
-		PlayerHUD = Cast<ASpyHUD>(GetHUD());
-		checkfSlow(PlayerHUD, "SpyPlayerController HUD is a null pointer after cast")
+		SpyPlayerHUD = Cast<ASpyHUD>(GetHUD());
+		checkfSlow(SpyPlayerHUD, "SpyPlayerController HUD is a null pointer after cast")
 
 		/** If Local game as listener or single player then Grab Gametype, otherwise use delegate to update on replication */
 		UpdateHUDWithGameUIElements(SpyGameState->GetGameType());
@@ -173,6 +178,13 @@ void ASpyPlayerController::BeginPlay()
 			ETriggerEvent::Completed,
 			this,
 			&ThisClass::RequestHideLevelMenu);
+
+		/** Open Target Inventory */
+		EIPlayerComponent->BindAction(
+			InputActions->OpenTargetInventoryAction,
+			ETriggerEvent::Completed,
+			this,
+			&ThisClass::RequestOpenTargetInventory);
 	}
 
 	/** Game Starts with a UI */
@@ -187,7 +199,15 @@ void ASpyPlayerController::OnRep_Pawn()
 	Super::OnRep_Pawn();
 	
 	if (!IsValid(SpyCharacter))
-	{ SpyCharacter = CastChecked<ASpyCharacter>(GetCharacter()); }
+	{ SpyCharacter = Cast<ASpyCharacter>(GetCharacter()); }
+}
+
+void ASpyPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	if (IsRunningDedicatedServer())
+	{ SpyCharacter = Cast<ASpyCharacter>(GetCharacter()); }
 }
 
 void ASpyPlayerController::OnRetrySelected()
@@ -208,24 +228,22 @@ void ASpyPlayerController::FinishedMatch()
 		SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
 		SetInputContext(MenuInputMapping);
 		NM_SetControllerGameInputMode(EPlayerInputMode::UIOnly);
-		PlayerHUD->DisplayResults(SpyGameState->GetResults());
-		PlayerHUD->ToggleDisplayGameTime(false);
+		SpyPlayerHUD->DisplayResults(SpyGameState->GetResults());
+		SpyPlayerHUD->ToggleDisplayGameTime(false);
 	}
 }
 
 void ASpyPlayerController::RequestDisplayFinalResults() const
 {
 	if (!IsRunningDedicatedServer())
-	{ PlayerHUD->DisplayResults(SpyGameState->GetResults()); }
+	{ SpyPlayerHUD->DisplayResults(SpyGameState->GetResults()); }
 }
 
 void ASpyPlayerController::S_RestartLevel_Implementation()
 {
 	ASpyVsSpyGameMode* SpyGameMode = GetWorld()->GetAuthGameMode<ASpyVsSpyGameMode>();
 	if (ensureMsgf(SpyGameMode, TEXT("ASpyPlayerController::ServerRestartLevel_Implementation Invalid Game Mode")))
-	{
-		SpyGameMode->RestartGame();
-	}
+	{ SpyGameMode->RestartGame(); }
 }
 
 void ASpyPlayerController::ConnectToServer(const FString InServerAddress)
@@ -243,7 +261,7 @@ void ASpyPlayerController::NM_SetControllerGameInputMode_Implementation(const EP
 			SetInputContext(GameInputMapping);
 			const FInputModeGameOnly InputMode;
 			SetInputMode(InputMode);
-			SetShowMouseCursor(false);
+			SetShowMouseCursor(false); // TODO setting to true for this game or perhaps should select gameandui for whole game
 			break;
 		}
 	case (EPlayerInputMode::GameAndUI):
@@ -272,25 +290,59 @@ void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
 
 void ASpyPlayerController::TakeAllFromTargetInventory()
 {
+	S_TakeAllFromTargetInventory();
 }
 
-void ASpyPlayerController::CalculateGameTimeElapsedSeconds() const
+void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
+{
+	if (IsRunningDedicatedServer() || GetLocalRole() == ROLE_SimulatedProxy)
+	{ return; }
+	
+	SpyPlayerHUD->DisplayCharacterInventory();
+}
+
+void ASpyPlayerController::S_TakeAllFromTargetInventory_Implementation()
+{
+	if (!IsValid(SpyCharacter) ||
+		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+		!SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ||
+		!IsValid(SpyCharacter->GetPlayerInventoryComponent()))
+	{ return; }
+	
+	TArray<UInventoryBaseAsset*> TargetInventoryListing;
+	SpyCharacter->
+		GetInteractionComponent()->
+		GetLatestInteractableComponent()->
+		Execute_ProvideInventoryListing(
+			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef(),
+			TargetInventoryListing);
+	if (TargetInventoryListing.Num() < 1)
+	{ return; }
+	SpyCharacter->GetPlayerInventoryComponent()->AddInventoryItems(TargetInventoryListing);
+}
+
+void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
 {
 	const float ElapsedTime = SpyGameState->GetServerWorldTimeSeconds() - CachedMatchStartTime;
 	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
+	
+	/** Player ran out of time so notify game that their match has ended */
+	if (TimeLeft <= 0.0f)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
+
+		if (!IsValid(SpyCharacter))
+		{ SpyCharacter = CastChecked<ASpyCharacter>(GetCharacter()); }
+		SpyGameState->NotifyPlayerTimeExpired(SpyCharacter);
+	}
 
 	if (!IsRunningDedicatedServer())
 	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
-
-	if (TimeLeft <= 0.0f)
-	{
-		// TODO call spy lost
-	}
 }
 
 void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const
 {
-	PlayerHUD->SetMatchTimerSeconds(InTimeToDisplay);
+	SpyPlayerHUD->SetMatchTimerSeconds(InTimeToDisplay);
 }
 
 void ASpyPlayerController::SetInputContext(TSoftObjectPtr<UInputMappingContext> InMappingContext)
@@ -314,7 +366,7 @@ void ASpyPlayerController::UpdateHUDWithGameUIElements(const ESVSGameType InGame
 	checkfSlow(GameElementsRegistry, "PlayerController: Verify Controller Blueprint has a UI Elements registry set");
 	if (InGameType == ESVSGameType::None) { return; }
 	
-	PlayerHUD->SetGameUIAssets(GameElementsRegistry->GameTypeUIMapping.Find(InGameType)->LoadSynchronous());
+	SpyPlayerHUD->SetGameUIAssets(GameElementsRegistry->GameTypeUIMapping.Find(InGameType)->LoadSynchronous());
 }
 
 void ASpyPlayerController::RequestDisplayLevelMenu()
@@ -322,7 +374,7 @@ void ASpyPlayerController::RequestDisplayLevelMenu()
 	if (CanProcessRequest())
 	{
 		SetInputContext(MenuInputMapping);
-		PlayerHUD->DisplayLevelMenu();
+		SpyPlayerHUD->DisplayLevelMenu();
 		NM_SetControllerGameInputMode(EPlayerInputMode::GameAndUI);
 	}
 }
@@ -332,7 +384,7 @@ void ASpyPlayerController::RequestHideLevelMenu()
 	if (CanProcessRequest())
 	{
 		SetInputContext(GameInputMapping);
-		PlayerHUD->HideLevelMenu();
+		SpyPlayerHUD->HideLevelMenu();
 		NM_SetControllerGameInputMode(EPlayerInputMode::GameOnly);
 	}
 }
@@ -343,22 +395,25 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 	SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
 	CachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 
-	/** Handle Match Time */
-	GetWorld()->GetTimerManager().SetTimer(
-		MatchClockDisplayTimerHandle,
-		this,
-		&ThisClass::CalculateGameTimeElapsedSeconds,
-		MatchClockDisplayRateSeconds,
-		true);
+	if (GetLocalRole() != ROLE_SimulatedProxy)
+	{
+		/** Handle Match Time */
+		GetWorld()->GetTimerManager().SetTimer(
+			MatchClockDisplayTimerHandle,
+			this,
+			&ThisClass::CalculateGameTimeElapsedSeconds,
+			MatchClockDisplayRateSeconds,
+			true);
+	}
 	
 	/** Update Player Displays with character info */
 	if (!IsRunningDedicatedServer())
 	{
-		PlayerHUD->ToggleDisplayGameTime(true);
-		PlayerHUD->DisplayCharacterHealth(
+		SpyPlayerHUD->ToggleDisplayGameTime(true);
+		SpyPlayerHUD->DisplayCharacterHealth(
 			SpyPlayerState->GetHealth(),
 			SpyPlayerState->GetMaxHealth());
-		PlayerHUD->DisplayCharacterInventory(nullptr);  // TODO Finish
+		SpyPlayerHUD->DisplayCharacterInventory();  // TODO Finish
 	}
 }
 
@@ -424,6 +479,21 @@ void ASpyPlayerController::RequestPrimaryAttack(const FInputActionValue& ActionV
 	SpyCharacter->RequestPrimaryAttack(ActionValue);
 }
 
+void ASpyPlayerController::RequestOpenTargetInventory(const FInputActionValue& ActionValue)
+{
+	if (!IsValid(SpyCharacter) ||
+		!IsValid(SpyPlayerHUD) ||
+		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+		!IsValid(SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()))
+	{ return; }
+
+	SpyPlayerHUD->DisplaySelectedActorInventory(
+		SpyCharacter->GetInteractionComponent()->
+		GetLatestInteractableComponent()->
+		Execute_ProvideInventory(
+			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()));
+}
+
 void ASpyPlayerController::S_OnReadySelected_Implementation()
 {
 	if (GetWorld()->GetAuthGameMode<ASpyVsSpyGameMode>())
@@ -435,13 +505,13 @@ void ASpyPlayerController::S_OnReadySelected_Implementation()
 
 void ASpyPlayerController::C_ResetPlayer_Implementation()
 {
-	check(PlayerHUD);
-	PlayerHUD->RemoveResults();
-	PlayerHUD->ToggleDisplayGameTime(false);
+	check(SpyPlayerHUD);
+	SpyPlayerHUD->RemoveResults();
+	SpyPlayerHUD->ToggleDisplayGameTime(false);
 	UpdateHUDWithGameUIElements(SpyGameState->GetGameType());
 }
 
 void ASpyPlayerController::C_StartGameCountDown_Implementation(const float InCountDownDuration)
 {
-	PlayerHUD->DisplayMatchStartCountDownTime(InCountDownDuration);
+	SpyPlayerHUD->DisplayMatchStartCountDownTime(InCountDownDuration);
 }

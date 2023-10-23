@@ -19,11 +19,13 @@
 #include "AbilitySystem/SpyAbilitySystemComponent.h"
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Items/InteractInterface.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/SVSRoom.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Rooms/SpyFurniture.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
 ASpyCharacter::ASpyCharacter()
@@ -42,6 +44,9 @@ ASpyCharacter::ASpyCharacter()
 	SpyInteractionComponent->SetupAttachment(RootComponent);
 	SpyInteractionComponent->SetRelativeLocation(FVector(25.0f, 0.0f, 0.0f));
 	SpyInteractionComponent->SetIsReplicated(true);
+
+	PlayerInventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
+	PlayerInventoryComponent->SetIsReplicated(true);
 	
 	/** Don't rotate when the controller rotates. Let that just affect the camera. */
 	bUseControllerRotationPitch = false;
@@ -144,10 +149,7 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		 * existing room traversal checks require the previous current room to end overlap so
 		 * we provide need a way to avoid this check at start of game */
 		if (!IsValid(CurrentRoom))
-		{
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is entering room for the first time this game"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
-			ProcessRoomChange(RoomEntering);
-		}
+		{ ProcessRoomChange(RoomEntering); }
 	}
 }
 
@@ -189,16 +191,10 @@ void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
 		
 		/* Is new room occupied by local player */
 		if (NewRoom->bRoomLocallyHiddenInGame == false)
-		{
-			SetSpyHidden(false);
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s simulated proxy set character visible"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
-		}
+		{ SetSpyHidden(false); }
 		/* Is old room occupied by local player */
 		else if (IsValid(CurrentRoom) && !CurrentRoom->bRoomLocallyHiddenInGame)
-		{
-			SetSpyHidden(true);
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s simulated proxy set character invisible"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
-		}
+		{ SetSpyHidden(true); }
 	}
 	
 	/** The room we entered is now officially the current room */
@@ -218,10 +214,9 @@ void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
 
 void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Ran SetSpyHidden with value: %s"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName(), bIsSpyHidden ? *FString("Hidden") : *FString("Visible"));
 	bIsHiddenInGame = bIsSpyHidden;
 	SetActorHiddenInGame(bIsSpyHidden);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ASpyCharacter, bIsHiddenInGame, this); // TODO this probably doesn't need to be replicated since hiding a local only thing
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bIsHiddenInGame, this); // TODO this probably doesn't need to be replicated since hiding a local only thing
 }
 
 bool ASpyCharacter::PlayCelebrateMontage()
@@ -247,6 +242,9 @@ void ASpyCharacter::NM_FinishedMatch_Implementation()
 	{ SpyPlayerController->FinishedMatch(); }
 	GetCharacterMovement()->DisableMovement();
 	PlayCelebrateMontage();
+
+	// TODO may need a timer or animation notify for destroy
+	Destroy();
 }
 
 void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
@@ -337,8 +335,6 @@ void ASpyCharacter::AddStartupGameplayAbilities()
 		}
 		SpyAbilitySystemComponent->bCharacterAbilitiesGiven = true;
 	}
-	else
-	{ UE_LOG(SVSLog, Warning, TEXT("Adding startup abilities already done or ability component pointer is null")); }
 }
 
 void ASpyCharacter::RemoveCharacterAbilities()
@@ -424,8 +420,11 @@ void ASpyCharacter::HandlePrimaryAttack()
 	int Count = 0;
 	if (ActorsArray.Num() > 0)
 	{
+		
 		for (AActor* Actor : ActorsArray)
 		{
+			UE_LOG(SVSLogDebug, Log, TEXT("Handling Attack check - ActorHasTag: %s"), Actor->ActorHasTag(CombatantTag) ? *FString("True") : *FString("False"));
+
 			if (Actor &&
 				Actor != this &&
 				Actor->ActorHasTag(CombatantTag) &&
@@ -483,6 +482,16 @@ void ASpyCharacter::HandleTrapTrigger()
 {
 	if (GetLocalRole() != ROLE_Authority)
 	{ return; }
+
+	ASpyFurniture* FurnitureActor = nullptr;
+	if (GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
+	{
+		FurnitureActor = Cast<ASpyFurniture>(
+			GetInteractionComponent()->
+			GetLatestInteractableComponent()->
+			Execute_GetInteractableOwner(
+				GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()));
+	}
 	
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Victim: %s Handling Trap Trigger"), IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetName());
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Instigator: %s Handling Trap Trigger"), GetInstigator()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *GetInstigator()->GetName());
@@ -490,17 +499,30 @@ void ASpyCharacter::HandleTrapTrigger()
 	constexpr float AttackForce = 1500.0f;
 	FVector AttackOrigin = FVector::ZeroVector;
 
-	if (IsValid(GetInteractionComponent()->GetLatestInteractableComponent()) && IsValid(GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()))
-	{ AttackOrigin = GetInteractionComponent()->GetLatestInteractableComponent()->GetOwner()->GetActorLocation(); }
+	if (GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
+	{
+		AttackOrigin = GetInteractionComponent()->
+		GetLatestInteractableComponent()->
+		Execute_GetInteractableOwner(
+			GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef())->GetActorLocation();
+	}
 
 	Cast<ISpyCombatantInterface>(this)->ApplyAttackImpactForce(AttackOrigin, AttackForce);
 
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
 	FGameplayEventData Payload = FGameplayEventData();
-	Payload.Instigator = this; // TODO should probably find a way to feed in furniture actor
+
+	if (IsValid(FurnitureActor))
+	{
+		Payload.Instigator = FurnitureActor;
+		UE_LOG(SVSLogDebug, Log, TEXT("Using furniture as instigator"));
+	}
+	else
+	{ Payload.Instigator = this; }
+
 	Payload.Target = this;
 	Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(this);
-
+	
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, Payload);
 	
 	/** if our Count returns 0, it means we did not hit an enemy and we should end our ability */
@@ -665,9 +687,10 @@ void ASpyCharacter::RequestPreviousTrap(const FInputActionValue& Value)
 
 void ASpyCharacter::RequestInteract()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
-	if (IsValid(SpyInteractionComponent) && GetInteractionComponent()->bCanInteractWithActor)
-	{ GetInteractionComponent()->RequestInteractWithObject(); }
+	if (!IsValid(GetInteractionComponent()) || !GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
+	{ return; }
+	
+	GetInteractionComponent()->RequestInteractWithObject();
 }
 
 void ASpyCharacter::RequestTrapTrigger()

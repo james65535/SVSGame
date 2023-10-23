@@ -6,7 +6,10 @@
 #include "UObject/Interface.h"
 #include "InteractInterface.generated.h"
 
+class UInventoryComponent;
+class UInventoryBaseAsset;
 class UInventoryItemComponent;
+
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
 class UInteractInterface : public UInterface
@@ -28,5 +31,11 @@ public:
 	bool Interact(AActor* InteractRequester);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	void ProvideInventoryListing(TArray<UInventoryItemComponent*>& InventoryItems);
+	void ProvideInventoryListing(TArray<UInventoryBaseAsset*>& InventoryItems);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	UInventoryComponent* ProvideInventory();
+	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	AActor* GetInteractableOwner();
 };

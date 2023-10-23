@@ -55,7 +55,7 @@ private:
 	EWeaponType WeaponType = EWeaponType::None;
 
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), EditInstanceOnly, Category = "SVS|Inventory|Combat")
-	float WeaponAttackBaseDamage = 0.0f;;
+	float WeaponAttackBaseDamage = 0.0f;
 
 	/** Animation for Attacking Character with this Weapon */
 	UPROPERTY(BlueprintReadOnly, EditInstanceOnly,Meta = (AllowPrivateAccess = "true"), Category = "SVS|Inventory|Combat")

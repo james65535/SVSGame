@@ -33,7 +33,8 @@ void AIsoCameraActor::BeginPlay()
 
 void AIsoCameraActor::SetRoomTarget(const ASVSRoom* InRoom)
 {
-	if (!IsValid(InRoom)){ return; }
+	if (!IsValid(InRoom))
+	{ return; }
 
 	TargetRoomOffSetLocation = InRoom->Execute_GetRoomLocation(InRoom) + RoomLocationOffset;
 	MoveTimeline->PlayFromStart();

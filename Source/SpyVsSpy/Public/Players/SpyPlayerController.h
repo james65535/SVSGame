@@ -36,14 +36,14 @@ class SPYVSSPY_API ASpyPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
-	
-	UPROPERTY()
-	ASpyPlayerState* SpyPlayerState;
+
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Player")
 	FOnPlayerStateReceived OnPlayerStateReceived;
 	void SetSpyPlayerState(ASpyPlayerState* InPlayerState) { SpyPlayerState = InPlayerState; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	ASpyPlayerState* GetSpyPlayerState() const { return SpyPlayerState; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	ASpyCharacter* GetSpyCharacter() const { return SpyCharacter; }
 	
 	/** Called by Game Widget */
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
@@ -84,29 +84,29 @@ public:
 	/** UFUNCTION Wrapper for parent class SetName method */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerName(const FString& InPlayerName);
-
-	/** UFUNCTION Wrapper for parent class SetName method */
+	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void TakeAllFromTargetInventory();
 
-private:
+	/** Server function to take inventory items from a target and place them in character inventory */
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
+	void S_TakeAllFromTargetInventory();
 
-	/** Game Related */
-	UPROPERTY()
-	ASpyVsSpyGameState* SpyGameState;
-	UPROPERTY()
-	ASpyCharacter* SpyCharacter;
+	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Player")
+	void C_DisplayCharacterInventory();
+
+private:
 	
 	/** Values Used for Display Match Time to the Player */
 	FTimerHandle MatchClockDisplayTimerHandle;
-	const float MatchClockDisplayRateSeconds = 0.1f;
+	const float MatchClockDisplayRateSeconds = 1.0f;
 	float CachedMatchStartTime = 0.0f;
-	void CalculateGameTimeElapsedSeconds() const;
+	void CalculateGameTimeElapsedSeconds();
 	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
 	
 	/** Player HUD */
 	UPROPERTY(VisibleInstanceOnly, Category = "SVS|UI")
-	ASpyHUD* PlayerHUD;
+	ASpyHUD* SpyPlayerHUD;
 	UPROPERTY(EditDefaultsOnly, Category = "SVS|UI")
 	UGameUIElementsRegistry* GameElementsRegistry;
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
@@ -145,6 +145,8 @@ private:
 	void RequestInteract(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
 	void RequestPrimaryAttack(const FInputActionValue& ActionValue);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	void RequestOpenTargetInventory(const FInputActionValue& ActionValue);
 	
 	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
 	// void RequestJump();
@@ -184,4 +186,15 @@ protected:
 	/** Class Overrides */
 	virtual void BeginPlay() override;
 	virtual void OnRep_Pawn() override;
+	virtual void OnPossess(APawn* InPawn) override;
+
+	/** Game Related */
+	UPROPERTY()
+	ASpyVsSpyGameState* SpyGameState;
+	UPROPERTY()
+	ASpyCharacter* SpyCharacter;
+	UPROPERTY()
+	ASpyPlayerState* SpyPlayerState;
+
+
 };

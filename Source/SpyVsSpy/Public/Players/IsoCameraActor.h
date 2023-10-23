@@ -22,7 +22,7 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Camera")
 	void SetRoomTarget(const ASVSRoom* InRoom);
-
+	
 	/** Camera Move to Target Timeline */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Camera")
 	UCurveFloat* MoveTimelineCurve;

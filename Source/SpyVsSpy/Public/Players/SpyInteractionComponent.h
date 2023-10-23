@@ -19,6 +19,36 @@ class SPYVSSPY_API USpyInteractionComponent : public UCapsuleComponent
 public:
 
 	USpyInteractionComponent();
+
+	
+	/** @return The last interactable object to have overlapped this component */
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	TScriptInterface<IInteractInterface> GetLatestInteractableComponent() { return LatestInteractableComponentFound; }
+	
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	void RequestInteractWithObject();
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Character")
+	void S_RequestInteractWithObject();
+	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Character")
+	void C_RequestInteractWithObject();
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	bool CanInteractWithKnownInteractionInterface() const;
+
+private:
+	
+	/** Most recently found overlapping component which satisfies interact interface */
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess="true"), ReplicatedUsing=OnRep_LatestInteractableComponentFound, Category = "SVS|Character")
+	TScriptInterface<IInteractInterface> LatestInteractableComponentFound;
+	UFUNCTION()
+	void OnRep_LatestInteractableComponentFound();
+	UFUNCTION()
+	void SetLatestInteractableComponentFound(UActorComponent* InFoundInteractableComponent);
+	
+protected:
+
+	/** Class Overrides */
+	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/*
@@ -31,34 +61,11 @@ public:
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
 	UFUNCTION()
 	void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-
+	
 	/** Current Interaction State */
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_bCanInteractWithActor, VisibleAnywhere, Category = "SVS|Character")
 	bool bCanInteractWithActor = false;
 	UFUNCTION()
 	void OnRep_bCanInteractWithActor();
-	
-	/** @return The last interactable object to have overlapped this component */
-	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	UActorComponent* GetLatestInteractableComponent() const { return LatestInteractableComponentFound; }
-	
-	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	void RequestInteractWithObject() const;
-	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Character")
-	void S_RequestInteractWithObject() const;
-	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Character")
-	void C_RequestInteractWithObject() const;
-
-private:
-	
-	/** Most recently found overlapping component which satisfies interact interface */
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess="true"), ReplicatedUsing=OnRep_LatestInteractableComponentFound, Category = "SVS|Character")
-	UActorComponent* LatestInteractableComponentFound;
-	UFUNCTION()
-	void OnRep_LatestInteractableComponentFound();
-	
-protected:
-
-	virtual void BeginPlay() override;
 	
 };

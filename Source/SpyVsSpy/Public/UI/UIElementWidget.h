@@ -6,20 +6,27 @@
 #include "Blueprint/UserWidget.h"
 #include "UIElementWidget.generated.h"
 
+class UUIElementWidget;
 class UInventoryComponent;
+struct FGameResult;
 enum class EPlayerGameStatus : uint8;
 
 USTRUCT(BlueprintType, Category = "SVS|UI")
 struct FGameUIClassInfo
 {
 	GENERATED_BODY()
-
-public:
+	
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	TSubclassOf<UUIElementWidget> WidgetClass;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FName WidgetSlot;
+
+	// /** Constructor */
+	// FGameUIClassInfo()
+	// {
+	// 	WidgetSlot = FName("");
+	// }
 };
 
 /**
@@ -31,8 +38,6 @@ USTRUCT(BlueprintType, Category = "SVS|UI")
 struct FGameUI
 {
 	GENERATED_BODY()
-
-public:
 	
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FGameUIClassInfo GamePlayWidget;
@@ -42,6 +47,14 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FGameUIClassInfo GameEndScreenWidget;
+
+	// /** Constructor */
+	// FGameUI()
+	// {
+	// 	GamePlayWidget = FGameUIClassInfo::StaticStruct();
+	// 	GameMenuWidget = FGameUIClassInfo();
+	// 	GameEndScreenWidget = FGameUIClassInfo();
+	// }
 };
 
 /**
@@ -66,7 +79,7 @@ public:
 	void UpdateOnFinish();
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
-	FText DisplayedMatchTime;
+	FText DisplayedMatchTime = FText();
 
 	/**
 	 * Display Results of Finished Game
@@ -94,7 +107,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayCharacterInventory(const UInventoryComponent* InCharacterInventory);
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
-	void DisplaySelectedActorInventory(const AActor* InSelectedActor,  const UInventoryComponent* InventoryComponent);
+	void DisplaySelectedActorInventory(const UInventoryComponent* InventoryComponent);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth);

@@ -12,8 +12,6 @@
 
 bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Furniture: %s has received an interact call"), *GetName());
-	
 	Super::Interact_Implementation(InteractRequester);
 
 	// TODO interact animation
@@ -43,8 +41,6 @@ bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractReq
 
 			for (const UInventoryBaseAsset* InventoryItem : InventoryItems)
 			{ UE_LOG(SVSLogDebug, Log, TEXT("Furniture: %s interaction component found inventory item: "), *InventoryItem->GetName()); }
-			
-			// TODO give inventory listing to interact requester
 		}
 
 		/** Interaction Request deemed successful */
@@ -54,4 +50,18 @@ bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractReq
 	/** No inventory component found so interaction was not successful */
 	UE_LOG(SVSLogDebug, Log, TEXT("Furniture: %s did not find an inventory component during interact request"), *GetName());
 	return false;
+}
+
+UInventoryComponent* UFurnitureInteractionComponent::ProvideInventory_Implementation()
+{
+	return GetOwner<ASpyFurniture>()->GetInventoryComponent();
+}
+
+void UFurnitureInteractionComponent::ProvideInventoryListing_Implementation(
+	TArray<UInventoryBaseAsset*>& InventoryItems)
+{
+	if (!IsValid(GetOwner<ASpyFurniture>()) || !IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
+	{ return; }
+	
+	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItems(InventoryItems);
 }

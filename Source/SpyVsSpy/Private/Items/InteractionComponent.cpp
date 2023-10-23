@@ -4,6 +4,8 @@
 #include "Items/InteractionComponent.h"
 
 #include "SVSLogger.h"
+#include "Items/InventoryComponent.h"
+#include "Players/SpyCharacter.h"
 
 UInteractionComponent::UInteractionComponent()
 {
@@ -34,7 +36,19 @@ bool UInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 	return IsInteractionEnabled();
 }
 
-void UInteractionComponent::ProvideInventoryListing_Implementation(TArray<UInventoryItemComponent*>& InventoryItems)
+void UInteractionComponent::ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems)
 {
-	IInteractInterface::ProvideInventoryListing_Implementation(InventoryItems);
+	if (!bInteractionEnabled)
+	{ return; }
+	
+	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
+	{
+		if (const UInventoryComponent* SpyInventory = SpyCharacter->GetPlayerInventoryComponent())
+		{ SpyInventory->GetInventoryItems(InventoryItems); }
+	}
+}
+
+AActor* UInteractionComponent::GetInteractableOwner_Implementation()
+{
+	return GetOwner();
 }

@@ -11,6 +11,8 @@ class UWeaponComponent;
 class UInventoryItemComponent;
 class UInventoryBaseAsset;
 
+DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class SPYVSSPY_API UInventoryComponent : public UActorComponent
 {
@@ -19,25 +21,29 @@ class SPYVSSPY_API UInventoryComponent : public UActorComponent
 public:	
 
 	UInventoryComponent();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	bool AddInventoryItem(FPrimaryAssetId InInventoryItemAssetId);
+	bool AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItems) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	UInventoryWeaponAsset* GetActiveTrap() const { return ActiveTrap; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	int GetCurrentCollectionSize() const { return InventoryCollection.Num(); }
+
+	FOnInventoryUpdated OnInventoryUpdated;
 
 protected:
 
 	const uint8 MaxInventorySize = 8;
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_InventoryCollection, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryCollection;
-
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
-	TArray<FPrimaryAssetId> InventoryAssetIdCollection;
-
+	UFUNCTION()
+	void OnRep_InventoryCollection() const;
+	
 	UFUNCTION()
 	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId InInventoryAssetId);
 	UFUNCTION()

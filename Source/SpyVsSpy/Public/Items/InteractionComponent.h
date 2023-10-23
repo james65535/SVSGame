@@ -38,7 +38,9 @@ protected:
 	 * @brief Provide a listing of inventory items to interaction requester
 	 * @param InventoryItems An array to populate with inventory items found
 	 */
-	virtual void ProvideInventoryListing_Implementation(TArray<UInventoryItemComponent*>& InventoryItems) override;
+	virtual void ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
+
+	virtual AActor* GetInteractableOwner_Implementation() override;
 
 private:
 

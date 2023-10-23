@@ -92,7 +92,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "SVS|Room")
 	ARoomManager* RoomManager;
 	UFUNCTION(BlueprintCallable)
-	FGuid GetRoomGuid() const { return RoomGuid; };
+	FGuid GetRoomGuid() const { return RoomGuid; }
 
 protected:
 
@@ -137,9 +137,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "SVS|Room")
 	float RoomTriggerHeight = 200.0f;
 	UFUNCTION()
-	void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 	UFUNCTION()
-	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+	void OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor);
 	TArray<ASpyCharacter*> OccupyingSpyCharacters;
 	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing=OnRep_bRoomOccupied, Category = "SVS|Room")
 	bool bRoomOccupied; // TODO determine more robust way to handle this which provides security for player view and allows for opponent view

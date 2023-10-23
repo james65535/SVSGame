@@ -38,9 +38,9 @@ public:
 	virtual void UpdateCameraLocation(const ASVSRoom* InRoom) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	UInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; };
+	UInventoryComponent* GetPlayerInventoryComponent() const { return PlayerInventoryComponent; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	USpyInteractionComponent* GetInteractionComponent() const { return SpyInteractionComponent; };
+	USpyInteractionComponent* GetInteractionComponent() const { return SpyInteractionComponent; }
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	virtual void SetSpyHidden(const bool bIsSpyHidden);
@@ -97,19 +97,12 @@ private:
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UIsoCameraComponent* FollowCamera;
-
-#pragma region="Inventory"
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	UInventoryComponent* PlayerInventoryComponent;
-#pragma endregion="Inventory"
-
-#pragma region="Interaction"
-	// TODO Implement
-	// UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), EditInstanceOnly, Category = "SVS|Character")
-	// UPlayerHealthComponent* PlayerHealthComponent;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	USpyInteractionComponent* SpyInteractionComponent;
-#pragma endregion="Interaction"
 
 #pragma region="CharacterVisibility"
 	/** Controls whether the character is visible to other players */
@@ -163,7 +156,7 @@ protected:
 	UFUNCTION()
 	void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVSAnimation")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Animation")
 	UAnimMontage* CelebrateMontage = nullptr;
 	FOnMontageEnded MontageEndedDelegate;
 	UFUNCTION()
@@ -223,7 +216,7 @@ protected:
 	// TODO Rework this
 	/** Tag name which specifies which characters can participate in combat */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities|Combat", meta = (AllowPrivateAccess = "true"))
-	FName CombatantTag = "Spy";
+	FName CombatantTag = FName("Spy");
 #pragma endregion="Combat"
 
 #pragma region="Ability System"

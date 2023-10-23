@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void SetMatchTime(const float InMatchTime) const;
 
+	/** Called by maps to specify the mission items needed for that level */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
+	void RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
+
 private:
 
 	// TODO this can be dropped in favour of DesiredGameType

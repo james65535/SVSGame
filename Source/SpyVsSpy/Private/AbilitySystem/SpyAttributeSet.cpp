@@ -75,8 +75,7 @@ void USpyAttributeSet::AdjustAttributeForMaxChange(
 	if (!FMath::IsNearlyEqual(CurrentMaxValue, NewMaxValue) && AbilityComp)
 	{
 		const float CurrentValue = AffectedAttribute.GetCurrentValue();
-		const float NewDelta = (
-			CurrentMaxValue > 0.0f) ?
+		const float NewDelta = (CurrentMaxValue > 0.0f) ?
 				(CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue :
 				NewMaxValue;
 
@@ -86,7 +85,7 @@ void USpyAttributeSet::AdjustAttributeForMaxChange(
 
 void USpyAttributeSet::OnRep_Health(const FGameplayAttributeData& OldValue)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Health OnRep with Value: %f"), OldValue.GetCurrentValue());
+	UE_LOG(SVSLogDebug, Log, TEXT("Health OnRep with Value: %f"), OldValue.GetBaseValue());
 	GAMEPLAYATTRIBUTE_REPNOTIFY(USpyAttributeSet, Health, OldValue);
 }
 

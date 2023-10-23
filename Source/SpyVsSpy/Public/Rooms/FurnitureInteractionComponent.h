@@ -19,4 +19,7 @@ public:
 	/** Interact Interface Override */
 	/** @return Success Status */
 	virtual bool Interact_Implementation(AActor* InteractRequester) override;
+
+	virtual UInventoryComponent* ProvideInventory_Implementation() override;
+	virtual void ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
 };
