@@ -6,6 +6,7 @@
 #include "GameFramework/GameState.h"
 #include "SpyVsSpyGameState.generated.h"
 
+class ASpyPlayerState;
 enum class EPlayerGameStatus : uint8;
 class UInventoryBaseAsset;
 class ASpyCharacter;
@@ -160,7 +161,7 @@ private:
 	UFUNCTION()
 	void OnRep_ResultsUpdated();
 	/** Can be called during and after play */
-	void PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacter, bool bPlayerTimeExpired = false);
+	void PlayerRequestSubmitResults(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired = false);
 	/** Check if all results are in then let clients know the final results */
 	void TryFinaliseScoreBoard();
 	bool CheckAllResultsIn() const ;

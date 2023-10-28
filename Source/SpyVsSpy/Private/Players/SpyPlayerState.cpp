@@ -217,13 +217,31 @@ void ASpyPlayerState::LoadSavedPlayerInfo_Implementation()
 
 void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 {
-	if (!IsRunningDedicatedServer())
+	ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetPawn());
+	ASpyPlayerController* SpyController = SpyCharacter->GetController<ASpyPlayerController>();
+	if (!IsValid(SpyCharacter) || !IsValid(SpyController))
+	{ return; }
+	
+	// UE_LOG(LogTemp, Warning, TEXT("%s Character: %s called attronchange: %s"),
+	// 	SpyController->IsLocalController() ? *FString("True") : *FString("False"),
+	// 	*SpyCharacter->GetName(),
+	// 	*FString(Data.Attribute.AttributeName));
+
+	if (SpyController->IsLocalController())
+	{
+		if (ASpyHUD* SpyHUD = Cast<ASpyHUD>(SpyController->GetHUD()))
+		{
+			SpyHUD->DisplayCharacterHealth(
+				GetAttributeSet()->GetHealth(),
+				GetAttributeSet()->GetMaxHealth());
+		}
+	}
+	
+	if (!IsRunningDedicatedServer() || CurrentStatus != EPlayerGameStatus::Playing)
 	{ return; }
 	
 	/** Check for and handle knockdown and death */
-	ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetPawn());
-	if (IsValid(SpyCharacter) &&
-		!IsAlive() &&
+	if (!IsAlive() &&
 		!AbilitySystemComponent->HasMatchingGameplayTag(SpyDeadTag))
 	{ SpyCharacter->RequestDeath(); }
 }

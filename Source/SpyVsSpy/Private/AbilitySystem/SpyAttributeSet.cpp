@@ -20,11 +20,12 @@ void USpyAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	SharedParams.Condition = COND_None;
 	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyAttributeSet, Health, SharedParams)
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyAttributeSet, MaxHealth, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyAttributeSet, Damage, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyAttributeSet, DefensePower, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyAttributeSet, AttackPower, SharedParams);
+	//DOREPLIFETIME_WITH_PARAMS_FAST()
+	DOREPLIFETIME_WITH_PARAMS(USpyAttributeSet, Health, SharedParams)
+	DOREPLIFETIME_WITH_PARAMS(USpyAttributeSet, MaxHealth, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS(USpyAttributeSet, Damage, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS(USpyAttributeSet, DefensePower, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS(USpyAttributeSet, AttackPower, SharedParams);
 }
 
 void USpyAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -45,24 +46,30 @@ void USpyAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 void USpyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
-
 	
 	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
 	{
-		// Convert into -Health and then clamp
-		SetHealth(FMath::Clamp(GetHealth() - GetDamage(), 0.0f, GetMaxHealth()));
-		SetDamage(0.0f);
-	}
+		const float LocalDamageDone = GetDamage();
+		SetDamage(0.f);
+		const float NewHealth = GetHealth() - LocalDamageDone;
 
-	// if (Data.EvaluatedData.Attribute == GetHealthAttribute())
-	// {
-	// 	SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
-	//
-	// 	if (TargetCharacter)
-	// 	{
-	// 		TargetCharacter->HandleHealthChanged(DeltaValue, SourceTags);
-	// 	}
-	// }
+		UE_LOG(LogTemp, Warning, TEXT("Running damage attrpgee with damage: %f and health: %f"),
+			LocalDamageDone,
+			NewHealth);
+
+		SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
+	}
+	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		// Handle other health changes.
+		// Health loss should go through Damage.
+		const float LocalHealth = GetHealth();
+
+		UE_LOG(LogTemp, Warning, TEXT("Running health attrpgee with health: %f"),
+			LocalHealth);
+		
+		SetHealth(FMath::Clamp(LocalHealth, 0.0f, GetMaxHealth()));
+	}
 }
 
 void USpyAttributeSet::AdjustAttributeForMaxChange(

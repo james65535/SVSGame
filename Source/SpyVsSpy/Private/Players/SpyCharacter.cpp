@@ -21,6 +21,7 @@
 #include "AbilitySystem/SpyAbilitySystemComponent.h"
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "GameFramework/GameModeBase.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryWeaponAsset.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -416,11 +417,26 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled)
 		return;
 	}
 	GetCharacterMovement()->SetIsReplicated(true);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	GetMesh()->SetAllBodiesSimulatePhysics(false);
 	GetMesh()->SetSimulatePhysics(false);
 	GetMesh()->PutAllRigidBodiesToSleep();
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	GetMesh()->SetCollisionProfileName("CharacterMesh", true);
+	GetMesh()->AttachToComponent(GetCapsuleComponent(),
+		FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
+	GetMesh()->SetRelativeLocationAndRotation(
+		FVector(0.0f, 0.0f, -90.0f),
+		FRotator(0.0f, 270.0f, 0.0f));
+
+	//SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetMaxHealth());
+
+	SetActorLocationAndRotation(FVector(0.0f, 0.0f, 20.0f),
+		FRotator::ZeroRotator);
+}
+
+void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled)
+{
+	SetEnableDeathState(bEnabled);
 }
 
 void ASpyCharacter::RequestDeath()
@@ -437,8 +453,8 @@ void ASpyCharacter::S_RequestDeath_Implementation()
 			&ThisClass::FinishDeath,
 			FinishDeathDelaySeconds,
 			false);
+
 	SpyPlayerState->ReduceRemainingMatchTime();
-	
 	NM_RequestDeath();
 }
 
@@ -458,7 +474,7 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 
 		if (GetLocalRole() != ROLE_SimulatedProxy || (IsValid(SpyAbilitySystemComponent)))
 		{
-			OnCharacterDied.Broadcast(this);
+			// OnCharacterDied.Broadcast(this); // TODO borrowing for finishdeath
 
 			/** Ability Component System related work */
 			SpyAbilitySystemComponent->CancelAllAbilities();
@@ -477,16 +493,33 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 
 void ASpyCharacter::FinishDeath()
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Running finish death"));
+	
 	// This is called from Server RPC
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (!HasAuthority())
 	{ return; }
+
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
-	// TODO this should all be clean up stuff
+	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+	*GetName());
+
+	NM_SetEnableDeathState(false);
 	
+	if (IsValid(GetWorld()) && IsValid(GetWorld()->GetAuthGameMode()))
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT("Running restartplayer"));
+		// GetWorld()->GetAuthGameMode()->RestartPlayer(GetController());
+		// Destroy();
+	}
+	
+
+	// TODO this should all be clean up stuff
 	//Respawn();
+	//GetController<APlayerController>()->RestartLevel();
+	//Destroy();
+	//GetController<APlayerController>()->ServerRestartPlayer();  //ClientRestart(this);
+	// GetController<APlayerController>()->ServerRestartPlayer()
 }
 
 void ASpyCharacter::HandlePrimaryAttackOverlap(AActor* OverlappedSpyCombatant)
@@ -550,7 +583,7 @@ void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
 		
 		// TODO sort out attack force and consider multiplayer aspect/multicast
 		constexpr float AttackForce = 750.0f;
-		const FVector AttackForceVector = FVector(AttackForce, AttackForce, 0.0f);
+		const FVector AttackForceVector = FVector(AttackForce, AttackForce, 1.0f);
 		Cast<ISpyCombatantInterface>(OverlappedSpyCombatant)->ApplyAttackImpactForce(GetActorLocation(), AttackForceVector);
 
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.Hit");
@@ -631,7 +664,10 @@ void ASpyCharacter::HandleTrapTrigger()
 	// TODO sort out attack force and consider multiplayer aspect/multicast
 	// perhaps move this to gameplaycue and utilise magnitude...
 	constexpr float AttackForce = 700.0f;
-	const FVector AttackForceVector = FVector(AttackForce, AttackForce, 100.0f);
+	const FVector AttackForceVector = FVector(
+		AttackForce,
+		AttackForce,
+		1.0f);
 	FVector AttackOrigin = FVector::ZeroVector;
 
 	if (GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
@@ -640,10 +676,12 @@ void ASpyCharacter::HandleTrapTrigger()
 			GetLatestInteractableComponent()->
 				Execute_GetInteractableOwner(
 					GetInteractionComponent()->
-						GetLatestInteractableComponent().GetObjectRef())->GetActorLocation();
+						GetLatestInteractableComponent().GetObjectRef())->
+							GetActorLocation();
 	}
 
-	Cast<ISpyCombatantInterface>(this)->ApplyAttackImpactForce(AttackOrigin, AttackForceVector);
+	Cast<ISpyCombatantInterface>(this)->
+	ApplyAttackImpactForce(AttackOrigin, AttackForceVector);
 
 	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
 	FGameplayEventData Payload = FGameplayEventData();

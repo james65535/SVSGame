@@ -72,8 +72,7 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void NM_FinishedMatch();
 
-	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
-	void SetWeaponMesh(UStaticMesh* InMesh);
+
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	UInventoryWeaponAsset* GetHeldWeapon() const { return CurrentHeldWeapon; }
@@ -264,6 +263,8 @@ protected:
 	
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Character|Combat")
 	UStaticMeshComponent* WeaponMeshComponent;
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
+	void SetWeaponMesh(UStaticMesh* InMesh);
 	// TODO move to inventory component
 	UPROPERTY(ReplicatedUsing = OnRep_ActiveWeaponInventoryIndex)
 	int ActiveWeaponInventoryIndex = 0;
@@ -281,6 +282,8 @@ protected:
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|Character")
 	void NM_RequestDeath();
 	void SetEnableDeathState(const bool bEnabled);
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|Character")
+	void NM_SetEnableDeathState(const bool bEnabled);
 #pragma endregion="CharacterDeath"
 
 #pragma region="Ability System"

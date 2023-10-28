@@ -84,31 +84,29 @@ void ASpyVsSpyGameState::OnRep_ResultsUpdated()
 	}
 }
 
-void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacter, bool bPlayerTimeExpired)
+void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired)
 {
-	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter->GetPlayerState()))
+	if (!IsValid(InSpyPlayerState) ||
+		InSpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
+	{ return; }
+	
+	InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
+	
+	FGameResult Result;
+	Result.Time = GetServerWorldTimeSeconds() - MatchStartTime;
+	Result.Name = InSpyPlayerState->GetPlayerName();
+	
+	bool IsWinner = false;
+	if (!bPlayerTimeExpired)
 	{
-		if (SpyPlayerState->GetCurrentStatus() != EPlayerGameStatus::WaitingForAllPlayersFinish)
-		{
-			SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
-			
-			FGameResult Result;
-			Result.Time = GetServerWorldTimeSeconds() - MatchStartTime;
-			Result.Name = SpyPlayerState->GetPlayerName();
-			
-			bool IsWinner = false;
-			if (!bPlayerTimeExpired)
-			{
-				IsWinner = Results.Num() == 0;
-				Result.bCompletedMission = true;
-			}
-			SpyPlayerState->SetIsWinner(IsWinner);
-			Result.bIsWinner = IsWinner;
-			
-			Results.Add(Result);
-			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
-		}
+		IsWinner = Results.Num() == 0;
+		Result.bCompletedMission = true;
 	}
+	InSpyPlayerState->SetIsWinner(IsWinner);
+	Result.bIsWinner = IsWinner;
+	
+	Results.Add(Result);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 }
 
 void ASpyVsSpyGameState::TryFinaliseScoreBoard()
@@ -202,8 +200,10 @@ void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
 		if (!PlayerInventory.Contains(MissionItem))
 		{ return; }
 	}
-
-	PlayerRequestSubmitResults(InSpyCharacter);
+	
+	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
+	{ PlayerRequestSubmitResults(SpyPlayerState); }
+	
 	InSpyCharacter->NM_FinishedMatch();
 	TryFinaliseScoreBoard();
 }
@@ -213,8 +213,10 @@ void ASpyVsSpyGameState::NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter)
 	if (!HasAuthority() ||
 	!IsValid(InSpyCharacter))
 	{ return; }
-	
-	PlayerRequestSubmitResults(InSpyCharacter, true);
+
+	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
+	{ PlayerRequestSubmitResults(SpyPlayerState, true); }
+
 	InSpyCharacter->NM_FinishedMatch();
 	TryFinaliseScoreBoard();
 }

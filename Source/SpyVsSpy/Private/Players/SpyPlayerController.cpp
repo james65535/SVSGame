@@ -5,6 +5,7 @@
 
 //#include "EnhancedInputSubsystems.h"
 #include "SVSLogger.h"
+#include "AbilitySystem/SpyAttributeSet.h"
 #include "EnhancedInput/Public/EnhancedInputComponent.h"
 #include "EnhancedInput/Public/EnhancedInputSubsystems.h"
 #include "EnhancedInput/Public/InputActionValue.h"
@@ -403,7 +404,7 @@ void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
 		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
 
 		if (!IsValid(SpyCharacter))
-		{ SpyCharacter = CastChecked<ASpyCharacter>(GetCharacter()); }
+		{ SpyCharacter = Cast<ASpyCharacter>(GetCharacter()); }
 		SpyGameState->NotifyPlayerTimeExpired(SpyCharacter);
 	}
 
@@ -480,8 +481,8 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 	{
 		SpyPlayerHUD->ToggleDisplayGameTime(true);
 		SpyPlayerHUD->DisplayCharacterHealth(
-			SpyPlayerState->GetHealth(),
-			SpyPlayerState->GetMaxHealth());
+			SpyPlayerState->GetAttributeSet()->GetHealth(),
+			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
 		SpyPlayerHUD->DisplayCharacterInventory();  // TODO Finish
 	}
 }
