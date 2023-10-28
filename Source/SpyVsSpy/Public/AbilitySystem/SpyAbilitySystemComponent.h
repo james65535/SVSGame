@@ -32,6 +32,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Ability")
 	void ReceiveDamage(const USpyAbilitySystemComponent* SourceAbilitySystemComponent, float DamageDone);
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Ability")
 	virtual void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
 	
 };

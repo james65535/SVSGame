@@ -69,6 +69,9 @@ void ASpyVsSpyGameMode::RequestSetRequiredMissionItems(const TArray<UInventoryBa
 
 void ASpyVsSpyGameMode::RestartGame()
 {
+	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
+	{ SVSGameState->SetAllPlayerGameStatus(EPlayerGameStatus::LoadingLevel); }
+	
 	Super::RestartGame();
 }
 
@@ -154,9 +157,10 @@ bool ASpyVsSpyGameMode::CheckAllPlayersStatus(const EPlayerGameStatus StateToChe
 		if (const ASpyPlayerState* PlayerState =
 			Cast<ASpyPlayerController>(Iterator->Get())->GetPlayerState<ASpyPlayerState>())
 		{
-			if (PlayerState->GetCurrentState() != StateToCheck)
+			if (PlayerState->GetCurrentStatus() != StateToCheck)
 			{
-				UE_LOG(SVSLogDebug, Log, TEXT("PlayerID: %i did not match requested state"), PlayerState->GetPlayerId())
+				UE_LOG(SVSLogDebug, Log, TEXT("PlayerID: %i did not match requested state"),
+					PlayerState->GetPlayerId())
 				return false;
 			}
 			Count++;

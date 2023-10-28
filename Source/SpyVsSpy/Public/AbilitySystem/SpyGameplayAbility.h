@@ -21,4 +21,10 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "SVS|Abilities")
 	ESVSAbilityInputID AbilityInputID { ESVSAbilityInputID::None };
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities")
+	bool AreTasksStillActive();
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities")
+	void PrintActiveTaskNames();
 };

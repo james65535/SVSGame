@@ -6,6 +6,7 @@
 #include "GameFramework/GameState.h"
 #include "SpyVsSpyGameState.generated.h"
 
+enum class EPlayerGameStatus : uint8;
 class UInventoryBaseAsset;
 class ASpyCharacter;
 class ARoomManager;
@@ -44,6 +45,9 @@ struct FGameResult
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
 	bool bIsWinner = false;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	bool bCompletedMission = false;
 };
 
 /**
@@ -111,6 +115,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter);
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus);
 
 protected:
 

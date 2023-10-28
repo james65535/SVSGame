@@ -67,7 +67,7 @@ void ASpyPlayerState::BeginPlay()
 			if (!IsRunningDedicatedServer())
 			{ LoadSavedPlayerInfo(); }
 		}
-		SetCurrentStatus(EPlayerGameStatus::Waiting);
+		SetCurrentStatus(EPlayerGameStatus::WaitingForStart);
 	}
 
 	/** Setup ability system component as Playerstate is the owner */
@@ -157,6 +157,12 @@ void ASpyPlayerState::OnRep_PlayerName()
 	{ SpyPlayerController->OnPlayerStateReceived.Broadcast(); }
 }
 
+void ASpyPlayerState::OnRep_PlayerId()
+{
+	Super::OnRep_PlayerId();
+	UE_LOG(SVSLogDebug, Log, TEXT("Playerstate ID: %i Role: %hhd"), GetPlayerId(), GetLocalRole());
+}
+
 void ASpyPlayerState::SavePlayerDelegate(const FString& SlotName, const int32 UserIndex, bool bSuccess)
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Player Save Process: %s"), bSuccess ? *FString("Successful") : *FString("Failed"));
@@ -211,6 +217,9 @@ void ASpyPlayerState::LoadSavedPlayerInfo_Implementation()
 
 void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 {
+	if (!IsRunningDedicatedServer())
+	{ return; }
+	
 	/** Check for and handle knockdown and death */
 	ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetPawn());
 	if (IsValid(SpyCharacter) &&

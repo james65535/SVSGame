@@ -94,9 +94,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FGuid GetRoomGuid() const { return RoomGuid; }
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
+	bool IsFinalMissionRoom() const { return bIsFinalMissionRoom; }
+
 protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY(BlueprintReadWrite, EditInstanceOnly, Category = "SVS|Room")
+	bool bIsFinalMissionRoom = false;
 	
 private:
 

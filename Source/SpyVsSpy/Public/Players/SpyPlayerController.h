@@ -8,6 +8,8 @@
 #include "GameFramework/PlayerController.h"
 #include "SpyPlayerController.generated.h"
 
+class UInventoryComponent;
+class UInventoryWeaponAsset;
 class ASpyCharacter;
 class ASpyHUD;
 class ASpyVsSpyGameState;
@@ -65,7 +67,7 @@ public:
 	void FinishedMatch();
 	
 	/** Get the final results and call hud to display */
-	void RequestDisplayFinalResults() const;
+	void RequestDisplayFinalResults();
 	
 	/** Called by Server Authority to restart level */
 	UFUNCTION(Server, Reliable, Category = "SVS|UI")
@@ -73,27 +75,33 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void ConnectToServer(const FString InServerAddress);
-
-	/**
-	 * Set the controller input mode and cursor show
-	 * @param InRequestedInputMode GameOnly / ShowCursor False  GameAndUI, UIOnly / Show Cursor True
-	 */
-	UFUNCTION(NetMulticast, Reliable, Category = "SVS|Controller")
-	void NM_SetControllerGameInputMode(const EPlayerInputMode InRequestedInputMode);
+	
+	// UFUNCTION(NetMulticast, Reliable, Category = "SVS|Controller")
+	// void NM_SetControllerGameInputMode(const EPlayerInputMode InRequestedInputMode);
 
 	/** UFUNCTION Wrapper for parent class SetName method */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerName(const FString& InPlayerName);
-	
+
+	/** Take inventory items from a target and place them in character inventory */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
-	void TakeAllFromTargetInventory();
+	void RequestTakeAllFromTargetInventory();
 
-	/** Server function to take inventory items from a target and place them in character inventory */
-	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
-	void S_TakeAllFromTargetInventory();
-
+	/** Place currently held trap in current interactable actor */
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	void RequestPlaceTrap();
+	
 	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Player")
 	void C_DisplayCharacterInventory();
+	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Player")
+	void C_DisplayTargetInventory(UInventoryComponent* TargetInventory);
+
+	/**
+	 *Set the controller input mode and cursor show
+	 *@param DesiredInputMode GameOnly / ShowCursor False  GameAndUI, UIOnly / Show Cursor True
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
 private:
 	
@@ -145,8 +153,8 @@ private:
 	void RequestInteract(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
 	void RequestPrimaryAttack(const FInputActionValue& ActionValue);
-	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
-	void RequestOpenTargetInventory(const FInputActionValue& ActionValue);
+	// UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
+	// void RequestOpenTargetInventory(const FInputActionValue& ActionValue);
 	
 	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
 	// void RequestJump();
@@ -196,5 +204,15 @@ protected:
 	UPROPERTY()
 	ASpyPlayerState* SpyPlayerState;
 
+	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|UI")
+	void C_RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
+	/** Place currently held trap in current interactable actor */
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
+	void S_RequestPlaceTrap();
+
+	/** Server function to take inventory items from a target and place them in character inventory */
+	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
+	void S_RequestTakeAllFromTargetInventory();
+	
 };

@@ -24,9 +24,6 @@ public:
 
 protected:
 
-	/** Class Overrides */
-	virtual void BeginPlay() override;
-
 	/** Interact Interface Override */
 	/**
 	 * @brief Request Interaction
@@ -38,9 +35,12 @@ protected:
 	 * @brief Provide a listing of inventory items to interaction requester
 	 * @param InventoryItems An array to populate with inventory items found
 	 */
-	virtual void ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
+	virtual void GetInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
 
 	virtual AActor* GetInteractableOwner_Implementation() override;
+
+	virtual bool CheckHasTrap_Implementation() override;
+	virtual bool HasInventory_Implementation() override;
 
 private:
 

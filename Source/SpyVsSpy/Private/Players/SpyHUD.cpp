@@ -145,6 +145,7 @@ void ASpyHUD::DisplayResults(const TArray<FGameResult>& InResults) const
 {
 	checkfSlow(LevelEndWidget, "PlayerHUD attempted to display results but LevelEndWidget was null");
 	LevelEndWidget->DisplayResults(InResults);
+	SpyPlayerController->RequestInputMode(EPlayerInputMode::UIOnly);
 }
 
 void ASpyHUD::RemoveResults()
@@ -160,12 +161,14 @@ void ASpyHUD::DisplayLevelMenu()
 {
 	checkfSlow(LevelMenuWidget, "PlayerHUD attempted to display Level Menu but LevelMenuWidget was null");
 	LevelMenuWidget->DisplayGameMenu();
+	SpyPlayerController->RequestInputMode(EPlayerInputMode::UIOnly);
 }
 
 void ASpyHUD::HideLevelMenu()
 {
 	checkfSlow(LevelMenuWidget, "PlayerHUD attempted to hide Level Menu but LevelMenuWidget was null");
 	LevelMenuWidget->HideGameMenu();
+	SpyPlayerController->RequestInputMode(EPlayerInputMode::GameOnly);
 }
 
 void ASpyHUD::UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerStatus) const

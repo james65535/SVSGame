@@ -19,8 +19,8 @@
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryBaseAsset.h"
+#include "Items/InventoryWeaponAsset.h"
 #include "Players/PlayerInputConfigRegistry.h"
-#include "net/UnrealNetwork.h"
 
 void ASpyPlayerController::BeginPlay()
 {
@@ -147,14 +147,14 @@ void ASpyPlayerController::BeginPlay()
 		/** Next Trap */
 		EIPlayerComponent->BindAction(
 			InputActions->NextTrapAction,
-			ETriggerEvent::Completed,
+			ETriggerEvent::Started,
 			this,
 			&ThisClass::RequestNextTrap);
 
 		/** Previous Trap */
 		EIPlayerComponent->BindAction(
 			InputActions->PrevTrapAction,
-			ETriggerEvent::Completed,
+			ETriggerEvent::Started,
 			this,
 			&ThisClass::RequestPreviousTrap);
 		
@@ -178,17 +178,10 @@ void ASpyPlayerController::BeginPlay()
 			ETriggerEvent::Completed,
 			this,
 			&ThisClass::RequestHideLevelMenu);
-
-		/** Open Target Inventory */
-		EIPlayerComponent->BindAction(
-			InputActions->OpenTargetInventoryAction,
-			ETriggerEvent::Completed,
-			this,
-			&ThisClass::RequestOpenTargetInventory);
 	}
 
 	/** Game Starts with a UI */
-	NM_SetControllerGameInputMode(EPlayerInputMode::UIOnly);
+	C_RequestInputMode(EPlayerInputMode::UIOnly);
 
 	/** Listen for match start announcements */
 	SpyGameState->OnStartMatchDelegate.AddUObject(this, &ThisClass::StartMatchForPlayer);
@@ -225,18 +218,26 @@ void ASpyPlayerController::FinishedMatch()
 	if (!IsRunningDedicatedServer())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
+		if(SpyPlayerState->GetPlayerRemainingMatchTime() > 0.0f)
+		{ SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished); }
+		else
+		{ SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired); }
 		SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
-		SetInputContext(MenuInputMapping);
-		NM_SetControllerGameInputMode(EPlayerInputMode::UIOnly);
+		RequestInputMode(EPlayerInputMode::UIOnly);
 		SpyPlayerHUD->DisplayResults(SpyGameState->GetResults());
 		SpyPlayerHUD->ToggleDisplayGameTime(false);
 	}
 }
 
-void ASpyPlayerController::RequestDisplayFinalResults() const
+void ASpyPlayerController::RequestDisplayFinalResults()
 {
 	if (!IsRunningDedicatedServer())
-	{ SpyPlayerHUD->DisplayResults(SpyGameState->GetResults()); }
+	{
+		if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
+			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish ||
+			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
+		{ SpyPlayerHUD->DisplayResults(SpyGameState->GetResults()); }
+	}
 }
 
 void ASpyPlayerController::S_RestartLevel_Implementation()
@@ -252,9 +253,27 @@ void ASpyPlayerController::ConnectToServer(const FString InServerAddress)
 	ClientTravel(InServerAddress, TRAVEL_Absolute, false);
 }
 
-void ASpyPlayerController::NM_SetControllerGameInputMode_Implementation(const EPlayerInputMode InRequestedInputMode)
+void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
 {
-	switch (InRequestedInputMode)
+	SetName(InPlayerName);
+	checkfSlow(SpyPlayerState, "Controller tried to set player name but player state was null");
+	SpyPlayerState->SavePlayerInfo();
+}
+
+void ASpyPlayerController::C_DisplayTargetInventory_Implementation(UInventoryComponent* TargetInventory)
+{
+	SpyPlayerHUD->DisplaySelectedActorInventory(TargetInventory);
+	RequestInputMode(EPlayerInputMode::UIOnly);
+}
+
+void ASpyPlayerController::RequestInputMode(const EPlayerInputMode DesiredInputMode)
+{
+	C_RequestInputMode(DesiredInputMode);
+}
+
+void ASpyPlayerController::C_RequestInputMode_Implementation(const EPlayerInputMode DesiredInputMode)
+{
+	switch (DesiredInputMode)
 	{
 	case (EPlayerInputMode::GameOnly):
 		{
@@ -273,24 +292,13 @@ void ASpyPlayerController::NM_SetControllerGameInputMode_Implementation(const EP
 		}
 	case (EPlayerInputMode::UIOnly):
 		{
+			SetInputContext(GameInputMapping);
 			const FInputModeUIOnly InputMode;
 			SetInputMode(InputMode);
 			SetShowMouseCursor(true);
 			break;
 		}
 	}
-}
-
-void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
-{
-	SetName(InPlayerName);
-	checkfSlow(SpyPlayerState, "Controller tried to set player name but player state was null");
-	SpyPlayerState->SavePlayerInfo();
-}
-
-void ASpyPlayerController::TakeAllFromTargetInventory()
-{
-	S_TakeAllFromTargetInventory();
 }
 
 void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
@@ -301,8 +309,16 @@ void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 	SpyPlayerHUD->DisplayCharacterInventory();
 }
 
-void ASpyPlayerController::S_TakeAllFromTargetInventory_Implementation()
+void ASpyPlayerController::RequestTakeAllFromTargetInventory()
 {
+	SetInputContext(GameInputMapping);
+	RequestInputMode(EPlayerInputMode::GameOnly);
+	S_RequestTakeAllFromTargetInventory();
+}
+
+void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
+{
+	// TODO refactor this more cleanly across controller and character
 	if (!IsValid(SpyCharacter) ||
 		!IsValid(SpyCharacter->GetInteractionComponent()) ||
 		!SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ||
@@ -313,12 +329,67 @@ void ASpyPlayerController::S_TakeAllFromTargetInventory_Implementation()
 	SpyCharacter->
 		GetInteractionComponent()->
 		GetLatestInteractableComponent()->
-		Execute_ProvideInventoryListing(
+		Execute_GetInventoryListing(
 			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef(),
 			TargetInventoryListing);
 	if (TargetInventoryListing.Num() < 1)
 	{ return; }
 	SpyCharacter->GetPlayerInventoryComponent()->AddInventoryItems(TargetInventoryListing);
+}
+
+void ASpyPlayerController::RequestPlaceTrap()
+{
+	S_RequestPlaceTrap();
+}
+
+void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is attempting to place a trap in an interactable actor"),
+		IsLocalController() ? *FString("Local") : *FString("Not Local"),
+		*GetCharacter()->GetName());
+
+
+	UE_LOG(SVSLogDebug, Log, TEXT("Place trap - HasInterComp: %s HasInvComp %s Furniture HasInv: %s HasWeapon %s WeaponNotTrap: TBD"),
+			IsValid(SpyCharacter->GetInteractionComponent()) ? *FString("True") : *FString("False"),
+			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"),
+			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent()->Execute_HasInventory(SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()) ? *FString("True") : *FString("False"),
+			IsValid(SpyCharacter->GetHeldWeapon()) ? *FString("True") : *FString("False"));
+			//SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap ? *FString("True") : *FString("False"));
+
+	if (!IsValid(SpyCharacter) ||
+	!IsValid(SpyCharacter->GetInteractionComponent()) ||
+	!SpyCharacter->GetInteractionComponent()->
+		GetLatestInteractableComponent()->
+			Execute_HasInventory(
+				SpyCharacter->GetInteractionComponent()->
+					GetLatestInteractableComponent().GetObjectRef()) ||
+	!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
+	!IsValid(SpyCharacter->GetHeldWeapon()) ||
+	SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
+	{ return; }
+	// TODO refactor this more cleanly across controller and character
+	if (!IsValid(SpyCharacter) ||
+		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+		!SpyCharacter->GetInteractionComponent()->
+			GetLatestInteractableComponent()->
+				Execute_HasInventory(
+					SpyCharacter->GetInteractionComponent()->
+						GetLatestInteractableComponent().GetObjectRef()) ||
+		!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
+		!IsValid(SpyCharacter->GetHeldWeapon()) ||
+		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
+	{ return; }
+
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has placed a trap in an interactable actor"),
+	IsLocalController() ? *FString("Local") : *FString("Not Local"),
+	*GetCharacter()->GetName());
+
+	SpyCharacter->
+		GetInteractionComponent()->
+			GetLatestInteractableComponent()->
+				Execute_GetInventory(SpyCharacter->GetInteractionComponent()->
+					GetLatestInteractableComponent().GetObjectRef())->
+						SetActiveTrap(SpyCharacter->GetHeldWeapon());
 }
 
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
@@ -373,9 +444,8 @@ void ASpyPlayerController::RequestDisplayLevelMenu()
 {
 	if (CanProcessRequest())
 	{
-		SetInputContext(MenuInputMapping);
 		SpyPlayerHUD->DisplayLevelMenu();
-		NM_SetControllerGameInputMode(EPlayerInputMode::GameAndUI);
+		RequestInputMode(EPlayerInputMode::UIOnly);
 	}
 }
 
@@ -383,15 +453,14 @@ void ASpyPlayerController::RequestHideLevelMenu()
 {
 	if (CanProcessRequest())
 	{
-		SetInputContext(GameInputMapping);
 		SpyPlayerHUD->HideLevelMenu();
-		NM_SetControllerGameInputMode(EPlayerInputMode::GameOnly);
+		RequestInputMode(EPlayerInputMode::GameOnly);
 	}
 }
 
 void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 {
-	NM_SetControllerGameInputMode(EPlayerInputMode::GameOnly);
+	RequestInputMode(EPlayerInputMode::GameOnly);
 	SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
 	CachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 
@@ -420,7 +489,7 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 bool ASpyPlayerController::CanProcessRequest() const
 {
 	if (SpyGameState && SpyGameState->IsMatchInPlay())
-	{ return (SpyPlayerState->GetCurrentState() == EPlayerGameStatus::Playing); }
+	{ return (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing); }
 	return false;
 }
 
@@ -449,6 +518,7 @@ void ASpyPlayerController::RequestMove(const FInputActionValue& ActionValue)
 
 void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Controller Next trap"));
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
@@ -457,6 +527,7 @@ void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
 
 void ASpyPlayerController::RequestPreviousTrap(const FInputActionValue& ActionValue)
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Controller Prev trap"));
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
@@ -477,21 +548,6 @@ void ASpyPlayerController::RequestPrimaryAttack(const FInputActionValue& ActionV
 	{ return; }
 
 	SpyCharacter->RequestPrimaryAttack(ActionValue);
-}
-
-void ASpyPlayerController::RequestOpenTargetInventory(const FInputActionValue& ActionValue)
-{
-	if (!IsValid(SpyCharacter) ||
-		!IsValid(SpyPlayerHUD) ||
-		!IsValid(SpyCharacter->GetInteractionComponent()) ||
-		!IsValid(SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()))
-	{ return; }
-
-	SpyPlayerHUD->DisplaySelectedActorInventory(
-		SpyCharacter->GetInteractionComponent()->
-		GetLatestInteractableComponent()->
-		Execute_ProvideInventory(
-			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()));
 }
 
 void ASpyPlayerController::S_OnReadySelected_Implementation()

@@ -121,5 +121,6 @@ void UAbilityTaskSuccessFailEvent::OnDestroy(bool AbilityEnding)
 		{ TargetAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(FailTag), FailHandle); }
 	}
 	
+	
 	Super::OnDestroy(AbilityEnding);
 }

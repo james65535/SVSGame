@@ -3,6 +3,7 @@
 
 #include "Items/InventoryComponent.h"
 
+#include "SVSLogger.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Items/InventoryBaseAsset.h"
@@ -23,12 +24,12 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	FDoRepLifetimeParams SharedParams;
-	SharedParams.bIsPushBased = true;
-	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
-	SharedParams.Condition = COND_AutonomousOnly;
+	FDoRepLifetimeParams AutonomousOnlySharedParams;
+	AutonomousOnlySharedParams.bIsPushBased = true;
+	AutonomousOnlySharedParams.RepNotifyCondition = REPNOTIFY_Always;
+	AutonomousOnlySharedParams.Condition = COND_AutonomousOnly;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, InventoryCollection, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, InventoryCollection, AutonomousOnlySharedParams);
 }
 
 bool UInventoryComponent::AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets)
@@ -70,6 +71,14 @@ void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInve
 	InInventoryItems = InventoryCollection;
 }
 
+void UInventoryComponent::SetActiveTrap(UInventoryWeaponAsset* InActiveTrap)
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("Actor has been given an active trap: %s"),
+		*InActiveTrap->InventoryItemName.ToString());
+	ActiveTrap = InActiveTrap;
+	//MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveTrap, this);
+}
+
 void UInventoryComponent::OnRep_InventoryCollection() const
 {
 	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
@@ -79,7 +88,7 @@ void UInventoryComponent::OnRep_InventoryCollection() const
 	}
 }
 
-void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId InInventoryAssetId)
+void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
 {
 	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
@@ -110,3 +119,14 @@ void UInventoryComponent::OnInventoryAssetLoad(const FPrimaryAssetId InInventory
 		}
 	}
 }
+
+// void UInventoryComponent::OnRep_ActiveTrap()
+// {
+// 	if (!IsValid(ActiveTrap))
+// 	{
+// 		UE_LOG(SVSLogDebug, Log, TEXT("Inventory has invalid activetrap after onrep called"));
+// 		return;
+// 	}
+// 	UE_LOG(SVSLogDebug, Log, TEXT("active trap onrep has trap: %s"),
+// 		*ActiveTrap->InventoryItemName.ToString());
+// }

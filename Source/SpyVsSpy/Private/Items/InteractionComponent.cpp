@@ -12,14 +12,6 @@ UInteractionComponent::UInteractionComponent()
 
 }
 
-void UInteractionComponent::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// ...
-	
-}
-
 void UInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
 {
 	bInteractionEnabled = bIsEnabled;
@@ -36,9 +28,11 @@ bool UInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 	return IsInteractionEnabled();
 }
 
-void UInteractionComponent::ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems)
+void UInteractionComponent::GetInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems)
 {
-	if (!bInteractionEnabled)
+	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy ||
+		GetOwner()->GetLocalRole() == ROLE_SimulatedProxy ||
+		!bInteractionEnabled)
 	{ return; }
 	
 	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
@@ -51,4 +45,14 @@ void UInteractionComponent::ProvideInventoryListing_Implementation(TArray<UInven
 AActor* UInteractionComponent::GetInteractableOwner_Implementation()
 {
 	return GetOwner();
+}
+
+bool UInteractionComponent::CheckHasTrap_Implementation()
+{
+	return false;
+}
+
+bool UInteractionComponent::HasInventory_Implementation()
+{
+	return false;
 }

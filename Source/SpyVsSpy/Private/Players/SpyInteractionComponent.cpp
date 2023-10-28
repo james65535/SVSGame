@@ -8,14 +8,12 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Players/SpyCharacter.h"
 
 USpyInteractionComponent::USpyInteractionComponent()
 {
 	SetGenerateOverlapEvents(true);
 	CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-	
-	SetHiddenInGame(false); // TODO temporary for troubleshooting
-	SetVisibility(true); // TODO temporary for troubleshooting
 	
 	CapsuleRadius = 22.0f;
 	CapsuleHalfHeight = 50.0f;
@@ -111,24 +109,27 @@ void USpyInteractionComponent::OnRep_bCanInteractWithActor()
 	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
 }
 
-void USpyInteractionComponent::RequestInteractWithObject()
+TScriptInterface<IInteractInterface> USpyInteractionComponent::RequestInteractWithObject()
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
-	S_RequestInteractWithObject();
+	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return nullptr; }
+	
+	// if (LatestInteractableComponentFound->Execute_CheckHasTrap(LatestInteractableComponentFound.GetObjectRef()))
+	// {
+	// 	if (ASpyCharacter* OwnerSpyCharacter = GetOwner<ASpyCharacter>())
+	// 	{ OwnerSpyCharacter->RequestTrapTrigger(); }
+	// 	return LatestInteractableComponentFound;
+	// }
+	//
+	// S_RequestBasicInteractWithObject();
+
+	return LatestInteractableComponentFound;
 }
 
-void USpyInteractionComponent::S_RequestInteractWithObject_Implementation()
+void USpyInteractionComponent::S_RequestBasicInteractWithObject_Implementation()
 {
 	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return; }
-
+	
 	const bool bSuccessful = LatestInteractableComponentFound->Execute_Interact(LatestInteractableComponentFound.GetObjectRef(), GetOwner());
 	UE_LOG(SVSLogDebug, Log, TEXT("Interaction success status: %s"), bSuccessful ? *FString("True") : *FString("False"));
-
-	if (bSuccessful)
-	{ C_RequestInteractWithObject(); }
-}
-
-void USpyInteractionComponent::C_RequestInteractWithObject_Implementation()
-{
-
 }

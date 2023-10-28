@@ -33,24 +33,28 @@ public:
 	UInventoryWeaponAsset* GetActiveTrap() const { return ActiveTrap; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	int GetCurrentCollectionSize() const { return InventoryCollection.Num(); }
-
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	void SetActiveTrap(UInventoryWeaponAsset* InActiveTrap);
+	
 	FOnInventoryUpdated OnInventoryUpdated;
 
 protected:
 
 	const uint8 MaxInventorySize = 8;
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_InventoryCollection, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_InventoryCollection, Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryCollection;
 	UFUNCTION()
 	void OnRep_InventoryCollection() const;
 	
 	UFUNCTION()
-	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId InInventoryAssetId);
+	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);
 	UFUNCTION()
 	void OnInventoryAssetLoad(const FPrimaryAssetId InInventoryAssetId);
 
 	// TODO secure UPROP settings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	UInventoryWeaponAsset* ActiveTrap;
+	// UFUNCTION()
+	// void OnRep_ActiveTrap();
 		
 };

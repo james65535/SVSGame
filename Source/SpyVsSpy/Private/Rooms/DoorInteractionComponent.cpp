@@ -50,7 +50,6 @@ void UDoorInteractionComponent::BeginPlay()
 
 bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
-
 	UE_LOG(SVSLogDebug, Log, TEXT("Starting door state %d"), DoorState);
 	// TODO Validate If Interaction is a valid one
 

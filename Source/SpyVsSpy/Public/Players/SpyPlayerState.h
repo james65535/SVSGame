@@ -16,11 +16,14 @@ class USaveGame;
 UENUM(BlueprintType)
 enum class EPlayerGameStatus : uint8
 {
-	None		UMETA(DisplayName = "None"),
-	Waiting		UMETA(DisplayName = "Waiting"),
-	Ready		UMETA(DisplayName = "Ready"),
-	Playing		UMETA(DisplayName = "Playing"),
-	Finished	UMETA(DisplayName = "Finished"),
+	None							UMETA(DisplayName = "None"),
+	WaitingForStart					UMETA(DisplayName = "Waiting For Start"),
+	Ready							UMETA(DisplayName = "Ready"),
+	Playing							UMETA(DisplayName = "Playing"),
+	MatchTimeExpired				UMETA(DisplayName = "MatchTimeExpired"),
+	WaitingForAllPlayersFinish		UMETA(DisplayName = "Waiting For All Players Finish"),
+	Finished						UMETA(DisplayName = "Finished"),
+	LoadingLevel					UMETA(DisplayName = "Loading Level"),
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveGameUpdate);
@@ -61,7 +64,7 @@ public:
 	FOnSaveGameUpdate OnSaveGameLoad;
 
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
-	EPlayerGameStatus GetCurrentState() const { return CurrentStatus; }
+	EPlayerGameStatus GetCurrentStatus() const { return CurrentStatus; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus);
 
@@ -80,7 +83,11 @@ public:
 	
 protected:
 
+	
+	/** Class Overrides */
 	virtual void BeginPlay() override;
+	virtual void OnRep_PlayerName() override;
+	virtual void OnRep_PlayerId() override;
 
 	/** Ability System */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SVS|Abilities")
@@ -103,8 +110,6 @@ protected:
 
 private:
 
-	/** Class Overrides */
-	virtual void OnRep_PlayerName() override;
 	
 	/** Player Status in the game */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")

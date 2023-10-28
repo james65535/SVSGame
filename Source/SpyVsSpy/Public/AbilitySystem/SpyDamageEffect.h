@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayEffect.h"
+#include "SVSLogger.h"
 #include "SpyDamageEffect.generated.h"
 
 /**
@@ -13,5 +14,10 @@ UCLASS()
 class SPYVSSPY_API USpyDamageEffect : public UGameplayEffect
 {
 	GENERATED_BODY()
+
+public:
+
+	virtual void PostLoad() override;
+	
 	
 };

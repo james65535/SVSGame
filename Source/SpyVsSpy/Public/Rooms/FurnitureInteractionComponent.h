@@ -20,6 +20,8 @@ public:
 	/** @return Success Status */
 	virtual bool Interact_Implementation(AActor* InteractRequester) override;
 
-	virtual UInventoryComponent* ProvideInventory_Implementation() override;
-	virtual void ProvideInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
+	virtual UInventoryComponent* GetInventory_Implementation() override;
+	virtual void GetInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
+	virtual bool CheckHasTrap_Implementation() override;
+	virtual bool HasInventory_Implementation() override;
 };

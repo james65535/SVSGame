@@ -31,11 +31,17 @@ public:
 	bool Interact(AActor* InteractRequester);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	void ProvideInventoryListing(TArray<UInventoryBaseAsset*>& InventoryItems);
+	bool HasInventory();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	UInventoryComponent* ProvideInventory();
+	void GetInventoryListing(TArray<UInventoryBaseAsset*>& InventoryItems);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	UInventoryComponent* GetInventory();
 	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
 	AActor* GetInteractableOwner();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	bool CheckHasTrap();
 };

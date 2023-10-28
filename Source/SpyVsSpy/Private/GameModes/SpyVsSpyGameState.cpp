@@ -78,7 +78,7 @@ void ASpyVsSpyGameState::OnRep_ResultsUpdated()
 {
 	for (const TObjectPtr<APlayerState> PlayerState : PlayerArray)
 	{
-		if(const ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(
+		if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(
 			PlayerState->GetPlayerController()))
 		{ PlayerController->RequestDisplayFinalResults(); }
 	}
@@ -88,9 +88,9 @@ void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacte
 {
 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter->GetPlayerState()))
 	{
-		if (SpyPlayerState->GetCurrentState() != EPlayerGameStatus::Finished)
+		if (SpyPlayerState->GetCurrentStatus() != EPlayerGameStatus::WaitingForAllPlayersFinish)
 		{
-			SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
+			SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
 			
 			FGameResult Result;
 			Result.Time = GetServerWorldTimeSeconds() - MatchStartTime;
@@ -98,11 +98,15 @@ void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyCharacter* InSpyCharacte
 			
 			bool IsWinner = false;
 			if (!bPlayerTimeExpired)
-			{ IsWinner = Results.Num() == 0; }
+			{
+				IsWinner = Results.Num() == 0;
+				Result.bCompletedMission = true;
+			}
 			SpyPlayerState->SetIsWinner(IsWinner);
 			Result.bIsWinner = IsWinner;
 			
 			Results.Add(Result);
+			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 		}
 	}
 }
@@ -111,6 +115,9 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 {
 	if(CheckAllResultsIn())
 	{
+		/** Update each player status */
+		SetAllPlayerGameStatus(EPlayerGameStatus::Finished);
+		
 		/** Results Replication Is Pushed to Mark Dirty */
 		SpyMatchState = ESpyMatchState::GameOver;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
@@ -180,7 +187,9 @@ void ASpyVsSpyGameState::SetRequiredMissionItems(const TArray<UInventoryBaseAsse
 
 void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
 {
-	if (!IsValid(InSpyCharacter) || !IsValid(InSpyCharacter->GetPlayerInventoryComponent()) )
+	if (!HasAuthority() ||
+		!IsValid(InSpyCharacter) ||
+		!IsValid(InSpyCharacter->GetPlayerInventoryComponent()) )
 	{ return; }
 	
 	TArray<UInventoryBaseAsset*> PlayerInventory;
@@ -208,6 +217,20 @@ void ASpyVsSpyGameState::NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter)
 	PlayerRequestSubmitResults(InSpyCharacter, true);
 	InSpyCharacter->NM_FinishedMatch();
 	TryFinaliseScoreBoard();
+}
+
+void ASpyVsSpyGameState::SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus)
+{
+	if (!HasAuthority())
+	{ return; }
+	
+	/** Update each player status */
+	for (APlayerState* PlayerState : PlayerArray)
+	{
+		ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState);
+		if (IsValid(SpyPlayerState) && !SpyPlayerState->IsSpectator())
+		{ SpyPlayerState->SetCurrentStatus(InPlayerGameStatus); }
+	}
 }
 
 void ASpyVsSpyGameState::UpdatePlayerStateMatchTime()

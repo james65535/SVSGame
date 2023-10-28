@@ -19,18 +19,15 @@ class SPYVSSPY_API USpyInteractionComponent : public UCapsuleComponent
 public:
 
 	USpyInteractionComponent();
-
 	
 	/** @return The last interactable object to have overlapped this component */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	TScriptInterface<IInteractInterface> GetLatestInteractableComponent() { return LatestInteractableComponentFound; }
+	TScriptInterface<IInteractInterface> GetLatestInteractableComponent() const { return LatestInteractableComponentFound; }
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	void RequestInteractWithObject();
+	TScriptInterface<IInteractInterface> RequestInteractWithObject();
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Character")
-	void S_RequestInteractWithObject();
-	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Character")
-	void C_RequestInteractWithObject();
+	void S_RequestBasicInteractWithObject();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
 	bool CanInteractWithKnownInteractionInterface() const;
@@ -67,5 +64,4 @@ protected:
 	bool bCanInteractWithActor = false;
 	UFUNCTION()
 	void OnRep_bCanInteractWithActor();
-	
 };
