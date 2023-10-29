@@ -40,6 +40,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
 
+	/** Called by maps to specify the mission items needed for that level */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
+	void RequestSetSpyItemsToDistributed(const FPrimaryAssetType InPrimaryAssetType) { SpyItemTypeToDistributed = InPrimaryAssetType; }
+
+protected:
+
+	FPrimaryAssetType SpyItemTypeToDistributed;
+
 private:
 
 	// TODO this can be dropped in favour of DesiredGameType

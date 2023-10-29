@@ -53,10 +53,6 @@ void USpyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 		SetDamage(0.f);
 		const float NewHealth = GetHealth() - LocalDamageDone;
 
-		UE_LOG(LogTemp, Warning, TEXT("Running damage attrpgee with damage: %f and health: %f"),
-			LocalDamageDone,
-			NewHealth);
-
 		SetHealth(FMath::Clamp(NewHealth, 0.0f, GetMaxHealth()));
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
@@ -64,9 +60,6 @@ void USpyAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbac
 		// Handle other health changes.
 		// Health loss should go through Damage.
 		const float LocalHealth = GetHealth();
-
-		UE_LOG(LogTemp, Warning, TEXT("Running health attrpgee with health: %f"),
-			LocalHealth);
 		
 		SetHealth(FMath::Clamp(LocalHealth, 0.0f, GetMaxHealth()));
 	}

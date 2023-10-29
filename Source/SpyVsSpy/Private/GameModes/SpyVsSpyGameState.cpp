@@ -4,6 +4,7 @@
 #include "GameModes/SpyVsSpyGameState.h"
 
 #include "SVSLogger.h"
+#include "GameModes/SpyItemWorldSubsystem.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryComponent.h"
 #include "Rooms/RoomManager.h"

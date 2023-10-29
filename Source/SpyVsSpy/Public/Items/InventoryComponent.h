@@ -24,7 +24,11 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	void SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId> InPrimaryAssetIdsToLoad);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets);
+	//UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	//bool AddInventoryItemFromPrimaryAssetID(FPrima& InventoryItemAssets);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
@@ -41,10 +45,19 @@ public:
 protected:
 
 	const uint8 MaxInventorySize = 8;
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_InventoryCollection, Category = "SVS|Inventory")
+
+	// UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_InventoryCollection, Category = "SVS|Inventory")
+	// TArray<UInventoryBaseAsset*> InventoryCollection;
+	// UFUNCTION()
+	// void OnRep_InventoryCollection() const;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryCollection;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_PrimaryAssetIdsToLoad, Category = "SVS|Inventory")
+	TArray<FPrimaryAssetId> PrimaryAssetIdsToLoad;
 	UFUNCTION()
-	void OnRep_InventoryCollection() const;
+	void OnRep_PrimaryAssetIdsToLoad();
 	
 	UFUNCTION()
 	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);

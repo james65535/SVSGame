@@ -10,7 +10,7 @@
 
 bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
-	Super::Interact_Implementation(InteractRequester);
+	return Super::Interact_Implementation(InteractRequester);
 
 	// TODO interact animation
 	// TODO interact sound
@@ -33,10 +33,10 @@ bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractReq
 	// }
 
 	/** No inventory component found so interaction was not successful */
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"Furniture: %s did not find an inventory component during interact request"),
-		*GetOwner()->GetName());
-	return false;
+	// UE_LOG(SVSLogDebug, Log, TEXT(
+	// 	"Furniture: %s did not find an inventory component during interact request"),
+	// 	*GetOwner()->GetName());
+	// return false;
 }
 
 UInventoryComponent* UFurnitureInteractionComponent::GetInventory_Implementation()

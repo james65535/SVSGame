@@ -24,6 +24,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryWeaponAsset.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/SVSRoom.h"
@@ -429,9 +430,50 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled)
 		FRotator(0.0f, 270.0f, 0.0f));
 
 	//SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetMaxHealth());
+}
 
-	SetActorLocationAndRotation(FVector(0.0f, 0.0f, 20.0f),
-		FRotator::ZeroRotator);
+void ASpyCharacter::SpyRelocation()
+{
+	if (!HasAuthority())
+	{ return;}
+	
+	/** Find a new unoccupied room for character */
+	TArray<AActor*> RoomCandidatesForSpyRelocation;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASVSRoom::StaticClass(), RoomCandidatesForSpyRelocation);
+	FVector SpyRelocationTarget = FVector::ZeroVector;
+	if (RoomCandidatesForSpyRelocation.Num() > 0)
+	{
+		const uint8 RandomRangeMax = RoomCandidatesForSpyRelocation.Num()-1;
+		const uint8 MaxRelocationTries = RoomCandidatesForSpyRelocation.Num();
+		uint8 RelocationTries = 1;
+		bool bSpyRoomCandidateForSpyRelocationFound = false;
+		while (RelocationTries < MaxRelocationTries || !bSpyRoomCandidateForSpyRelocationFound)
+		{
+			RelocationTries++;
+
+			const int32 RandomIntFromRange = FMath::RandRange(0, RandomRangeMax);
+			const ASVSRoom* SpyRoomCandidateForSpyRelocation = Cast<ASVSRoom>(
+				RoomCandidatesForSpyRelocation[RandomIntFromRange]);
+
+			UE_LOG(SVSLog, Warning, TEXT("%s Character: %s found potential room candidate: %s for relocation"),
+				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				*GetName(),
+				*SpyRoomCandidateForSpyRelocation->GetName());
+			
+			/** Hidden Room means it is unoccupied */
+			if (SpyRoomCandidateForSpyRelocation->bRoomLocallyHiddenInGame)
+			{
+				SpyRelocationTarget = SpyRoomCandidateForSpyRelocation->GetActorLocation();
+				bSpyRoomCandidateForSpyRelocationFound = true;
+				UE_LOG(SVSLog, Warning, TEXT("%s Character: %s found relocation location - X: %f Y:%f"),
+					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+					*GetName(),
+					SpyRelocationTarget.X,
+					SpyRelocationTarget.Y);
+			}
+		}
+	}
+	SetActorLocationAndRotation(SpyRelocationTarget,FRotator::ZeroRotator);
 }
 
 void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled)
@@ -501,10 +543,17 @@ void ASpyCharacter::FinishDeath()
 	{ return; }
 
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
-	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-	*GetName());
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName());
+	
+	/** Reset health to max */
+	SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetAttributeSet()->GetMaxHealth());
 
+	/** Reset Character death state settings */
 	NM_SetEnableDeathState(false);
+
+	/** Find a new unoccupied room for character */
+	SpyRelocation();
 	
 	if (IsValid(GetWorld()) && IsValid(GetWorld()->GetAuthGameMode()))
 	{
@@ -513,7 +562,6 @@ void ASpyCharacter::FinishDeath()
 		// Destroy();
 	}
 	
-
 	// TODO this should all be clean up stuff
 	//Respawn();
 	//GetController<APlayerController>()->RestartLevel();

@@ -3,6 +3,7 @@
 #include "GameModes/SpyVsSpyGameMode.h"
 
 #include "SVSLogger.h"
+#include "GameModes/SpyItemWorldSubsystem.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Players/SpyAIController.h"
 #include "Players/SpyPlayerState.h"
@@ -119,6 +120,8 @@ void ASpyVsSpyGameMode::StartGame()
 	}
 	ASpyVsSpyGameState* SpyGameState = GetGameState<ASpyVsSpyGameState>();
 	check(SpyGameState);
+	if (USpyItemWorldSubsystem* SpyItemWorldSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>())
+	{ SpyItemWorldSubsystem->DistributeItems(SpyItemTypeToDistributed); }
 	SpyGameState->NM_MatchStart();
 }
 

@@ -60,5 +60,7 @@ public:
 	/** Sound of the weapon interacting with victim */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Combat")
 	USoundCue* AttackDamageSoundEffect;
+
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("InventoryWeaponAsset", GetFName()); }
 	
 };

@@ -284,6 +284,8 @@ protected:
 	void SetEnableDeathState(const bool bEnabled);
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|Character")
 	void NM_SetEnableDeathState(const bool bEnabled);
+
+	void SpyRelocation();
 #pragma endregion="CharacterDeath"
 
 #pragma region="Ability System"
