@@ -3,25 +3,23 @@
 
 #include "Rooms/SpyLevelEndTrigger.h"
 
-#include "SVSLogger.h"
-#include "GameModes/SpyVsSpyGameState.h"
 #include "Players/SpyCharacter.h"
+#include "Players/SpyPlayerState.h"
 
 
 void ASpyLevelEndTrigger::BeginPlay()
 {
 	Super::BeginPlay();
-
-	SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if(IsValid(SpyGameState))
-	{ OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin); }
+	
+	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
 }
 
 void ASpyLevelEndTrigger::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if (ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
+	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
-		if (IsValid(SpyGameState) && HasAuthority())
-		{ SpyGameState->OnPlayerReachedEnd(SpyCharacter); }
+		ASpyPlayerState* SpyPlayerState = SpyCharacter->GetSpyPlayerState();
+		if (IsValid(SpyPlayerState) && HasAuthority())
+		{ SpyPlayerState->OnPlayerReachedEnd(); }
 	}
 }

@@ -80,6 +80,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplayResults(const TArray<FGameResult>& InResults) const;
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void UpdateResults(const TArray<FGameResult>& InResults) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void RemoveResults();

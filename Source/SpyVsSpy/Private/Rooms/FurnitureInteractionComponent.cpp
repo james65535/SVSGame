@@ -49,8 +49,11 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 {
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
-	{ return; }
-	
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT("Furniture: %s Interactioncomponent cannot get inventorylisting"),
+			*GetOwner()->GetName());
+		return;
+	}
 	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItems(InventoryItems);
 }
 

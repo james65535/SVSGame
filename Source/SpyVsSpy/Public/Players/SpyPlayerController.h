@@ -67,7 +67,7 @@ public:
 	void FinishedMatch();
 	
 	/** Get the final results and call hud to display */
-	void RequestDisplayFinalResults();
+	void RequestUpdatePlayerResults();
 	
 	/** Called by Server Authority to restart level */
 	UFUNCTION(Server, Reliable, Category = "SVS|UI")
@@ -104,13 +104,6 @@ public:
 	void RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
 private:
-	
-	/** Values Used for Display Match Time to the Player */
-	FTimerHandle MatchClockDisplayTimerHandle;
-	const float MatchClockDisplayRateSeconds = 1.0f;
-	float CachedMatchStartTime = 0.0f;
-	void CalculateGameTimeElapsedSeconds();
-	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
 	
 	/** Player HUD */
 	UPROPERTY(VisibleInstanceOnly, Category = "SVS|UI")
@@ -214,5 +207,12 @@ protected:
 	/** Server function to take inventory items from a target and place them in character inventory */
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
 	void S_RequestTakeAllFromTargetInventory();
+
+	/** Values Used for Display Match Time to the Player */
+	FTimerHandle MatchClockDisplayTimerHandle;
+	const float MatchClockDisplayRateSeconds = 1.0f;
+	float LocalClientCachedMatchStartTime = 0.0f;
+	void CalculateGameTimeElapsedSeconds();
+	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
 	
 };

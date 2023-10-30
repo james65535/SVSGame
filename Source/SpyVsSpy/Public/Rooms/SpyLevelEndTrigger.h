@@ -28,6 +28,4 @@ private:
 
 	UPROPERTY()
 	ASpyVsSpyGameMode* GameModeRef;
-	UPROPERTY()
-	ASpyVsSpyGameState* SpyGameState;
 };

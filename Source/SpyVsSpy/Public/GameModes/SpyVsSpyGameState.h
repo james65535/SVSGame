@@ -91,31 +91,30 @@ public:
 	/** Get the Game Type - Should Correspond with GameMode */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	ESVSGameType GetGameType() const { return SVSGameType;}
-	
+
+	/** Can be called during and after play */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired = false);
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	const TArray<FGameResult>& GetResults() { return Results; }
 	UFUNCTION()
 	void ClearResults();
 	
 	/** Methods relating to Match Start and Time Management */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void SetSpyMatchTimeLength(const float InSecondsTotal);
 	UFUNCTION(NetMulticast, Reliable, Category = "SVS|GameState")
 	void NM_MatchStart();
 	FStartMatch OnStartMatchDelegate;
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	float GetMatchStartTime() const { return MatchStartTime; }
+	float GetSpyMatchStartTime() const { return SpyMatchStartTime; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	float GetMatchDeltaTime() const { return GetServerWorldTimeSeconds() - MatchStartTime; }
-
-	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	void SetPlayerMatchTime(const float InMatchStartTime);
-
+	float GetSpyMatchElapsedTime() const { return GetServerWorldTimeSeconds() - SpyMatchStartTime; }
+	
 	void SetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
-	void OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter);
+	void GetRequiredMissionItems(TArray<UInventoryBaseAsset*>& RequestedRequiredMissionItems);
 	
 	FGameTypeUpdateDelegate OnGameTypeUpdateDelegate;
-
-	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	void NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter);
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus);
@@ -126,12 +125,19 @@ protected:
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	TArray<UInventoryBaseAsset*> RequiredMissionItems;
 
-	/** Player Starting Match Time - Independent from game match time */ 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Replicated, meta = (AllowPrivateAccess), Category = "SVS|GameState")
-	float PlayerMatchStartTime = 0.0f;
+	/** Starting Match Time - Independent from game match time */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void SetSpyMatchStartTime(const float InMatchStartTime);
 
+	/** Game Time Values */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	float SpyMatchTimeLength;
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	float CountDownStartTime;
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Replicated, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	float SpyMatchStartTime = 0.0f;
 	UFUNCTION()
-	void UpdatePlayerStateMatchTime();
+	void UpdatePlayerStateWithMatchTimeLength();
 	
 private:
 	
@@ -160,16 +166,9 @@ private:
 	TArray<FGameResult> Results;
 	UFUNCTION()
 	void OnRep_ResultsUpdated();
-	/** Can be called during and after play */
-	void PlayerRequestSubmitResults(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired = false);
+	
 	/** Check if all results are in then let clients know the final results */
 	void TryFinaliseScoreBoard();
 	bool CheckAllResultsIn() const ;
-
-	/** Game Time Values */
-	UPROPERTY(VisibleAnywhere, Category = "SVS|GameState")
-	float CountDownStartTime;
-	/** Server - Client Time Sync handled by Player Controllers */ 
-	UPROPERTY(VisibleAnywhere, Category = "SVS|GameState")
-	float MatchStartTime;
+	
 };

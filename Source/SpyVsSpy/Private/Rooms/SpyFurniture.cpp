@@ -11,7 +11,7 @@
 ASpyFurniture::ASpyFurniture()
 {
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
-
+	
 	FurnitureInteractionComponent = CreateDefaultSubobject<UFurnitureInteractionComponent>("Interaction Component");
 	FurnitureInteractionComponent->SetIsReplicated(true);
 }

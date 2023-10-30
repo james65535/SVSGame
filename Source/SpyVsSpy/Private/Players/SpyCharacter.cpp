@@ -407,6 +407,11 @@ void ASpyCharacter::RemoveCharacterAbilities()
 
 void ASpyCharacter::SetEnableDeathState(const bool bEnabled)
 {
+	UE_LOG(SVSLog, Warning, TEXT(">>>>>>>>>>>%s Character: %s setenabledeathstate: %s <<<<<<<<<<<<<"),
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName(),
+		bEnabled ? *FString("True") : *FString("False"));
+	
 	if (bEnabled)
 	{
 		GetCharacterMovement()->SetIsReplicated(false);
@@ -417,6 +422,7 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled)
 		GetMesh()->WakeAllRigidBodies();
 		return;
 	}
+	
 	GetCharacterMovement()->SetIsReplicated(true);
 	GetMesh()->SetAllBodiesSimulatePhysics(false);
 	GetMesh()->SetSimulatePhysics(false);
@@ -428,8 +434,6 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled)
 	GetMesh()->SetRelativeLocationAndRotation(
 		FVector(0.0f, 0.0f, -90.0f),
 		FRotator(0.0f, 270.0f, 0.0f));
-
-	//SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetMaxHealth());
 }
 
 void ASpyCharacter::SpyRelocation()
@@ -447,29 +451,24 @@ void ASpyCharacter::SpyRelocation()
 		const uint8 MaxRelocationTries = RoomCandidatesForSpyRelocation.Num();
 		uint8 RelocationTries = 1;
 		bool bSpyRoomCandidateForSpyRelocationFound = false;
-		while (RelocationTries < MaxRelocationTries || !bSpyRoomCandidateForSpyRelocationFound)
+		while (RelocationTries < MaxRelocationTries && !bSpyRoomCandidateForSpyRelocationFound)
 		{
 			RelocationTries++;
 
 			const int32 RandomIntFromRange = FMath::RandRange(0, RandomRangeMax);
 			const ASVSRoom* SpyRoomCandidateForSpyRelocation = Cast<ASVSRoom>(
 				RoomCandidatesForSpyRelocation[RandomIntFromRange]);
-
-			UE_LOG(SVSLog, Warning, TEXT("%s Character: %s found potential room candidate: %s for relocation"),
-				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-				*GetName(),
-				*SpyRoomCandidateForSpyRelocation->GetName());
 			
 			/** Hidden Room means it is unoccupied */
 			if (SpyRoomCandidateForSpyRelocation->bRoomLocallyHiddenInGame)
 			{
 				SpyRelocationTarget = SpyRoomCandidateForSpyRelocation->GetActorLocation();
 				bSpyRoomCandidateForSpyRelocationFound = true;
-				UE_LOG(SVSLog, Warning, TEXT("%s Character: %s found relocation location - X: %f Y:%f"),
-					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-					*GetName(),
-					SpyRelocationTarget.X,
-					SpyRelocationTarget.Y);
+				// UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s found relocation location - X: %f Y:%f"),
+				// 	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				// 	*GetName(),
+				// 	SpyRelocationTarget.X,
+				// 	SpyRelocationTarget.Y);
 			}
 		}
 	}
@@ -483,11 +482,19 @@ void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled)
 
 void ASpyCharacter::RequestDeath()
 {
-	S_RequestDeath();
+	// TODO refactor this as it is redundant
+	if (IsValid(GetWorld()->GetAuthGameMode()))
+	{ S_RequestDeath(); }
 }
 
 void ASpyCharacter::S_RequestDeath_Implementation()
 {
+
+	if (SpyPlayerState->GetCurrentStatus() != EPlayerGameStatus::Playing)
+	{ return; }
+
+	SpyPlayerState->SetPlayerRemainingMatchTime(0.0f, true);
+
 	// TODO could get rid of timer and respond to a notify
 	GetWorld()->GetTimerManager().SetTimer(
 			FinishDeathTimerHandle,
@@ -495,20 +502,21 @@ void ASpyCharacter::S_RequestDeath_Implementation()
 			&ThisClass::FinishDeath,
 			FinishDeathDelaySeconds,
 			false);
-
-	SpyPlayerState->ReduceRemainingMatchTime();
+	
+	NM_SetEnableDeathState(true);
 	NM_RequestDeath();
 }
 
 void ASpyCharacter::NM_RequestDeath_Implementation()
 {
+	// TODO maybe make this server only
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s has requested death, may they be at peace"),
 		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName());
 
-	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
-	{
-		SetEnableDeathState(true);
+	// if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
+	// {
+		//SetEnableDeathState(true);
 
 		/** Only runs on Server */
 		if (GetLocalRole() == ROLE_Authority && GetLocalRole() != ROLE_AutonomousProxy)
@@ -526,25 +534,23 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 			// TODO see about moving this to enabledeathstate
 			SpyAbilitySystemComponent->AddLooseGameplayTag(SpyDeadTag);
 		}
-	}
-	else
-	{
-		//SetSpyHidden(true);
-	}
+	// }
+	// else
+	// {
+	// 	//SetSpyHidden(true);
+	// }
 }
 
 void ASpyCharacter::FinishDeath()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Running finish death"));
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
+	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+	*GetName());
 	
 	// This is called from Server RPC
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (!HasAuthority())
 	{ return; }
-
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
 	
 	/** Reset health to max */
 	SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetAttributeSet()->GetMaxHealth());
@@ -578,9 +584,9 @@ void ASpyCharacter::HandlePrimaryAttackOverlap(AActor* OverlappedSpyCombatant)
 void ASpyCharacter::SetEnabledAttackState(const bool bEnabled) const
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s SetEnableAttack: %s"),
-	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-	*GetName(),
-	bEnabled ? *FString("True") : *FString("False"));
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName(),
+		bEnabled ? *FString("True") : *FString("False"));
 	
 	if (bEnabled)
 	{
@@ -614,14 +620,14 @@ void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
 		/** prevent additional runs if overlaps occur during same ability run */
 		bAttackHitFound = true;
 
-		UE_LOG(SVSLogDebug, Log, TEXT(
-			"Handling Attack check - %s ActorHasTag: %s Implements SpyCombat: %s Implements UbilitySystem: %s"),
-			*OverlappedSpyCombatant->GetName(),
-			OverlappedSpyCombatant->ActorHasTag(CombatantTag) ? *FString("True") : *FString("False"),
-			UKismetSystemLibrary::DoesImplementInterface(
-				OverlappedSpyCombatant, USpyCombatantInterface::StaticClass()) ? *FString("True") : *FString("False"),
-			UKismetSystemLibrary::DoesImplementInterface(
-				OverlappedSpyCombatant, UAbilitySystemInterface::StaticClass()) ? *FString("True") : *FString("False"));
+		// UE_LOG(SVSLogDebug, Log, TEXT(
+		// 	"Handling Attack check - %s ActorHasTag: %s Implements SpyCombat: %s Implements UbilitySystem: %s"),
+		// 	*OverlappedSpyCombatant->GetName(),
+		// 	OverlappedSpyCombatant->ActorHasTag(CombatantTag) ? *FString("True") : *FString("False"),
+		// 	UKismetSystemLibrary::DoesImplementInterface(
+		// 		OverlappedSpyCombatant, USpyCombatantInterface::StaticClass()) ? *FString("True") : *FString("False"),
+		// 	UKismetSystemLibrary::DoesImplementInterface(
+		// 		OverlappedSpyCombatant, UAbilitySystemInterface::StaticClass()) ? *FString("True") : *FString("False"));
 		
 		/** Don't process attack if enemy is dead */
 		if (Cast<IAbilitySystemInterface>(OverlappedSpyCombatant)->
@@ -771,12 +777,19 @@ void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromL
 {
 	const FVector TargetLocation = GetActorLocation();
 	const FVector Direction = UKismetMathLibrary::GetDirectionUnitVector(FromLocation, TargetLocation);
+	const FVector AdjustedLaunchVector = FVector(
+			Direction.X * InAttackForce.X,
+			Direction.Y * InAttackForce.Y,
+			abs(Direction.Z + 1) * InAttackForce.Z); 
 
-	UE_LOG(SVSLogDebug, Log, TEXT("Launching character after attack"));
-	GetCharacterMovement()->Launch(FVector(
-		Direction.X * InAttackForce.X,
-		Direction.Y * InAttackForce.Y,
-		abs(Direction.Z + 1) * InAttackForce.Z)); // TODO was: abs(Direction.Z + 1) * InAttackForce)
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Chracter: %s launched after attack - X: %f Y: %f Z: %f"),
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName(),
+		AdjustedLaunchVector.X,
+		AdjustedLaunchVector.Y,
+		AdjustedLaunchVector.Z);
+	
+	GetCharacterMovement()->Launch(AdjustedLaunchVector); // TODO was: abs(Direction.Z + 1) * InAttackForce)
 }
 
 float ASpyCharacter::GetHealth() const
@@ -869,7 +882,9 @@ void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirec
 	TArray<UInventoryBaseAsset*> InventoryAssets;
 	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
 	int StartIndex = ActiveWeaponInventoryIndex;
-	
+	if (InventoryAssets.Num() < 1)
+	{ return; }
+
 	if (InItemRotationDirection == EItemRotationDirection::Next)
 	{
 		if (ActiveWeaponInventoryIndex+1 < InventoryAssets.Num())

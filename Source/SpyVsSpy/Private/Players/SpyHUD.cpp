@@ -148,6 +148,12 @@ void ASpyHUD::DisplayResults(const TArray<FGameResult>& InResults) const
 	SpyPlayerController->RequestInputMode(EPlayerInputMode::UIOnly);
 }
 
+void ASpyHUD::UpdateResults(const TArray<FGameResult>& InResults) const
+{
+	checkfSlow(LevelEndWidget, "PlayerHUD attempted to update results but LevelEndWidget was null");
+	LevelEndWidget->UpdateResults(InResults);
+}
+
 void ASpyHUD::RemoveResults()
 {
 	if (LevelEndWidget)

@@ -9,13 +9,14 @@
 #include "Items/InventoryItemComponent.h"
 #include "Items/InventoryWeaponAsset.h"
 #include "UObject/PrimaryAssetId.h"
+#include "GameFramework/GameModeBase.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
 {
-
+	SetIsReplicatedByDefault(true);
 }
 
 void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -24,10 +25,8 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 	FDoRepLifetimeParams SharedParams;
 	SharedParams.bIsPushBased = true;
-	SharedParams.RepNotifyCondition = REPNOTIFY_OnChanged;
-	//DOREPLIFETIME_WITH_PARAMS_FAST_STATIC_ARRAY(UInventoryComponent, PrimaryAssetIdsToLoad, SharedParams)
+	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
 
-	//DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, InventoryCollection, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, PrimaryAssetIdsToLoad, SharedParams);
 }
 
@@ -38,31 +37,42 @@ void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId> InPri
 		InPrimaryAssetIdsToLoad.Num());
 	PrimaryAssetIdsToLoad = InPrimaryAssetIdsToLoad;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
+
+	if (IsValid(GetWorld()->GetAuthGameMode()))
+	{
+		for (const FPrimaryAssetId PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
+		{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
+	}
 }
 
 void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 {
+	UE_LOG(SVSLogDebug, Log, TEXT(
+		"InventoryComponent running onrep with pids to load: %i"),
+		PrimaryAssetIdsToLoad.Num());
 	for (const FPrimaryAssetId PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 	{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
 }
 
 bool UInventoryComponent::AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets)
 {
+	// TODO rework this to use pids and then replicate
+
+	UE_LOG(SVSLogDebug, Log, TEXT("InventoryComponent calling addinventoryitems"));
 	const uint16 ArrayCountTotalBeforeEmplace = InventoryCollection.Num();
 	for (UInventoryBaseAsset* ItemAsset : InventoryItemAssets)
 	{
 		InventoryCollection.Emplace(ItemAsset);
-		if (InventoryCollection.Num() >= MaxInventorySize)
-		{ return false; }
+		if (InventoryCollection.Num() <= MaxInventorySize)
+		{ return true; }
 	}
+	return false;
 	
 	// if (InventoryCollection.Num() > ArrayCountTotalBeforeEmplace)
 	// {
 	// 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, InventoryCollection, this);
 	// 	return true;
 	// }
-	//
-	return false;
 }
 
 bool UInventoryComponent::RemoveInventoryItem(UInventoryItemComponent* InInventoryItem)
@@ -82,6 +92,8 @@ bool UInventoryComponent::RemoveInventoryItem(UInventoryItemComponent* InInvento
 
 void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory list"),
+		*GetOwner()->GetName());
 	InInventoryItems = InventoryCollection;
 }
 
@@ -104,7 +116,9 @@ void UInventoryComponent::SetActiveTrap(UInventoryWeaponAsset* InActiveTrap)
 
 void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("InventoryComponent calling load asset from PID"));
+	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent calling load asset from PID: %s"),
+		*GetOwner()->GetName(),
+		*InInventoryAssetId.PrimaryAssetName.ToString());
 	
 	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
@@ -115,33 +129,35 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 			if (UInventoryWeaponAsset* SpyWeaponItem = Cast<UInventoryWeaponAsset>(SpyItem))
 			{ SetActiveTrap(SpyWeaponItem); }
 		}
-		// /** Asset Categories to load, empty array if getting all of them */
-		// TArray<FName> CategoryBundles;
-		//
-		// /** Async Load Delegate */
-		// const FStreamableDelegate AssetAsyncLoadDelegate = FStreamableDelegate::CreateUObject(this, &ThisClass::OnInventoryAssetLoad, InInventoryAssetId);
-  //   
-		// /** Load asset with async load delegate */
-		// AssetManager->LoadPrimaryAsset(InInventoryAssetId, CategoryBundles, AssetAsyncLoadDelegate);
+		else
+		{
+			UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but cast failed"),
+				*GetOwner()->GetName());
+		}
+	}
+	else
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but could not get asset manager"),
+				*GetOwner()->GetName());
 	}
 }
 
-void UInventoryComponent::OnInventoryAssetLoad(const FPrimaryAssetId InInventoryAssetId)
-{
-	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
-	{
-		if (UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InInventoryAssetId)))
-		{
-			// TODO this might need to be moved so load can be used more generically
-			if (UInventoryWeaponAsset* InventoryWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAsset))
-			{
-				if (InventoryWeaponAsset->WeaponType == EWeaponType::Trap)
-				{ ActiveTrap = InventoryWeaponAsset; }
-			}
-			InventoryCollection.Emplace(InventoryAsset);
-		}
-	}
-}
+// void UInventoryComponent::OnInventoryAssetLoad(const FPrimaryAssetId InInventoryAssetId)
+// {
+// 	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
+// 	{
+// 		if (UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InInventoryAssetId)))
+// 		{
+// 			// TODO this might need to be moved so load can be used more generically
+// 			if (UInventoryWeaponAsset* InventoryWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAsset))
+// 			{
+// 				if (InventoryWeaponAsset->WeaponType == EWeaponType::Trap)
+// 				{ ActiveTrap = InventoryWeaponAsset; }
+// 			}
+// 			InventoryCollection.Emplace(InventoryAsset);
+// 		}
+// 	}
+// }
 
 // void UInventoryComponent::OnRep_ActiveTrap()
 // {

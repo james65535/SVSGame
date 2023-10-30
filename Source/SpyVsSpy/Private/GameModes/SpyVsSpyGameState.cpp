@@ -30,13 +30,35 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RoomManager, SharedParamsRepNotifyAlwaysSkipOwner);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyMatchState, SharedParamsRepNotifyAlwaysSkipOwner);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SVSGameType, SharedParamsRepNotifyAlwaysSkipOwner);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Results, SharedParamsRepNotifyAlwaysSkipOwner);
+
+	FDoRepLifetimeParams SharedParamsRepNotifyAlways;
+	SharedParamsRepNotifyAlways.bIsPushBased = true;
+	SharedParamsRepNotifyAlways.RepNotifyCondition = REPNOTIFY_Always;
+
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Results, SharedParamsRepNotifyAlways);
 
 	FDoRepLifetimeParams SharedParamsRepNotifyChanged;
 	SharedParamsRepNotifyChanged.bIsPushBased = true;
 	SharedParamsRepNotifyChanged.RepNotifyCondition = REPNOTIFY_OnChanged;
 	
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerMatchStartTime, SharedParamsRepNotifyChanged);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyMatchStartTime, SharedParamsRepNotifyChanged);
+}
+
+void ASpyVsSpyGameState::BeginPlay()
+{
+	/** Load RoomManager and persist reference for replication to clients */
+	if (GetLocalRole() == ROLE_Authority && !IsValid(RoomManager))
+	{
+		if(ASpyVsSpyGameMode* GameMode = Cast<ASpyVsSpyGameMode>(AuthorityGameMode))
+		{
+			RoomManager = GameMode->LoadRoomManager();
+			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, RoomManager, this);
+		}
+		if (!IsValid(RoomManager))
+		{ UE_LOG(SVSLog, Warning, TEXT("GameState could not get game mode to load a room manager")); }
+	}
+	
+	Super::BeginPlay();
 }
 
 void ASpyVsSpyGameState::SetSpyMatchState(const ESpyMatchState InSpyMatchState)
@@ -50,6 +72,24 @@ void ASpyVsSpyGameState::SetSpyMatchState(const ESpyMatchState InSpyMatchState)
 	{ OnRep_SpyMatchState(); }
 }
 
+void ASpyVsSpyGameState::OnRep_SpyMatchState() const
+{
+}
+
+void ASpyVsSpyGameState::SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus)
+{
+	if (!HasAuthority())
+	{ return; }
+	
+	/** Update each player status */
+	for (APlayerState* PlayerState : PlayerArray)
+	{
+		ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState);
+		if (IsValid(SpyPlayerState) && !SpyPlayerState->IsSpectator())
+		{ SpyPlayerState->SetCurrentStatus(InPlayerGameStatus); }
+	}
+}
+
 void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
 {
 	SVSGameType = InGameType;
@@ -60,41 +100,54 @@ void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)
 	{ OnRep_SVSGameType(); }
 }
 
-void ASpyVsSpyGameState::ClearResults()
+void ASpyVsSpyGameState::OnRep_SVSGameType() const
 {
-	Results.Empty();
+	/** If Replicated with COND_SkipOwner then Authority will need to run this manually */
+	OnGameTypeUpdateDelegate.Broadcast(SVSGameType);
+}
+
+void ASpyVsSpyGameState::SetSpyMatchTimeLength(const float InSecondsTotal)
+{
+	SpyMatchTimeLength = InSecondsTotal;
+}
+
+void ASpyVsSpyGameState::SetSpyMatchStartTime(const float InMatchStartTime)
+{
+	SpyMatchStartTime = InMatchStartTime;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchStartTime, this);
 }
 
 void ASpyVsSpyGameState::NM_MatchStart_Implementation()
 {
 	ClearResults();
-	MatchStartTime = GetServerWorldTimeSeconds();
+	SetSpyMatchStartTime(GetServerWorldTimeSeconds());
 	SetSpyMatchState(ESpyMatchState::Playing);
-	OnStartMatchDelegate.Broadcast(MatchStartTime);
-	UpdatePlayerStateMatchTime();
-	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), MatchStartTime);
+	UpdatePlayerStateWithMatchTimeLength(); // Here or delegate?
+	OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
+	UE_LOG(SVSLogDebug, Log, TEXT("Gamestate match start time: %f"), SpyMatchStartTime);
 }
 
-void ASpyVsSpyGameState::OnRep_ResultsUpdated()
+void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
 {
-	for (const TObjectPtr<APlayerState> PlayerState : PlayerArray)
+	if (!IsValid(GetWorld()->GetAuthGameMode()))
+	{ return; }
+	
+	for (APlayerState* PlayerState : PlayerArray)
 	{
-		if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(
-			PlayerState->GetPlayerController()))
-		{ PlayerController->RequestDisplayFinalResults(); }
+		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
+		{ SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength); }
+		else
+		{ UE_LOG(SVSLogDebug, Log, TEXT("SpyGameState could not set player match time")); }
 	}
 }
 
-void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired)
+void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired)
 {
-	if (!IsValid(InSpyPlayerState) ||
-		InSpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
-	{ return; }
-	
-	InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
+	UE_LOG(SVSLogDebug, Log, TEXT("Spyplayerstate: %s set status to waitingforallplayersfinish"),
+		*InSpyPlayerState->GetName());
 	
 	FGameResult Result;
-	Result.Time = GetServerWorldTimeSeconds() - MatchStartTime;
+	Result.Time = GetSpyMatchElapsedTime();
 	Result.Name = InSpyPlayerState->GetPlayerName();
 	
 	bool IsWinner = false;
@@ -108,6 +161,7 @@ void ASpyVsSpyGameState::PlayerRequestSubmitResults(ASpyPlayerState* InSpyPlayer
 	
 	Results.Add(Result);
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
+	TryFinaliseScoreBoard();
 }
 
 void ASpyVsSpyGameState::TryFinaliseScoreBoard()
@@ -128,6 +182,16 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 	}
 }
 
+void ASpyVsSpyGameState::OnRep_ResultsUpdated()
+{
+	for (const TObjectPtr<APlayerState> PlayerState : PlayerArray)
+	{
+		if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(
+			PlayerState->GetPlayerController()))
+		{ PlayerController->RequestUpdatePlayerResults(); }
+	}
+}
+
 bool ASpyVsSpyGameState::CheckAllResultsIn() const
 {
 	const uint8 FinalNumPlayers = PlayerArray.Num();
@@ -138,42 +202,14 @@ bool ASpyVsSpyGameState::CheckAllResultsIn() const
 	return false;
 }
 
-void ASpyVsSpyGameState::OnRep_SpyMatchState() const
+void ASpyVsSpyGameState::ClearResults()
 {
-}
-
-void ASpyVsSpyGameState::OnRep_SVSGameType() const
-{
-	/** If Replicated with COND_SkipOwner then Authority will need to run this manually */
-	OnGameTypeUpdateDelegate.Broadcast(SVSGameType);
-}
-
-void ASpyVsSpyGameState::BeginPlay()
-{
-	/** Load RoomManager and persist reference for replication to clients */
-	if (GetLocalRole() == ROLE_Authority && !IsValid(RoomManager))
-	{
-		if(ASpyVsSpyGameMode* GameMode = Cast<ASpyVsSpyGameMode>(AuthorityGameMode))
-		{
-			RoomManager = GameMode->LoadRoomManager();
-			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, RoomManager, this);
-		}
-		if (!IsValid(RoomManager))
-		{ UE_LOG(SVSLog, Warning, TEXT("GameState could not get game mode to load a room manager")); }
-	}
-	
-	Super::BeginPlay();
+	Results.Empty();
 }
 
 ARoomManager* ASpyVsSpyGameState::GetRoomManager() const
 {
 	return RoomManager;
-}
-
-void ASpyVsSpyGameState::SetPlayerMatchTime(const float InMatchStartTime)
-{
-	PlayerMatchStartTime = InMatchStartTime;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerMatchStartTime, this);
 }
 
 void ASpyVsSpyGameState::SetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems)
@@ -184,70 +220,9 @@ void ASpyVsSpyGameState::SetRequiredMissionItems(const TArray<UInventoryBaseAsse
 	RequiredMissionItems = InRequiredMissionItems;
 }
 
-void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
+void ASpyVsSpyGameState::GetRequiredMissionItems(TArray<UInventoryBaseAsset*>& RequestedRequiredMissionItems)
 {
-	if (!HasAuthority() ||
-		!IsValid(InSpyCharacter) ||
-		!IsValid(InSpyCharacter->GetPlayerInventoryComponent()) )
-	{ return; }
-	
-	TArray<UInventoryBaseAsset*> PlayerInventory;
-	InSpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
-	if (PlayerInventory.Num() < 1)
-	{ return; }
-	
-	for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
-	{
-		if (!PlayerInventory.Contains(MissionItem))
-		{ return; }
-	}
-	
-	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
-	{ PlayerRequestSubmitResults(SpyPlayerState); }
-	
-	InSpyCharacter->NM_FinishedMatch();
-	TryFinaliseScoreBoard();
-}
-
-void ASpyVsSpyGameState::NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter)
-{
-	if (!HasAuthority() ||
-	!IsValid(InSpyCharacter))
-	{ return; }
-
-	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
-	{ PlayerRequestSubmitResults(SpyPlayerState, true); }
-
-	InSpyCharacter->NM_FinishedMatch();
-	TryFinaliseScoreBoard();
-}
-
-void ASpyVsSpyGameState::SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus)
-{
-	if (!HasAuthority())
-	{ return; }
-	
-	/** Update each player status */
-	for (APlayerState* PlayerState : PlayerArray)
-	{
-		ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState);
-		if (IsValid(SpyPlayerState) && !SpyPlayerState->IsSpectator())
-		{ SpyPlayerState->SetCurrentStatus(InPlayerGameStatus); }
-	}
-}
-
-void ASpyVsSpyGameState::UpdatePlayerStateMatchTime()
-{
-	if (!HasAuthority())
-	{ return; }
-	
-	for (APlayerState* PlayerState : PlayerArray)
-	{
-		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
-		{ SpyPlayerState->SetPlayerRemainingMatchTime(PlayerMatchStartTime); }
-		else
-		{ UE_LOG(SVSLogDebug, Log, TEXT("SpyGameState could not set player match time")); }
-	}
+	RequestedRequiredMissionItems = RequiredMissionItems;
 }
 
 void ASpyVsSpyGameState::OnRep_RoomManager()
@@ -258,3 +233,40 @@ void ASpyVsSpyGameState::OnRep_RoomManager()
 	else
 	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State has an invalid Room Manager Reference")); }
 }
+
+// void ASpyVsSpyGameState::OnPlayerReachedEnd(ASpyCharacter* InSpyCharacter)
+// {
+// 	if (!HasAuthority() ||
+// 		!IsValid(InSpyCharacter) ||
+// 		!IsValid(InSpyCharacter->GetPlayerInventoryComponent()) )
+// 	{ return; }
+// 	
+// 	TArray<UInventoryBaseAsset*> PlayerInventory;
+// 	InSpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
+// 	if (PlayerInventory.Num() < 1)
+// 	{ return; }
+// 	
+// 	for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
+// 	{
+// 		if (!PlayerInventory.Contains(MissionItem))
+// 		{ return; }
+// 	}
+// 	
+// 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
+// 	{ PlayerRequestSubmitResults(SpyPlayerState); }
+// 	
+// 	InSpyCharacter->NM_FinishedMatch();
+// 	TryFinaliseScoreBoard();
+// }
+
+// void ASpyVsSpyGameState::NotifyPlayerTimeExpired(ASpyCharacter* InSpyCharacter)
+// {
+// 	if (!HasAuthority() || !IsValid(InSpyCharacter))
+// 	{ return; }
+//
+// 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(InSpyCharacter))
+// 	{ PlayerRequestSubmitResults(SpyPlayerState, true); }
+//
+// 	InSpyCharacter->NM_FinishedMatch();
+// 	TryFinaliseScoreBoard();
+// }

@@ -218,26 +218,29 @@ void ASpyPlayerController::FinishedMatch()
 {
 	if (!IsRunningDedicatedServer())
 	{
+		// TODO move this currentstatus stuff
+		// if(SpyPlayerState->GetPlayerRemainingMatchTime() > 0.0f)
+		// { SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished); }
+		// else
+		// { SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired); }
+		// SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
+		
 		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
-		if(SpyPlayerState->GetPlayerRemainingMatchTime() > 0.0f)
-		{ SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished); }
-		else
-		{ SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired); }
-		SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
 		RequestInputMode(EPlayerInputMode::UIOnly);
 		SpyPlayerHUD->DisplayResults(SpyGameState->GetResults());
 		SpyPlayerHUD->ToggleDisplayGameTime(false);
 	}
 }
 
-void ASpyPlayerController::RequestDisplayFinalResults()
+void ASpyPlayerController::RequestUpdatePlayerResults()
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("Running RequestUpdatePlayerResults"));
 	if (!IsRunningDedicatedServer())
 	{
 		if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
 			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish ||
 			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
-		{ SpyPlayerHUD->DisplayResults(SpyGameState->GetResults()); }
+		{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
 	}
 }
 
@@ -320,11 +323,17 @@ void ASpyPlayerController::RequestTakeAllFromTargetInventory()
 void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 {
 	// TODO refactor this more cleanly across controller and character
-	if (!IsValid(SpyCharacter) ||
-		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+	if (!IsValid(SpyCharacter->GetInteractionComponent()) ||
 		!SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ||
 		!IsValid(SpyCharacter->GetPlayerInventoryComponent()))
-	{ return; }
+	{
+		UE_LOG(SVSLog, Warning, TEXT(
+			"Character %s tried to take items but validation failed - caninteract: %s inventory: %s"),
+			*SpyCharacter->GetName(),
+			SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ? *FString("True") : *FString("False"),
+			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"));
+		return;
+	}
 	
 	TArray<UInventoryBaseAsset*> TargetInventoryListing;
 	SpyCharacter->
@@ -334,7 +343,12 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef(),
 			TargetInventoryListing);
 	if (TargetInventoryListing.Num() < 1)
-	{ return; }
+	{
+		UE_LOG(SVSLog, Warning, TEXT(
+			"Character %s tried to take items but inventory is empty"),
+			*SpyCharacter->GetName());
+		return;
+	}
 	SpyCharacter->GetPlayerInventoryComponent()->AddInventoryItems(TargetInventoryListing);
 }
 
@@ -395,18 +409,14 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
 {
-	const float ElapsedTime = SpyGameState->GetServerWorldTimeSeconds() - CachedMatchStartTime;
+	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+//	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
+
 	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
 	
 	/** Player ran out of time so notify game that their match has ended */
 	if (TimeLeft <= 0.0f)
-	{
-		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
-
-		if (!IsValid(SpyCharacter))
-		{ SpyCharacter = Cast<ASpyCharacter>(GetCharacter()); }
-		SpyGameState->NotifyPlayerTimeExpired(SpyCharacter);
-	}
+	{ GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle); }
 
 	if (!IsRunningDedicatedServer())
 	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
@@ -462,12 +472,12 @@ void ASpyPlayerController::RequestHideLevelMenu()
 void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 {
 	RequestInputMode(EPlayerInputMode::GameOnly);
-	SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
-	CachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
+	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 
-	if (GetLocalRole() != ROLE_SimulatedProxy)
+	if (GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		/** Handle Match Time */
+		UE_LOG(LogTemp, Warning, TEXT("running match start as automous proxy"));
+		/** Handle Match Time - Most likely on 1 second repeat */
 		GetWorld()->GetTimerManager().SetTimer(
 			MatchClockDisplayTimerHandle,
 			this,

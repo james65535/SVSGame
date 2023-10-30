@@ -14,6 +14,7 @@
 #include "Players/SpyHUD.h"
 #include "Players/PlayerSaveGame.h"
 #include "Players/SpyPlayerController.h"
+#include "Items/InventoryComponent.h"
 
 ASpyPlayerState::ASpyPlayerState()
 {
@@ -45,7 +46,7 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	FDoRepLifetimeParams OwnerOnlyPushedRepNotifyAlwaysParams;
 	OwnerOnlyPushedRepNotifyAlwaysParams.bIsPushBased = true;
 	OwnerOnlyPushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
-	OwnerOnlyPushedRepNotifyAlwaysParams.Condition = COND_OwnerOnly;
+	//OwnerOnlyPushedRepNotifyAlwaysParams.Condition = COND_OwnerOnly;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, OwnerOnlyPushedRepNotifyAlwaysParams);
 
 	FDoRepLifetimeParams PushedRepNotifyParams;
@@ -121,22 +122,124 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 	}
 }
 
-void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTime)
+void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTimeLength, const bool bIncludeTimePenalty)
 {
-	if (!HasAuthority())
-	{ return; }
-	
-	PlayerRemainingMatchTime = InMatchTime;
+	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (!IsValid(GetWorld()->GetAuthGameMode()) || !IsValid(SpyGameState))
+	{
+		UE_LOG(SVSLog, Warning, TEXT("Playerstate failed setplayerremainingmatchtime validation checks"));
+		return;
+	}
+
+	/** Apply time penalty if method was requested with penalty flag */
+	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+	if (bIncludeTimePenalty)
+	{
+		PlayerRemainingMatchTime = GetPlayerRemainingMatchTime() - PlayerMatchTimePenaltyInSeconds;
+	}
+	else
+	{ PlayerRemainingMatchTime = InMatchTimeLength; }
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
+
+	/** Timer to call end of match for player when expired */
+	if (PlayerRemainingMatchTime >= 1.0f)
+	{ SetPlayerMatchTimer(); }
+	else
+	{ PlayerMatchTimeExpired(); }
 }
 
-void ASpyPlayerState::ReduceRemainingMatchTime()
+float ASpyPlayerState::GetPlayerRemainingMatchTime() const
 {
-	if (!HasAuthority())
+	return PlayerRemainingMatchTime;
+}
+
+void ASpyPlayerState::SetPlayerMatchTimer()
+{
+	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (!IsValid(GetWorld()->GetAuthGameMode()) ||
+		!IsValid(SpyGameState) ||
+		GetCurrentStatus() != EPlayerGameStatus::Playing)
+	{ return; }
+
+	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+	const float MatchPlayerTimeLeft = GetPlayerRemainingMatchTime() - ElapsedTime;
+	
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate set matchdeadline to: %f"),
+		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName(),
+		GetPlayerSpyMatchSecondsRemaining()); //MatchPlayerTimeLeft);
+
+	if (MatchPlayerTimeLeft >= 1.0f)
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			PlayerMatchTimerHandle,
+			this,
+			&ThisClass::PlayerMatchTimeExpired,
+			GetPlayerSpyMatchSecondsRemaining(), //MatchPlayerTimeLeft,
+			false);
+	}
+}
+
+float ASpyPlayerState::GetPlayerSpyMatchSecondsRemaining() const
+{
+	if (const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{
+		const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+		const float MatchPlayerTimeLeft = GetPlayerRemainingMatchTime() - ElapsedTime;
+		return MatchPlayerTimeLeft;
+	}
+	return 0.0f;
+}
+
+void ASpyPlayerState::PlayerMatchTimeExpired()
+{
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate trying matchtimeexpired with time: %f"),
+		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName(),
+		GetPlayerSpyMatchSecondsRemaining());
+	
+	if (!IsValid(GetWorld()->GetAuthGameMode()))
 	{ return; }
 	
-	PlayerRemainingMatchTime -= TimeReductionInSeconds;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
+	/** Player ran out of time so notify game that their match has ended */
+	GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
+
+	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
+	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (IsValid(SpyCharacter) && IsValid(SpyGameState))
+	{
+		SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
+		SpyGameState->RequestSubmitMatchResult(this, true);
+		SpyCharacter->NM_FinishedMatch();
+	}
+}
+
+void ASpyPlayerState::OnPlayerReachedEnd()
+{
+	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
+	if (!IsValid(SpyCharacter))
+	{ return; }
+
+	//S_OnPlayerReachedEnd()
+	TArray<UInventoryBaseAsset*> PlayerInventory;
+	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
+	if (PlayerInventory.Num() < 1)
+	{ return; }
+	
+
+	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (IsValid(SpyGameState))
+	{
+		TArray<UInventoryBaseAsset*> RequiredMissionItems;
+		SpyGameState->GetRequiredMissionItems(RequiredMissionItems);
+		for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
+		{
+			if (!PlayerInventory.Contains(MissionItem))
+			{ return; }
+		}
+		SpyGameState->RequestSubmitMatchResult(this, false);
+	}
+	SpyCharacter->NM_FinishedMatch();
 }
 
 void ASpyPlayerState::OnRep_CurrentStatus()

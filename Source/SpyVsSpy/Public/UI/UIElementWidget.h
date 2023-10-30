@@ -87,6 +87,8 @@ public:
 	 */ 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayResults(const TArray<FGameResult>& InResults);
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void UpdateResults(const TArray<FGameResult>& InResults);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void RemoveResults();

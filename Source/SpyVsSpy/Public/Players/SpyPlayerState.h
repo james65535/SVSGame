@@ -71,18 +71,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	bool IsWinner() const { return bIsWinner; }
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
-
+	void OnPlayerReachedEnd();
+	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
-	void SetPlayerRemainingMatchTime(const float InMatchTime);
+	void SetPlayerRemainingMatchTime(const float InMatchTimeLength = 0.0f, const bool bIncludeTimePenalty = false);
 	
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
-	float GetPlayerRemainingMatchTime() const { return PlayerRemainingMatchTime; }
-
-	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
-	void ReduceRemainingMatchTime();
+	float GetPlayerRemainingMatchTime() const;
 	
 protected:
-
 	
 	/** Class Overrides */
 	virtual void BeginPlay() override;
@@ -106,10 +103,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Replicated, Category = "SVS|Player")
 	float PlayerRemainingMatchTime = 0.0f;
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
-	float TimeReductionInSeconds = 30.0f;
+	float PlayerMatchTimePenaltyInSeconds = 30.0f;
+	float GetPlayerSpyMatchSecondsRemaining() const;
+	
+	/** Values Used for Display Match Time to the Player */
+	FTimerHandle PlayerMatchTimerHandle;
+	void PlayerMatchTimeExpired();
+	void SetPlayerMatchTimer();
 
 private:
-
 	
 	/** Player Status in the game */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")
@@ -126,7 +128,5 @@ private:
 	// TODO Build these properties out instead of being static
 	const FString SaveSlotName = TEXT("GeneralSaveSlot");
 	const uint32 SaveUserIndex = 0;
-
 	
-
 };

@@ -115,7 +115,7 @@ void ASVSRoom::BeginPlay()
 void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* RequestingCharacter, const bool bHideCharacters)
 {
 	/** Since these changes are just visual on the client then avoid running on server */
-	if (!IsValid(RequestingCharacter)  || IsRunningDedicatedServer()) { return; }
+	if (!IsValid(RequestingCharacter) || IsRunningDedicatedServer()) { return; }
 	
 	if (OccupyingSpyCharacters.Num() > 1)
 	{
@@ -123,10 +123,7 @@ void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* Requesting
 		for (ASpyCharacter* Spy : OccupyingSpyCharacters)
 		{
 			if (Spy != RequestingCharacter)
-			{
-				Spy->SetSpyHidden(bHideCharacters);
-				UE_LOG(SVSLogDebug, Log, TEXT("Room set %s Opposing Character: %s hidden: %s"), Spy->IsLocallyControlled() ? *FString("Local") : *FString("Remote"), *Spy->GetName(), bHideCharacters ? *FString("Hidden") : *FString("Visible"));
-			}
+			{ Spy->SetSpyHidden(bHideCharacters); }
 		}
 	}
 }
@@ -195,7 +192,7 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	bRoomLocallyHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
 	SetActorHiddenInGame(bRoomLocallyHiddenInGame);
 	const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(InSpyCharacter, true);
-	UE_LOG(SVSLogDebug, Log, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+	//UE_LOG(SVSLogDebug, Log, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
 	/** Update Walls */
 	TArray<UDynamicWall*> WallSet;
@@ -213,7 +210,8 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	/** Run the Appear effect timeline */
 	if (IsValid(AppearTimeline))
 	{ AppearTimeline->PlayFromStart(); }
-	else { UE_LOG(SVSLog, Warning, TEXT("Room timeline for appear effect is null")); }
+	else
+	{ UE_LOG(SVSLog, Warning, TEXT("Room timeline for appear effect is null")); }
 }
 
 void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
@@ -235,7 +233,6 @@ void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 			// 	
 			// }
 		}
-		else { UE_LOG(SVSLog, Warning, TEXT("Room could not update Room Manager when player entered")); }
 		
 		/** Run client only Unhide logic */
 		if (SpyCharacter->IsLocallyControlled())
@@ -278,12 +275,12 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		* Used by timeline finish func to hide actor and room furniture at end of vanish effect */
 		bRoomLocallyHiddenInGame = true; // Also used in timeline finished func to make Static Meshes Visible
 		const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(SpyCharacter, true);
-		UE_LOG(SVSLogDebug, Log, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+		// UE_LOG(SVSLogDebug, Log, TEXT("Room Exit Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
 		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
-		UE_LOG(SVSLogDebug, Log, TEXT("Room Exit AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
+		// UE_LOG(SVSLogDebug, Log, TEXT("Room Exit AxisDirection: %f"), CustomPrimitiveData.AxisDirection);
 		GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
-		UE_LOG(SVSLogDebug, Log, TEXT("Room Exit Axis: %f"), CustomPrimitiveData.Axis);
+		// UE_LOG(SVSLogDebug, Log, TEXT("Room Exit Axis: %f"), CustomPrimitiveData.Axis);
 
 		/** Update Walls */
 		TArray<UDynamicWall*> WallSet;
@@ -300,11 +297,11 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 		
 		if (IsValid(AppearTimeline))
 		{ AppearTimeline->ReverseFromEnd();	}
-		else { UE_LOG(SVSLog, Warning, TEXT("Room timeline for disappear effect is null")); }
+		else
+		{ UE_LOG(SVSLog, Warning, TEXT("Room timeline for disappear effect is null")); }
 
 		if (IsValid(RoomManager) && HasAuthority())
 		{ RoomManager->SetRoomOccupied(this, false, nullptr); }
-		else { UE_LOG(SVSLog, Warning, TEXT("Room could not update Room Manager when player exited")); }
 	}
 }
 

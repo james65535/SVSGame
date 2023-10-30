@@ -32,7 +32,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItems) const;
+	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	UInventoryWeaponAsset* GetActiveTrap() const { return ActiveTrap; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
@@ -61,8 +61,8 @@ protected:
 	
 	UFUNCTION()
 	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);
-	UFUNCTION()
-	void OnInventoryAssetLoad(const FPrimaryAssetId InInventoryAssetId);
+	// UFUNCTION()
+	// void OnInventoryAssetLoad(const FPrimaryAssetId InInventoryAssetId);
 
 	// TODO secure UPROP settings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")

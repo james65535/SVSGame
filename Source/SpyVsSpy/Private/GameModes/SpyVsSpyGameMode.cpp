@@ -50,14 +50,14 @@ void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 	}
 }
 
-void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime) const
-{
-	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
-	{ SVSGameState->SetPlayerMatchTime(InMatchTime); }
-
-	if (InMatchTime <=  1.0f)
-	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State was supplied a PlayerMatchTime less than 1 second, ridiculous!")); }
-}
+// void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime) const
+// {
+// 	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
+// 	{ SVSGameState->SetPlayerMatchTime(InMatchTime); }
+//
+// 	if (InMatchTime <=  1.0f)
+// 	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State was supplied a PlayerMatchTime less than 1 second, ridiculous!")); }
+// }
 
 void ASpyVsSpyGameMode::RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems)
 {
