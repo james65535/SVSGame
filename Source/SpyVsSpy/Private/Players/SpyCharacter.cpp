@@ -887,8 +887,8 @@ void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirec
 
 	if (InItemRotationDirection == EItemRotationDirection::Next)
 	{
-		if (ActiveWeaponInventoryIndex+1 < InventoryAssets.Num())
-		{ StartIndex = ActiveWeaponInventoryIndex+1; }
+		if (ActiveWeaponInventoryIndex + 1 < InventoryAssets.Num())
+		{ StartIndex = ActiveWeaponInventoryIndex + 1; }
 	
 		for (; StartIndex < InventoryAssets.Num();StartIndex++)
 		{

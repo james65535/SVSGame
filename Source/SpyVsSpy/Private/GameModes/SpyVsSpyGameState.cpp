@@ -143,9 +143,6 @@ void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
 
 void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Spyplayerstate: %s set status to waitingforallplayersfinish"),
-		*InSpyPlayerState->GetName());
-	
 	FGameResult Result;
 	Result.Time = GetSpyMatchElapsedTime();
 	Result.Name = InSpyPlayerState->GetPlayerName();

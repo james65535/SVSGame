@@ -193,18 +193,23 @@ float ASpyPlayerState::GetPlayerSpyMatchSecondsRemaining() const
 
 void ASpyPlayerState::PlayerMatchTimeExpired()
 {
+	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
+	
+	/** just run this on the server */
+	if (!IsValid(SpyCharacter) ||
+		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() || (!IsValid(SpyCharacter)) ||
+		GetCurrentStatus() == EPlayerGameStatus::Finished ||
+		GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
+	{ return; }
+	
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate trying matchtimeexpired with time: %f"),
 		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName(),
 		GetPlayerSpyMatchSecondsRemaining());
 	
-	if (!IsValid(GetWorld()->GetAuthGameMode()))
-	{ return; }
-	
 	/** Player ran out of time so notify game that their match has ended */
 	GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
-
-	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
+	
 	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
 	if (IsValid(SpyCharacter) && IsValid(SpyGameState))
 	{
@@ -217,18 +222,18 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 void ASpyPlayerState::OnPlayerReachedEnd()
 {
 	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
-	if (!IsValid(SpyCharacter))
-	{ return; }
-
-	//S_OnPlayerReachedEnd()
-	TArray<UInventoryBaseAsset*> PlayerInventory;
-	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
-	if (PlayerInventory.Num() < 1)
+	
+	/** just run this on the server */
+	if (!IsValid(SpyCharacter) ||
+		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() || (!IsValid(SpyCharacter)) ||
+		GetCurrentStatus() == EPlayerGameStatus::Finished ||
+		GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
 	{ return; }
 	
-
+	TArray<UInventoryBaseAsset*> PlayerInventory;
+	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
 	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (IsValid(SpyGameState))
+	if (IsValid(SpyGameState) && PlayerInventory.Num() >= 1)
 	{
 		TArray<UInventoryBaseAsset*> RequiredMissionItems;
 		SpyGameState->GetRequiredMissionItems(RequiredMissionItems);
@@ -237,9 +242,10 @@ void ASpyPlayerState::OnPlayerReachedEnd()
 			if (!PlayerInventory.Contains(MissionItem))
 			{ return; }
 		}
+		SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
 		SpyGameState->RequestSubmitMatchResult(this, false);
+		SpyCharacter->NM_FinishedMatch();
 	}
-	SpyCharacter->NM_FinishedMatch();
 }
 
 void ASpyPlayerState::OnRep_CurrentStatus()

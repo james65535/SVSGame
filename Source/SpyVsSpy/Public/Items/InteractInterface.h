@@ -33,8 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
 	bool HasInventory();
 
+	// TODO probably should remove the AssetType field and just get all AssetIds
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	void GetInventoryListing(TArray<UInventoryBaseAsset*>& InventoryItems);
+	void GetInventoryListing(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
 	UInventoryComponent* GetInventory();

@@ -12,6 +12,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Players/SpyCharacter.h"
+#include "Players/SpyPlayerController.h"
+#include "Players/SpyPlayerState.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -30,12 +33,12 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UInventoryComponent, PrimaryAssetIdsToLoad, SharedParams);
 }
 
-void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId> InPrimaryAssetIdsToLoad)
+void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
 {
 	UE_LOG(SVSLogDebug, Log, TEXT(
 		"InventoryComponent calling SetPrimaryAssetIdsToLoad with count: %i"),
 		InPrimaryAssetIdsToLoad.Num());
-	PrimaryAssetIdsToLoad = InPrimaryAssetIdsToLoad;
+	PrimaryAssetIdsToLoad.Append(InPrimaryAssetIdsToLoad);
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
 
 	if (IsValid(GetWorld()->GetAuthGameMode()))
@@ -52,21 +55,44 @@ void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 		PrimaryAssetIdsToLoad.Num());
 	for (const FPrimaryAssetId PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 	{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
+
+	/** If this load is done on a client while they are playing then display contents of inventory in UI */
+	const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner());
+	if (IsValid(SpyCharacter) &&
+		IsValid(SpyCharacter->GetController()) &&
+		SpyCharacter->GetController()->GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(SpyCharacter->GetController()))
+		{
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s InventoryComponent running onrep display inv"),
+				SpyCharacter->GetController()->IsLocalController() ? *FString("Local") : *FString("Remote"),
+				*SpyCharacter->GetName());
+			SpyPlayerController->C_DisplayCharacterInventory();
+		}
+	}
 }
 
-bool UInventoryComponent::AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets)
+bool UInventoryComponent::AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAssetIdCollectionToLoad)
 {
-	// TODO rework this to use pids and then replicate
-
 	UE_LOG(SVSLogDebug, Log, TEXT("InventoryComponent calling addinventoryitems"));
-	const uint16 ArrayCountTotalBeforeEmplace = InventoryCollection.Num();
-	for (UInventoryBaseAsset* ItemAsset : InventoryItemAssets)
+
+	if (PrimaryAssetIdsToLoad.Num() >= 1)
 	{
-		InventoryCollection.Emplace(ItemAsset);
-		if (InventoryCollection.Num() <= MaxInventorySize)
-		{ return true; }
+		for (FPrimaryAssetId PrimaryAssetId : PrimaryAssetIdCollectionToLoad)
+		{ LoadInventoryAssetFromAssetId(PrimaryAssetId); }
+		return true;
 	}
 	return false;
+
+
+	
+	// for (UInventoryBaseAsset* ItemAsset : InventoryItemAssets)
+	// {
+	// 	InventoryCollection.Emplace(ItemAsset);
+	// 	if (InventoryCollection.Num() <= MaxInventorySize)
+	// 	{ return true; }
+	// }
+	// return false;
 	
 	// if (InventoryCollection.Num() > ArrayCountTotalBeforeEmplace)
 	// {
@@ -95,6 +121,22 @@ void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInve
 	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory list"),
 		*GetOwner()->GetName());
 	InInventoryItems = InventoryCollection;
+}
+
+void UInventoryComponent::GetInventoryItemPrimaryAssetIdCollection(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) const
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory list PIDs"),
+		*GetOwner()->GetName());
+	for (const UInventoryBaseAsset* InventoryBaseAsset : InventoryCollection)
+	{
+		if (InventoryBaseAsset->GetPrimaryAssetId().PrimaryAssetType == RequestedPrimaryAssetType)
+		{
+			RequestedPrimaryAssetIds.Emplace(InventoryBaseAsset->GetPrimaryAssetId());
+			UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory item pid: %s"),
+				*GetOwner()->GetName(),
+				*InventoryBaseAsset->GetPrimaryAssetId().ToString());
+		}
+	}
 }
 
 void UInventoryComponent::SetActiveTrap(UInventoryWeaponAsset* InActiveTrap)

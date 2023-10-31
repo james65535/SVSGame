@@ -52,11 +52,13 @@ public:
 	/**
 	 * @brief Server only method to place items on furniture actors
 	 * @param ItemToDistributeAssetType Item Assets to Distribute
+	 * @param TargetActorClass Type class of actors to distribute items to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|ItemAssets")
-	void DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType);
+	void DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass);
 
 protected:
+	
 	// TODO maintain load success state, bool GetLoadSuccess(), run are all assetsload for each load run
 	// todo deinit to cleanup vals and loaded assets from asset manager
 	/** Value field is the total number of assets to check of type defined by the Map Key Value */

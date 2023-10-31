@@ -235,13 +235,15 @@ void ASpyPlayerController::FinishedMatch()
 void ASpyPlayerController::RequestUpdatePlayerResults()
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Running RequestUpdatePlayerResults"));
+	// if (!IsRunningDedicatedServer())
+	// {
+	// 	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
+	// 		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish ||
+	// 		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
+	// 	{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
+
 	if (!IsRunningDedicatedServer())
-	{
-		if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
-			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish ||
-			SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
-		{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
-	}
+	{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
 }
 
 void ASpyPlayerController::S_RestartLevel_Implementation()
@@ -307,10 +309,13 @@ void ASpyPlayerController::C_RequestInputMode_Implementation(const EPlayerInputM
 
 void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 {
-	if (IsRunningDedicatedServer() || GetLocalRole() == ROLE_SimulatedProxy)
+	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }
-	
-	SpyPlayerHUD->DisplayCharacterInventory();
+
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s called displaycharinv"),
+		IsLocalController() ? *FString("Local") : *FString("Not Local"),
+		*SpyCharacter->GetName());
+	SpyPlayerHUD->DisplayCharacterInventory(SpyCharacter->GetPlayerInventoryComponent());
 }
 
 void ASpyPlayerController::RequestTakeAllFromTargetInventory()
@@ -334,22 +339,26 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"));
 		return;
 	}
-	
-	TArray<UInventoryBaseAsset*> TargetInventoryListing;
+
+	/** Get the collection of PIDs from target inventory via the interaction component */
+	TArray<FPrimaryAssetId> TargetInventoryPrimaryAssetIdCollection;
 	SpyCharacter->
 		GetInteractionComponent()->
 		GetLatestInteractableComponent()->
 		Execute_GetInventoryListing(
 			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef(),
-			TargetInventoryListing);
-	if (TargetInventoryListing.Num() < 1)
+			TargetInventoryPrimaryAssetIdCollection, FPrimaryAssetType(FName("InventoryMissionAsset")));
+	
+	if (TargetInventoryPrimaryAssetIdCollection.Num() < 1)
 	{
 		UE_LOG(SVSLog, Warning, TEXT(
 			"Character %s tried to take items but inventory is empty"),
 			*SpyCharacter->GetName());
 		return;
 	}
-	SpyCharacter->GetPlayerInventoryComponent()->AddInventoryItems(TargetInventoryListing);
+
+	/** sets the collection of primary asset ids to load which then replicates to clients for load procedures */
+	SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(TargetInventoryPrimaryAssetIdCollection);
 }
 
 void ASpyPlayerController::RequestPlaceTrap()
@@ -362,8 +371,7 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is attempting to place a trap in an interactable actor"),
 		IsLocalController() ? *FString("Local") : *FString("Not Local"),
 		*GetCharacter()->GetName());
-
-
+	
 	UE_LOG(SVSLogDebug, Log, TEXT("Place trap - HasInterComp: %s HasInvComp %s Furniture HasInv: %s HasWeapon %s WeaponNotTrap: TBD"),
 			IsValid(SpyCharacter->GetInteractionComponent()) ? *FString("True") : *FString("False"),
 			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"),
@@ -372,16 +380,17 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 			//SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap ? *FString("True") : *FString("False"));
 
 	if (!IsValid(SpyCharacter) ||
-	!IsValid(SpyCharacter->GetInteractionComponent()) ||
-	!SpyCharacter->GetInteractionComponent()->
-		GetLatestInteractableComponent()->
-			Execute_HasInventory(
-				SpyCharacter->GetInteractionComponent()->
-					GetLatestInteractableComponent().GetObjectRef()) ||
-	!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
-	!IsValid(SpyCharacter->GetHeldWeapon()) ||
-	SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
+		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+		!SpyCharacter->GetInteractionComponent()->
+			GetLatestInteractableComponent()->
+				Execute_HasInventory(
+					SpyCharacter->GetInteractionComponent()->
+						GetLatestInteractableComponent().GetObjectRef()) ||
+		!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
+		!IsValid(SpyCharacter->GetHeldWeapon()) ||
+		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
 	{ return; }
+	
 	// TODO refactor this more cleanly across controller and character
 	if (!IsValid(SpyCharacter) ||
 		!IsValid(SpyCharacter->GetInteractionComponent()) ||
@@ -396,8 +405,8 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 	{ return; }
 
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has placed a trap in an interactable actor"),
-	IsLocalController() ? *FString("Local") : *FString("Not Local"),
-	*GetCharacter()->GetName());
+		IsLocalController() ? *FString("Local") : *FString("Not Local"),
+		*GetCharacter()->GetName());
 
 	SpyCharacter->
 		GetInteractionComponent()->
@@ -487,13 +496,13 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 	}
 	
 	/** Update Player Displays with character info */
-	if (!IsRunningDedicatedServer())
+	if (GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		SpyPlayerHUD->ToggleDisplayGameTime(true);
 		SpyPlayerHUD->DisplayCharacterHealth(
 			SpyPlayerState->GetAttributeSet()->GetHealth(),
 			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
-		SpyPlayerHUD->DisplayCharacterInventory();  // TODO Finish
+		C_DisplayCharacterInventory();
 	}
 }
 

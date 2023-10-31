@@ -4,6 +4,7 @@
 #include "Items/InteractionComponent.h"
 
 #include "SVSLogger.h"
+#include "GameFramework/GameModeBase.h"
 #include "Items/InventoryComponent.h"
 #include "Players/SpyCharacter.h"
 
@@ -28,17 +29,16 @@ bool UInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 	return IsInteractionEnabled();
 }
 
-void UInteractionComponent::GetInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems)
+void UInteractionComponent::GetInventoryListing_Implementation(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType)
 {
-	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy ||
-		GetOwner()->GetLocalRole() == ROLE_SimulatedProxy ||
+	if (!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() ||
 		!bInteractionEnabled)
 	{ return; }
 	
 	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
 	{
 		if (const UInventoryComponent* SpyInventory = SpyCharacter->GetPlayerInventoryComponent())
-		{ SpyInventory->GetInventoryItems(InventoryItems); }
+		{ SpyInventory->GetInventoryItemPrimaryAssetIdCollection(RequestedPrimaryAssetIds, RequestedPrimaryAssetType); }
 	}
 }
 

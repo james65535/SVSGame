@@ -45,7 +45,7 @@ UInventoryComponent* UFurnitureInteractionComponent::GetInventory_Implementation
 }
 
 void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
-	TArray<UInventoryBaseAsset*>& InventoryItems)
+	TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType)
 {
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
@@ -54,7 +54,7 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 			*GetOwner()->GetName());
 		return;
 	}
-	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItems(InventoryItems);
+	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItemPrimaryAssetIdCollection(RequestedPrimaryAssetIds, RequestedPrimaryAssetType);
 }
 
 bool UFurnitureInteractionComponent::CheckHasTrap_Implementation()

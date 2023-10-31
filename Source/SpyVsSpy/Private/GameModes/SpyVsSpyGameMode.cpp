@@ -6,9 +6,11 @@
 #include "GameModes/SpyItemWorldSubsystem.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Players/SpyAIController.h"
+#include "Players/SpyCharacter.h"
 #include "Players/SpyPlayerState.h"
 #include "Players/SpyPlayerController.h"
 #include "Rooms/RoomManager.h"
+#include "Rooms/SpyFurniture.h"
 #include "UObject/ConstructorHelpers.h"
 
 ASpyVsSpyGameMode::ASpyVsSpyGameMode()
@@ -50,15 +52,6 @@ void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 	}
 }
 
-// void ASpyVsSpyGameMode::SetMatchTime(const float InMatchTime) const
-// {
-// 	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
-// 	{ SVSGameState->SetPlayerMatchTime(InMatchTime); }
-//
-// 	if (InMatchTime <=  1.0f)
-// 	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State was supplied a PlayerMatchTime less than 1 second, ridiculous!")); }
-// }
-
 void ASpyVsSpyGameMode::RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems)
 {
 	if (InRequiredMissionItems.Num() < 1)
@@ -96,7 +89,8 @@ void ASpyVsSpyGameMode::StartGame()
 {
 	if (!HasAuthority())
 	{ return; }
-	
+
+	/** Set player status to playing */
 	for (FConstControllerIterator Iterator = GetWorld()->GetControllerIterator(); Iterator; ++Iterator)
 	{
 		if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(Iterator->Get()))
@@ -118,10 +112,20 @@ void ASpyVsSpyGameMode::StartGame()
 			AIPlayerState->SetIsWinner(false);
 		}
 	}
+
+	/** Load ref to gamestate for further use later */
 	ASpyVsSpyGameState* SpyGameState = GetGameState<ASpyVsSpyGameState>();
 	check(SpyGameState);
-	if (USpyItemWorldSubsystem* SpyItemWorldSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>())
-	{ SpyItemWorldSubsystem->DistributeItems(SpyItemTypeToDistributed); }
+
+	/** load actors in level with required items */
+	USpyItemWorldSubsystem* SpyItemWorldSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>();
+	if (IsValid(SpyItemWorldSubsystem) && SpyItemWorldSubsystem->AllItemsVerifiedLoaded())
+	{
+		SpyItemWorldSubsystem->DistributeItems(SpyMissionItemTypeToDistributed, ASpyFurniture::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass()); 
+	}
+
+	/** Start game for network clients */
 	SpyGameState->NM_MatchStart();
 }
 

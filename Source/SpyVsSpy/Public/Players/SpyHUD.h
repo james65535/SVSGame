@@ -71,7 +71,7 @@ public:
 	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void DisplayCharacterInventory() const;
+	void DisplayCharacterInventory(UInventoryComponent* InventoryComponent) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplaySelectedActorInventory(const UInventoryComponent* TargetInventoryComponent) const;
 	

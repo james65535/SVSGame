@@ -23,16 +23,23 @@ public:
 	UInventoryComponent();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/**
+	 * @brief Is the correct way to add assets to inventory as this list replicates to clients and
+	 * clients then load assets from asset manager
+	 * @param InPrimaryAssetIdsToLoad 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId> InPrimaryAssetIdsToLoad);
+	void SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	bool AddInventoryItems(TArray<UInventoryBaseAsset*>& InventoryItemAssets);
+	bool AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAssetIdCollectionToLoad);
 	//UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	//bool AddInventoryItemFromPrimaryAssetID(FPrima& InventoryItemAssets);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const;
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	void GetInventoryItemPrimaryAssetIdCollection(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	UInventoryWeaponAsset* GetActiveTrap() const { return ActiveTrap; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")

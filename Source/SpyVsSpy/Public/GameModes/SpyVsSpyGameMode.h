@@ -32,21 +32,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void PlayerNotifyIsReady(ASpyPlayerState* InPlayerState );
 
-	/** Set the player match starting time - not the game match time */
-	// UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
-	// void SetMatchTime(const float InMatchTime) const;
-
 	/** Called by maps to specify the mission items needed for that level */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
 
 	/** Called by maps to specify the mission items needed for that level */
-	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
-	void RequestSetSpyItemsToDistributed(const FPrimaryAssetType InPrimaryAssetType) { SpyItemTypeToDistributed = InPrimaryAssetType; }
+	// UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
+	// void RequestSetSpyItemsToDistributed(const FPrimaryAssetType InPrimaryAssetType) { SpyItemTypeToDistributed = InPrimaryAssetType; }
 
 protected:
 
-	FPrimaryAssetType SpyItemTypeToDistributed;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
+	FPrimaryAssetType SpyMissionItemTypeToDistributed = FName("InventoryMissionAsset");
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
+	FPrimaryAssetType SpyWeaponItemTypeToDistributed = FName("InventoryWeaponAsset");
 
 private:
 

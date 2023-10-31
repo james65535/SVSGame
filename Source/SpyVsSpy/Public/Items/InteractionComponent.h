@@ -33,9 +33,10 @@ protected:
 	virtual bool Interact_Implementation(AActor* InteractRequester) override;
 	/**
 	 * @brief Provide a listing of inventory items to interaction requester
-	 * @param InventoryItems An array to populate with inventory items found
+	 * @param RequestedPrimaryAssetIds An array to populate with Primary Asset Ids of inventory items found
+	 * @param RequestedPrimaryAssetType The type of asset to get
 	 */
-	virtual void GetInventoryListing_Implementation(TArray<UInventoryBaseAsset*>& InventoryItems) override;
+	virtual void GetInventoryListing_Implementation(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) override;
 
 	virtual AActor* GetInteractableOwner_Implementation() override;
 
