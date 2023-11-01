@@ -2,6 +2,8 @@
 
 
 #include "Rooms/RoomManager.h"
+
+#include "GameFramework/GameModeBase.h"
 #include "Rooms/SVSRoom.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Guid.h"
@@ -14,6 +16,18 @@ ARoomManager::ARoomManager()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+}
+
+void ARoomManager::GetRoomListingCollection(TArray<FRoomListing>& RoomListingCollection, const bool bGetOccupiedRooms)
+{
+	if (!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() || RoomCollection.Num() < 1)
+	{ return; }
+
+	for (FRoomListing RoomListing : RoomCollection)
+	{
+		if (RoomListing.bIsOccupied == bGetOccupiedRooms)
+		{ RoomListingCollection.Emplace(RoomListing); }
+	}
 }
 
 // Called when the game starts or when spawned
@@ -39,13 +53,11 @@ void ARoomManager::BeginPlay()
 	}
 }
 
-void ARoomManager::AddRoom_Implementation(const ASVSRoom* InDynamicRoom, const FGuid InRoomGuid)
+void ARoomManager::AddRoom_Implementation(ASVSRoom* InDynamicRoom, const FGuid InRoomGuid)
 {
 	if (!IsValid(InDynamicRoom) || !HasAuthority()) { return; }
 	
-	FRoomListing RoomListing;
-	RoomListing.Room = InDynamicRoom;
-	RoomListing.RoomGuid = InRoomGuid;
+	const FRoomListing RoomListing = FRoomListing(InDynamicRoom, InRoomGuid, false);
 	RoomCollection.Emplace(RoomListing);
 }
 

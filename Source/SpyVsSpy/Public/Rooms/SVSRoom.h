@@ -66,9 +66,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	float VanishEffect = 1.0f;
 
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
-	bool bRoomLocallyHiddenInGame = true;
-
+	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
+	bool IsRoomLocallyHidden() const { return bRoomLocallyHiddenInGame; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
+	void SetRoomLocallyHidden(const bool bLocallyHiddenEnabled) { bRoomLocallyHiddenInGame = bLocallyHiddenEnabled; }
+	
 	FOnRoomOccupancyChange OnRoomOccupancyChange;
 
 	// TODO Could update this to accomodate team play
@@ -99,7 +101,7 @@ public:
 
 protected:
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	//virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(BlueprintReadWrite, EditInstanceOnly, Category = "SVS|Room")
 	bool bIsFinalMissionRoom = false;
@@ -109,9 +111,13 @@ private:
 	/** Unique Room Identifier used by Room Manager */
 	FGuid RoomGuid;
 
-	/** Server and client RPCs to handle room overlaps and associated effects */
+	UPROPERTY(VisibleAnywhere, Category = "SVS|Room")
+	bool bRoomLocallyHiddenInGame = true;
+	
 	UFUNCTION()
 	void UnHideRoom(const ASpyCharacter* InSpyCharacter);
+	UFUNCTION()
+	void HideRoom(const ASpyCharacter* InSpyCharacter);
 
 	/** Properties Sent to Material for Warp In / Out Effect */
 	FName MPCDistanceHasEffectName = "HasEffect";
@@ -147,8 +153,8 @@ private:
 	UFUNCTION()
 	void OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor);
 	TArray<ASpyCharacter*> OccupyingSpyCharacters;
-	UPROPERTY(VisibleInstanceOnly, ReplicatedUsing=OnRep_bRoomOccupied, Category = "SVS|Room")
-	bool bRoomOccupied; // TODO determine more robust way to handle this which provides security for player view and allows for opponent view
-	UFUNCTION()
-	void OnRep_bRoomOccupied() {}
+	// UPROPERTY(VisibleInstanceOnly, ReplicatedUsing=OnRep_bRoomOccupied, Category = "SVS|Room")
+	// bool bRoomOccupied; // TODO determine more robust way to handle this which provides security for player view and allows for opponent view
+	// UFUNCTION()
+	// void OnRep_bRoomOccupied() {}
 };

@@ -22,7 +22,14 @@ public:
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual void RestartGame() override; // TODO review to see if controller resets are needed
 
+	/** Load Singleton to manage centralised location of state regarding rooms */
 	ARoomManager* LoadRoomManager();
+	/**
+	 * @brief Get the Room Manager which maintains centralised state regarding rooms
+	 * @return Room Manager Singleton
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
+	ARoomManager* GetRoomManager() const { return RoomManager; }
 
 	/** Check if Game is In Start Menu */
 	UFUNCTION(BlueprintPure, Category = "SVS|GameMode")
@@ -46,6 +53,9 @@ protected:
 	FPrimaryAssetType SpyMissionItemTypeToDistributed = FName("InventoryMissionAsset");
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
 	FPrimaryAssetType SpyWeaponItemTypeToDistributed = FName("InventoryWeaponAsset");
+
+	UPROPERTY(BlueprintReadOnly, VisibleInstanceOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
+	ARoomManager* RoomManager;
 
 private:
 

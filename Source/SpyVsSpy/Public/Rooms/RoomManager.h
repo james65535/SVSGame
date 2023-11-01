@@ -24,10 +24,24 @@ USTRUCT()
 struct FRoomListing
 {
 	GENERATED_BODY()
-	
-	const ASVSRoom* Room;
+public:
+	ASVSRoom* Room;
 	FGuid RoomGuid;
 	bool bIsOccupied = false;
+
+	FRoomListing()
+	{
+		Room = nullptr;
+		RoomGuid = FGuid();
+		bIsOccupied = false;
+	}
+	
+	FRoomListing(ASVSRoom* InRoom, FGuid InGuid, bool bInIsOccupied)
+	{
+		Room = InRoom;
+		RoomGuid = InGuid;
+		bIsOccupied = bInIsOccupied;
+	}
 };
 
 UCLASS()
@@ -39,12 +53,14 @@ public:
 	// Sets default values for this actor's properties
 	ARoomManager();
 	
-	UFUNCTION(Server, Reliable, Category = "SVS Room")
-	void AddRoom(const ASVSRoom* InDynamicRoom, const FGuid InRoomGuid);
+	UFUNCTION(Server, Reliable, Category = "SVS|Room")
+	void AddRoom(ASVSRoom* InDynamicRoom, const FGuid InRoomGuid);
 	// TODO use array ref in case multiple characters are in the same room
-	UFUNCTION(Server, Reliable, Category = "SVS Room")
+	UFUNCTION(Server, Reliable, Category = "SVS|Room")
 	void SetRoomOccupied(const ASVSRoom* InRoom, const bool bIsOccupied, const ASpyCharacter* PlayerCharacter);
-
+	UFUNCTION(Blueprintable, Category = "SVS|Room")
+	void GetRoomListingCollection(TArray<FRoomListing>& RoomListingCollection, const bool bGetOccupiedRooms);
+	
 	FRoomOccupiedDelegate OnRoomOccupied;
 
 private:

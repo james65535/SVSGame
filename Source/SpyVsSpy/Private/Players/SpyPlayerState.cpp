@@ -124,28 +124,28 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 
 void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTimeLength, const bool bIncludeTimePenalty)
 {
-	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (!IsValid(GetWorld()->GetAuthGameMode()) || !IsValid(SpyGameState))
-	{
-		UE_LOG(SVSLog, Warning, TEXT("Playerstate failed setplayerremainingmatchtime validation checks"));
-		return;
-	}
-
 	/** Apply time penalty if method was requested with penalty flag */
-	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
 	if (bIncludeTimePenalty)
-	{
-		PlayerRemainingMatchTime = GetPlayerRemainingMatchTime() - PlayerMatchTimePenaltyInSeconds;
-	}
+	{ PlayerRemainingMatchTime = GetPlayerRemainingMatchTime() - PlayerMatchTimePenaltyInSeconds; }
 	else
 	{ PlayerRemainingMatchTime = InMatchTimeLength; }
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
 
-	/** Timer to call end of match for player when expired */
-	if (PlayerRemainingMatchTime >= 1.0f)
-	{ SetPlayerMatchTimer(); }
-	else
+	if (IsPlayerRemainingMatchTimeExpired())
 	{ PlayerMatchTimeExpired(); }
+	else
+	{ SetPlayerMatchTimer(); }
+}
+
+bool ASpyPlayerState::IsPlayerRemainingMatchTimeExpired() const
+{
+	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (!IsValid(GetWorld()->GetAuthGameMode()) || !IsValid(SpyGameState))
+	{ return true; }
+	
+	if (GetPlayerRemainingMatchTime() - SpyGameState->GetSpyMatchElapsedTime() <= 0.0f)
+	{ return true; }
+	return false;
 }
 
 float ASpyPlayerState::GetPlayerRemainingMatchTime() const
@@ -197,9 +197,8 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 	
 	/** just run this on the server */
 	if (!IsValid(SpyCharacter) ||
-		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() || (!IsValid(SpyCharacter)) ||
-		GetCurrentStatus() == EPlayerGameStatus::Finished ||
-		GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
+		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() ||
+		GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
 	
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate trying matchtimeexpired with time: %f"),
@@ -210,12 +209,25 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 	/** Player ran out of time so notify game that their match has ended */
 	GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
 	
-	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (IsValid(SpyCharacter) && IsValid(SpyGameState))
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
 	{
 		SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
 		SpyGameState->RequestSubmitMatchResult(this, true);
 		SpyCharacter->NM_FinishedMatch();
+
+		// TODO probably don't need to actually destroy, character sets self to hidden and disables controls
+		// if(!Destroy())
+		// {
+		// 	UE_LOG(SVSLog, Warning, TEXT(
+		// 		"%s Character %s was not able to be destroyed by playerstate when time expired"),
+		// 		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		// 		*GetName());
+		// }
+	}
+	else
+	{
+		UE_LOG(SVSLog, Warning, TEXT(
+			"Playerstate attempted PlayerMatchTimeExpired but could not get a valid pointer to game state"));
 	}
 }
 
@@ -326,9 +338,8 @@ void ASpyPlayerState::LoadSavedPlayerInfo_Implementation()
 
 void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 {
-	ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetPawn());
-	ASpyPlayerController* SpyController = SpyCharacter->GetController<ASpyPlayerController>();
-	if (!IsValid(SpyCharacter) || !IsValid(SpyController))
+	const ASpyPlayerController* SpyController = Cast<ASpyPlayerController>(GetPlayerController());
+	if (!IsValid(SpyController))
 	{ return; }
 	
 	// UE_LOG(LogTemp, Warning, TEXT("%s Character: %s called attronchange: %s"),
@@ -350,7 +361,9 @@ void ASpyPlayerState::HealthChanged(const FOnAttributeChangeData& Data)
 	{ return; }
 	
 	/** Check for and handle knockdown and death */
-	if (!IsAlive() &&
+	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
+	if (IsValid(SpyCharacter) &&
+		!IsAlive() &&
 		!AbilitySystemComponent->HasMatchingGameplayTag(SpyDeadTag))
 	{ SpyCharacter->RequestDeath(); }
 }

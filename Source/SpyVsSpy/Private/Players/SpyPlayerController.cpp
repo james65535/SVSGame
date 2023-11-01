@@ -3,7 +3,6 @@
 
 #include "Players/SpyPlayerController.h"
 
-//#include "EnhancedInputSubsystems.h"
 #include "SVSLogger.h"
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "EnhancedInput/Public/EnhancedInputComponent.h"
@@ -13,15 +12,14 @@
 #include "Players/SpyPlayerState.h"
 #include "Players/SpyCharacter.h"
 #include "Players/SpyInteractionComponent.h"
+#include "Players/PlayerInputConfigRegistry.h"
 #include "Items/InventoryComponent.h"
+#include "Items/InteractInterface.h"
+#include "Items/InventoryWeaponAsset.h"
 #include "UI/GameUIElementsRegistry.h"
 #include "UI/UIElementAsset.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "GameModes/SpyVsSpyGameMode.h"
-#include "Items/InteractInterface.h"
-#include "Items/InventoryBaseAsset.h"
-#include "Items/InventoryWeaponAsset.h"
-#include "Players/PlayerInputConfigRegistry.h"
 
 void ASpyPlayerController::BeginPlay()
 {

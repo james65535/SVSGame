@@ -179,6 +179,10 @@ bool ASpyVsSpyGameMode::CheckAllPlayersStatus(const EPlayerGameStatus StateToChe
 
 ARoomManager* ASpyVsSpyGameMode::LoadRoomManager()
 {
-	ARoomManager* RoomManager = Cast<ARoomManager>(GetWorld()->SpawnActor(ARoomManager::StaticClass()));
+	/** RoomManager is a Singleton */
+	if (IsValid(RoomManager))
+	{ return RoomManager; }
+	
+	RoomManager = Cast<ARoomManager>(GetWorld()->SpawnActor(ARoomManager::StaticClass()));
 	return RoomManager;
 }

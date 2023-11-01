@@ -201,6 +201,8 @@ protected:
 	/** Internal process to mutate character room pointers for when the character goes from room to room */
 	UFUNCTION()
 	void ProcessRoomChange(ASVSRoom* NewRoom);
+	/** Used to allow ProcessRoomChange to work when actor is moved by setactorlocation */
+	bool bHasTeleported = false;
 #pragma endregion ="RoomTraversal"
 
 #pragma region ="Combat"
@@ -279,11 +281,11 @@ protected:
 	void S_RequestDeath();
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|Character")
 	void NM_RequestDeath();
-	void SetEnableDeathState(const bool bEnabled);
+	void SetEnableDeathState(const bool bEnabled, const FVector RespawnLocation = FVector::ZeroVector);
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|Character")
-	void NM_SetEnableDeathState(const bool bEnabled);
+	void NM_SetEnableDeathState(const bool bEnabled, const FVector RespawnLocation = FVector::ZeroVector);
 
-	void SpyRelocation();
+	FVector GetSpyRespawnLocation();
 #pragma endregion="CharacterDeath"
 
 #pragma region="Ability System"

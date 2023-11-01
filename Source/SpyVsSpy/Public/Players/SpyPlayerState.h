@@ -75,6 +75,8 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerRemainingMatchTime(const float InMatchTimeLength = 0.0f, const bool bIncludeTimePenalty = false);
+	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
+	bool IsPlayerRemainingMatchTimeExpired() const;
 	
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	float GetPlayerRemainingMatchTime() const;

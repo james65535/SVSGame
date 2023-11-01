@@ -11,7 +11,8 @@
 ASVSDynamicDoor::ASVSDynamicDoor()
 {
 	bReplicates = true;
-	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>("Door Interaction Component");
+	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>(
+		"Door Interaction Component");
 	DoorInteractionComponent->SetIsReplicated(true);
 
 	DoorPanel = CreateDefaultSubobject<UStaticMeshComponent>("Door Panel Mesh");
@@ -29,12 +30,12 @@ void ASVSDynamicDoor::BeginPlay()
 	if (ASVSRoom* SVSRoomA = Cast<ASVSRoom>(RoomA))
 	{ SVSRoomA->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange); }
 	else
-	{ UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref A.")); }
+	{ UE_LOG(SVSLog, Warning, TEXT("Door Could not add occupancy delegate to room ref A.")); }
 	
 	if (ASVSRoom* SVSRoomB = Cast<ASVSRoom>(RoomB))
 	{ SVSRoomB->OnRoomOccupancyChange.AddUObject(this, &ThisClass::OnRoomOccupancyChange); }
 	else
-	{ UE_LOG(SVSLogDebug, Log, TEXT("Door Could not add occupancy delegate to room ref B.")); }
+	{ UE_LOG(SVSLog, Warning, TEXT("Door Could not add occupancy delegate to room ref B.")); }
 }
 
 void ASVSDynamicDoor::SetEnableDoorMesh_Implementation(const bool bEnabled)
@@ -56,18 +57,16 @@ void ASVSDynamicDoor::OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const b
 	if (IsValid(SVSRoomA) && IsValid(SVSRoomB))
 	{
 		/** Handle if both rooms hidden */
-		if (SVSRoomA->bRoomLocallyHiddenInGame && SVSRoomB->bRoomLocallyHiddenInGame)
+		if (SVSRoomA->IsRoomLocallyHidden() && SVSRoomB->IsRoomLocallyHidden())
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("Door occupancy delegate found both rooms hidden"));
 			SetActorHiddenInGame(true);
 			return;
 		}
 		SetActorHiddenInGame(false);
-		UE_LOG(SVSLog, Warning, TEXT("Door occupancy delegate triggered but at least one room is still visible"));
 	}
 	else
 	{
-		/** Rooms do not share the same visibility bool */
-		UE_LOG(SVSLogDebug, Log, TEXT("Door occupancy delegate triggered but neighboring rooms are not valid pointers"));
+		UE_LOG(SVSLog, Warning, TEXT(
+			"Door occupancy delegate triggered but neighboring rooms are not valid pointers"));
 	}
 }
