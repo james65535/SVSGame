@@ -63,6 +63,11 @@ public:
 	// TODO need to add a couple more reset actions here
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void ResetAttackHitFound() { bAttackHitFound = false; }
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
+	void PrimaryAttackWindowStarted();
+	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
+	void PrimaryAttackWindowCompleted();
 	
 	/** Animation Montage for times of celebration such as winning match */
 	UFUNCTION()

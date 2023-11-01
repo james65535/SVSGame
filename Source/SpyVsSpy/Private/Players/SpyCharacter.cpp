@@ -45,9 +45,6 @@ ASpyCharacter::ASpyCharacter()
 	
 	/** Set size for collision capsule */
 	GetCapsuleComponent()->InitCapsuleSize(35.0f, 90.0f);
-	// TODO remove this test
-	GetCapsuleComponent()->SetVisibility(true);
-	GetCapsuleComponent()->SetHiddenInGame(false);
 
 	GetMesh()->SetCollisionProfileName("SpyCharacterMesh", true);
 	GetMesh()->SetGenerateOverlapEvents(true); // TODO check into perf
@@ -160,18 +157,6 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 	/* If OtherActor is a Room then capture the room which character is trying to enter */
 	if (ASVSRoom* SVSRoomOverlapped = Cast<ASVSRoom>(OtherActor))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has overlapped room: %s"),
-			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*GetName(),
-			*OtherActor->GetName());
-
-		UE_LOG(SVSLogDebug, Log, TEXT(
-			"%s Character: %s running overlap begin - currentroom: %s roomentering: %s"),
-			   IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			   *GetName(),
-			   IsValid(CurrentRoom) ? *CurrentRoom->GetName() : *FString("null"),
-			   IsValid(RoomEntering) ? *RoomEntering->GetName() : *FString("null"));
-		
 		/** Prep for room transfer if already in a room,
 		 * this multi part process helps reduce change of bugs due to character clipping
 		 * as they cannot be in a new room if they have not left the old room */
@@ -181,24 +166,16 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		 * existing room traversal checks require the previous current room to end overlap so
 		 * we provide need a way to avoid this check at start of game */
 		if (!IsValid(CurrentRoom) || bHasTeleported)
-		{ ProcessRoomChange(RoomEntering); }
+		{
+			/** Reset flag and process room change */
+			bHasTeleported = false;
+			ProcessRoomChange(RoomEntering);
+		}
 	}
 }
 
 void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has ended overlap with room: %s"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		*OtherActor->GetName());
-
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"%s Character: %s running overlapend - currentroom: %s roomentering: %s"),
-		   IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		   *GetName(),
-		   IsValid(CurrentRoom) ? *CurrentRoom->GetName() : *FString("null"),
-		   IsValid(RoomEntering) ? *RoomEntering->GetName() : *FString("null"));
-	
 	/** If OtherActor is a Room then finalise Room change if
 	 * room from overlap end is indeed the previous current room */
 	if (const ASVSRoom* OverlapEndRoom = Cast<ASVSRoom>(OtherActor))
@@ -223,15 +200,15 @@ void ASpyCharacter::OnAttackComponentBeginOverlap(UPrimitiveComponent* Overlappe
 	HandlePrimaryAttackOverlap(OtherActor);
 
 	// TODO move back to ability system component notify
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,
-		AttackImpactSpark,
-		AttackZone->GetComponentLocation(),
-		FRotator::ZeroRotator,
-		FVector::OneVector,
-		true,
-		true,
-		ENCPoolMethod::None,
-		true);
+	// UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,
+	// 	AttackImpactSpark,
+	// 	AttackZone->GetComponentLocation(),
+	// 	FRotator::ZeroRotator,
+	// 	FVector::OneVector,
+	// 	true,
+	// 	true,
+	// 	ENCPoolMethod::None,
+	// 	true);
 }
 
 void ASpyCharacter::OnAttackComponentEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -264,13 +241,6 @@ void ASpyCharacter::OnCelebrationMontageEnded(UAnimMontage* Montage, bool bInter
 void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
 {
 	checkfSlow(NewRoom, "SpyCharacter attempted to change current room but room pointer is null");
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"%s Character: %s running processroomchange - newroom: %s, currentroom: %s roomentering: %s"),
-		   IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		   *GetName(),
-		   IsValid(NewRoom) ? *NewRoom->GetName() : *FString("null"),
-		   IsValid(CurrentRoom) ? *CurrentRoom->GetName() : *FString("null"),
-		   IsValid(RoomEntering) ? *RoomEntering->GetName() : *FString("null"));
 	
 	/** If character is local then hide any other characters in the room we are leaving */
 	if (GetLocalRole() == ROLE_AutonomousProxy && IsValid(CurrentRoom))
@@ -308,7 +278,37 @@ void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
 {
 	bIsHiddenInGame = bIsSpyHidden;
 	SetActorHiddenInGame(bIsSpyHidden);
-	//MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bIsHiddenInGame, this); // TODO this probably doesn't need to be replicated since hiding a local only thing
+}
+
+void ASpyCharacter::PrimaryAttackWindowStarted()
+{
+	if (GetWorld()->GetNetMode() == NM_Client)
+	{ return; }
+
+	SetEnabledAttackState(true);
+
+	
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s PrimaryAttackWindowStarted called"),
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName());
+}
+
+void ASpyCharacter::PrimaryAttackWindowCompleted()
+{
+	if (GetWorld()->GetNetMode() == NM_Client)
+	{ return; }
+
+	/** Notify ability of zero overlaps */
+	if (!bAttackHitFound)
+	{
+		SetEnabledAttackState(false);
+		HandlePrimaryAttackOverlap(nullptr);
+	}
+	bAttackHitFound = false;
+	
+	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s PrimaryAttackWindowCompleted called"),
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName());
 }
 
 bool ASpyCharacter::PlayCelebrateMontage()
@@ -343,7 +343,7 @@ void ASpyCharacter::NM_FinishedMatch_Implementation()
 	
 	// TODO refactor to remove server rpc
 	/** Just run this on the server */
-	if (GetWorld()->GetAuthGameMode()->IsValidLowLevelFast())
+	if (GetWorld()->GetNetMode() != NM_Client)
 	{ S_RequestDeath(); }
 }
 
@@ -506,15 +506,13 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector Respa
 		FVector(0.0f, 0.0f, -90.0f),
 		FRotator(0.0f, 270.0f, 0.0f));
 
-	// TODO if we stick with getauth then this has a better location to live
-	// CurrentRoom = nullptr;
+	/** Process character relocation after death bHasTeleported provides
+	 * entry into ProcessRoomChange for overlap delegates */
 	bHasTeleported = true;
-	if (GetWorld()->GetAuthGameMode()->IsValidLowLevelFast())
+	if (GetWorld()->GetNetMode() != NM_Client)
 	{
-		
 		SetActorLocationAndRotation(RespawnLocation,FRotator::ZeroRotator);	
 	}
-	
 }
 
 FVector ASpyCharacter::GetSpyRespawnLocation()
@@ -536,14 +534,7 @@ FVector ASpyCharacter::GetSpyRespawnLocation()
 		const uint8 RandomRangeMax = RoomCandidatesForSpyRelocation.Num() - 1;
 		const int32 RandomIntFromRange = FMath::RandRange(0, RandomRangeMax);
 		if (ASVSRoom* CandidateRoom = RoomCandidatesForSpyRelocation[RandomIntFromRange].Room)
-		{
-			UE_LOG(SVSLog, Warning, TEXT(
-				"%s Character: %s room respawn candidate found: %s"),
-				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-				*GetName(),
-				*CandidateRoom->GetName());
-			SpyRelocationTarget = CandidateRoom->GetActorLocation();
-		}
+		{ SpyRelocationTarget = CandidateRoom->GetActorLocation(); }
 		else
 		{
 			UE_LOG(SVSLog, Warning, TEXT(
@@ -565,7 +556,7 @@ FVector ASpyCharacter::GetSpyRespawnLocation()
 void ASpyCharacter::RequestDeath()
 {
 	// TODO refactor this as it is redundant
-	if (IsValid(GetWorld()->GetAuthGameMode()))
+	if (GetWorld()->GetNetMode() != NM_Client)
 	{ S_RequestDeath(); }
 }
 
@@ -636,7 +627,7 @@ void ASpyCharacter::FinishDeath()
 	
 	// This is called from Server RPC
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
-	if (!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast())
+	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
 	
 	/** Reset health to max */
@@ -665,6 +656,8 @@ void ASpyCharacter::SetEnabledAttackState(const bool bEnabled) const
 	{
 		AttackZone->ShapeColor = FColor::Red;
 		AttackZone->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+		// TODO can we just tick hand bone or perhaps use replicated movement on the attack component?
 		/** Required for using collisions off of animation montages
 		 * This might conflict with ragdolling on simulated proxy */
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
@@ -692,7 +685,8 @@ void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
 	{
 		/** prevent additional runs if overlaps occur during same ability run */
 		bAttackHitFound = true;
-
+// TODO is this the right place?
+		SetEnabledAttackState(false);
 		// UE_LOG(SVSLogDebug, Log, TEXT(
 		// 	"Handling Attack check - %s ActorHasTag: %s Implements SpyCombat: %s Implements UbilitySystem: %s"),
 		// 	*OverlappedSpyCombatant->GetName(),
@@ -742,7 +736,8 @@ void ASpyCharacter::PlayAttackAnimation(const float TimerValue)
 
 void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
 {
-	SetEnabledAttackState(true);
+	// TODO Remove after testing
+	//SetEnabledAttackState(true);
 	
 	const bool bMontagePlayedSuccessfully = GetMesh()->GetAnimInstance()->Montage_Play(AttackMontage, 1.0f) > 0;
 	if (!AttackMontageEndedDelegate.IsBound())
@@ -758,12 +753,13 @@ void ASpyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupte
 		*GetName(),
 		AttackZone->IsCollisionEnabled() ? *FString("True") : *FString("False"));
 
+// TODO remove after testing
 	/** Notify ability of zero overlaps */
-	if (!bAttackHitFound)
-	{
-		SetEnabledAttackState(false);
-		HandlePrimaryAttackOverlap(nullptr);
-	}
+	// if (!bAttackHitFound)
+	// {
+	// 	SetEnabledAttackState(false);
+	// 	HandlePrimaryAttackOverlap(nullptr);
+	// }
 }
 
 void ASpyCharacter::HandleTrapTrigger()
@@ -967,18 +963,22 @@ void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirec
 		{
 			UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
 			/** Quantities might be -1 which means unlimited */
-			if (IsValid(WeaponAsset) && WeaponAsset->Quantity != 0)
+			if (IsValid(WeaponAsset))
 			{
-				CurrentHeldWeapon = WeaponAsset;
+				if (WeaponAsset->Quantity != 0)
+				{ CurrentHeldWeapon = WeaponAsset; }
+				else
+				{ CurrentHeldWeapon = nullptr; }
+				
 				ActiveWeaponInventoryIndex = StartIndex;
 				MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
-				SetWeaponMesh(CurrentHeldWeapon->Mesh);
+				SetWeaponMesh(WeaponAsset->Mesh);
 				UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
 					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 					*GetName(),
 					ActiveWeaponInventoryIndex,
 					IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-					*CurrentHeldWeapon->InventoryItemName.ToString());
+					IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
 				return;
 			}
 		}
@@ -992,17 +992,22 @@ void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirec
 		{
 			UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
 			/** Quantities might be -1 which means unlimited */
-			if (IsValid(WeaponAsset) && WeaponAsset->Quantity != 0)
+			if (IsValid(WeaponAsset))
 			{
-				CurrentHeldWeapon = WeaponAsset;
+				if (WeaponAsset->Quantity != 0)
+				{ CurrentHeldWeapon = WeaponAsset; }
+				else
+				{ CurrentHeldWeapon = nullptr; }
+				
 				ActiveWeaponInventoryIndex = StartIndex;
 				MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
+				SetWeaponMesh(WeaponAsset->Mesh);
 				UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested previous trap with new index: %i with valid mesh: %s and name: %s"),
 					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 					*GetName(),
 					ActiveWeaponInventoryIndex,
 					IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-					*CurrentHeldWeapon->InventoryItemName.ToString());
+					IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
 				return;
 			}
 		}
@@ -1022,7 +1027,11 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 		if (UInventoryWeaponAsset* FoundWeaponItem = Cast<UInventoryWeaponAsset>(
 			InventoryAssets[ActiveWeaponInventoryIndex]))
 		{
-			CurrentHeldWeapon = FoundWeaponItem;
+			if (FoundWeaponItem->Quantity != 0)
+			{ CurrentHeldWeapon = FoundWeaponItem; }
+			else
+			{ CurrentHeldWeapon = nullptr; }
+			
 			SetWeaponMesh(FoundWeaponItem->Mesh);
 			/** So that we do not see mesh wireframe for the null default weapon */
 			WeaponMeshComponent->SetVisibility(
@@ -1031,7 +1040,7 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 			UE_LOG(LogTemp, Warning, TEXT(
 				"Spy replicated weaponindex: %i heldweapon: %s and has valid weapon mesh: %s"),
 				ActiveWeaponInventoryIndex,
-				*CurrentHeldWeapon->InventoryItemName.ToString(),
+				IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"),
 				IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"));
 		}
 	}

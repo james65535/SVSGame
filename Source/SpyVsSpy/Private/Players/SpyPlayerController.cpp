@@ -216,13 +216,6 @@ void ASpyPlayerController::FinishedMatch()
 {
 	if (!IsRunningDedicatedServer())
 	{
-		// TODO move this currentstatus stuff
-		// if(SpyPlayerState->GetPlayerRemainingMatchTime() > 0.0f)
-		// { SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished); }
-		// else
-		// { SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired); }
-		// SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
-		
 		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
 		RequestInputMode(EPlayerInputMode::UIOnly);
 		SpyPlayerHUD->DisplayResults(SpyGameState->GetResults());
@@ -232,14 +225,6 @@ void ASpyPlayerController::FinishedMatch()
 
 void ASpyPlayerController::RequestUpdatePlayerResults()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Running RequestUpdatePlayerResults"));
-	// if (!IsRunningDedicatedServer())
-	// {
-	// 	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
-	// 		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish ||
-	// 		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
-	// 	{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
-
 	if (!IsRunningDedicatedServer())
 	{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
 }
@@ -570,7 +555,7 @@ void ASpyPlayerController::RequestPrimaryAttack(const FInputActionValue& ActionV
 
 void ASpyPlayerController::S_OnReadySelected_Implementation()
 {
-	if (GetWorld()->GetAuthGameMode<ASpyVsSpyGameMode>())
+	if (GetWorld()->GetNetMode() != NM_Client)
 	{
 		checkfSlow(SpyPlayerState, "Player Controller attempted to access Spy Player State to set ready but it was null");
 		SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Ready);

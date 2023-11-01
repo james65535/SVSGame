@@ -140,7 +140,7 @@ void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTimeLength,
 bool ASpyPlayerState::IsPlayerRemainingMatchTimeExpired() const
 {
 	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (!IsValid(GetWorld()->GetAuthGameMode()) || !IsValid(SpyGameState))
+	if (GetWorld()->GetNetMode() == NM_Client || !IsValid(SpyGameState))
 	{ return true; }
 	
 	if (GetPlayerRemainingMatchTime() - SpyGameState->GetSpyMatchElapsedTime() <= 0.0f)
@@ -156,7 +156,7 @@ float ASpyPlayerState::GetPlayerRemainingMatchTime() const
 void ASpyPlayerState::SetPlayerMatchTimer()
 {
 	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (!IsValid(GetWorld()->GetAuthGameMode()) ||
+	if (GetWorld()->GetNetMode() == NM_Client ||
 		!IsValid(SpyGameState) ||
 		GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
@@ -197,7 +197,7 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 	
 	/** just run this on the server */
 	if (!IsValid(SpyCharacter) ||
-		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() ||
+		GetWorld()->GetNetMode() == NM_Client ||
 		GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
 	
@@ -237,7 +237,7 @@ void ASpyPlayerState::OnPlayerReachedEnd()
 	
 	/** just run this on the server */
 	if (!IsValid(SpyCharacter) ||
-		!GetWorld()->GetAuthGameMode()->IsValidLowLevelFast() || (!IsValid(SpyCharacter)) ||
+		GetWorld()->GetNetMode() == NM_Client ||
 		GetCurrentStatus() == EPlayerGameStatus::Finished ||
 		GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
 	{ return; }

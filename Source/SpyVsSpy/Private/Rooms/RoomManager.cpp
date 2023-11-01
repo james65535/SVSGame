@@ -25,6 +25,9 @@ void ARoomManager::GetRoomListingCollection(TArray<FRoomListing>& RoomListingCol
 
 	for (FRoomListing RoomListing : RoomCollection)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Room: %s is occupied: %s"),
+			*RoomListing.Room->GetName(),
+			RoomListing.bIsOccupied ? *FString("True") : *FString("False"));
 		if (RoomListing.bIsOccupied == bGetOccupiedRooms)
 		{ RoomListingCollection.Emplace(RoomListing); }
 	}
