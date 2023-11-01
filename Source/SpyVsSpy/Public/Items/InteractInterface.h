@@ -44,5 +44,7 @@ public:
 	AActor* GetInteractableOwner();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	bool CheckHasTrap();
+	UInventoryWeaponAsset* GetActiveTrap();
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	void RemoveActiveTrap(UInventoryWeaponAsset* InActiveTrap);
 };

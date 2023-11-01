@@ -1079,9 +1079,13 @@ void ASpyCharacter::S_RequestInteract_Implementation(UObject* InInteractableActo
 		!IsValid(InteractableInterface->_getUObject()))
 	{ return; }
 	
-	if (InteractableInterface->Execute_CheckHasTrap(InteractableInterface->_getUObject()))
+	if (UInventoryWeaponAsset* ActiveTrap = InteractableInterface->
+		Execute_GetActiveTrap(InteractableInterface->_getUObject()))
 	{
+		// TODO move more of this server side for authorative info like trap damage etc..
 		RequestTrapTrigger();
+		InteractableInterface->
+			Execute_RemoveActiveTrap(InteractableInterface->_getUObject(), ActiveTrap);
 		return;
 	}
 

@@ -142,7 +142,7 @@ void UInventoryComponent::GetInventoryItemPrimaryAssetIdCollection(TArray<FPrima
 void UInventoryComponent::SetActiveTrap(UInventoryWeaponAsset* InActiveTrap)
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Actor has been given an active trap: %s"),
-		*InActiveTrap->InventoryItemName.ToString());
+		IsValid(InActiveTrap) ? *InActiveTrap->InventoryItemName.ToString() : *FString("Null Trap"));
 	ActiveTrap = InActiveTrap;
 	//MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveTrap, this);
 }

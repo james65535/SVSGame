@@ -47,9 +47,14 @@ AActor* UInteractionComponent::GetInteractableOwner_Implementation()
 	return GetOwner();
 }
 
-bool UInteractionComponent::CheckHasTrap_Implementation()
+UInventoryWeaponAsset* UInteractionComponent::GetActiveTrap_Implementation()
 {
-	return false;
+	return nullptr;
+}
+
+void UInteractionComponent::RemoveActiveTrap_Implementation(UInventoryWeaponAsset* InActiveTrap)
+{
+	return;
 }
 
 bool UInteractionComponent::HasInventory_Implementation()

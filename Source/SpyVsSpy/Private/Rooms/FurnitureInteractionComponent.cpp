@@ -57,13 +57,22 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItemPrimaryAssetIdCollection(RequestedPrimaryAssetIds, RequestedPrimaryAssetType);
 }
 
-bool UFurnitureInteractionComponent::CheckHasTrap_Implementation()
+UInventoryWeaponAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementation()
 {
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
-	{ return false; }
+	{ return nullptr; }
 	
-	return GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetActiveTrap() != nullptr;
+	return GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetActiveTrap();
+}
+
+void UFurnitureInteractionComponent::RemoveActiveTrap_Implementation(UInventoryWeaponAsset* InActiveTrap)
+{
+	if (!IsValid(GetOwner<ASpyFurniture>()) ||
+		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
+	{ return; }
+
+	GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetActiveTrap(nullptr);
 }
 
 bool UFurnitureInteractionComponent::HasInventory_Implementation()

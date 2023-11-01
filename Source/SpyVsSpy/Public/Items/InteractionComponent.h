@@ -7,6 +7,7 @@
 #include "Items/InteractInterface.h"
 #include "InteractionComponent.generated.h"
 
+class UInventoryWeaponAsset;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class SPYVSSPY_API UInteractionComponent : public UActorComponent, public IInteractInterface
@@ -40,7 +41,9 @@ protected:
 
 	virtual AActor* GetInteractableOwner_Implementation() override;
 
-	virtual bool CheckHasTrap_Implementation() override;
+	virtual UInventoryWeaponAsset* GetActiveTrap_Implementation() override;
+	virtual void RemoveActiveTrap_Implementation(UInventoryWeaponAsset* InActiveTrap) override;
+	
 	virtual bool HasInventory_Implementation() override;
 
 private:
