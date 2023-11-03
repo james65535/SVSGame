@@ -44,7 +44,11 @@ void ASpyVsSpyGameMode::RestartPlayer(AController* NewPlayer)
 
 void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Game Mode was notified Player %s is ready"), *InPlayerState->GetPlayerName());
+	const uint8 TotalPlayers = GetNumPlayers();
+	UE_LOG(SVSLogDebug, Log, TEXT("Game Mode was notified Player %s is ready with number of total players: %i"),
+		*InPlayerState->GetPlayerName(),
+		TotalPlayers);
+	
 	if(CheckAllPlayersStatus(EPlayerGameStatus::Ready))
 	{
 		UE_LOG(SVSLogDebug, Log, TEXT("All players are ready, attempting to start game"));

@@ -14,8 +14,6 @@
 #include "Components/TimelineComponent.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
-#include "net/UnrealNetwork.h"
-#include "Net/Core/PushModel/PushModel.h"
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
 {
@@ -80,11 +78,7 @@ void ASVSRoom::BeginPlay()
 		AppearTimeline->SetTimelineFinishedFunc(OnAppearTimelineFinish);
 	}
 	else { UE_LOG(SVSLog, Warning, TEXT("Room Appear Timeline Curve not valid")); }
-
-	/** Add delegate for Room Trigger overlaps */
-	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
-	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
-
+	
 	/** Set initial state of the warp in/out effect */
 	// TODO Check if we need to do this for each component - Walls / Floor(s)
 	GetDynamicMeshComponent()->SetCustomPrimitiveDataFloat(0, VisibilityDirection);
@@ -110,6 +104,12 @@ void ASVSRoom::BeginPlay()
 			else { UE_LOG(SVSLogDebug, Log, TEXT("This Room does not have a reference to Room Manager")); }
 		}
 	}
+
+	UE_LOG(SVSLogDebug, Log, TEXT("Room adding overlap delegates"));
+	/** Add delegate for Room Trigger overlaps */
+	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
+	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
+	
 }
 
 void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* RequestingCharacter, const bool bHideCharacters)
@@ -121,6 +121,12 @@ void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* Requesting
 	/** Look for other spies in room and adjust their visiblity occordingly */
 	for (ASpyCharacter* Spy : OccupyingSpyCharacters)
 	{
+		UE_LOG(SVSLogDebug, Log, TEXT("%s character: %s requested spy: %s hidden: %s"),
+			RequestingCharacter->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+			*RequestingCharacter->GetName(),
+			*Spy->GetName(),
+			bHideCharacters ? *FString("True") : *FString("False"));
+		
 		if (Spy != RequestingCharacter)
 		{ Spy->SetSpyHidden(bHideCharacters); }
 	}
@@ -190,7 +196,7 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	bRoomLocallyHiddenInGame = false; // Also used in timeline finished func to make Static Meshes Visible
 	SetActorHiddenInGame(bRoomLocallyHiddenInGame);
 	const FVanishPrimitiveData CustomPrimitiveData = SetRoomTraversalDirection(InSpyCharacter, true);
-	//UE_LOG(SVSLogDebug, Log, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
+	// UE_LOG(SVSLogDebug, Log, TEXT("Room Enter Prim Data - Axis: %f, Traversal: %f, AxisDirection: %f"), CustomPrimitiveData.Axis, CustomPrimitiveData.Traversal, CustomPrimitiveData.AxisDirection);
 		
 	/** Update Walls */
 	TArray<UDynamicWall*> WallSet;
@@ -250,16 +256,18 @@ void ASVSRoom::HideRoom(const ASpyCharacter* InSpyCharacter)
 
 void ASVSRoom::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 {
-	if (GetLocalRole() == ROLE_SimulatedProxy) { return; }
+	if (GetLocalRole() == ROLE_SimulatedProxy) { return; } // TODO test below
+	//if (OtherActor->GetLocalRole() == ROLE_SimulatedProxy) { return; }
 
 	if(ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(OtherActor))
 	{
 		if (IsValid(RoomManager) && HasAuthority())
 		{ RoomManager->SetRoomOccupied(this, true, SpyCharacter); }
+		
 		OccupyingSpyCharacters.Emplace(SpyCharacter);
 		
 		/** Run client only Unhide logic */
-		if (SpyCharacter->IsLocallyControlled())
+		if (SpyCharacter->GetLocalRole() == ROLE_AutonomousProxy)
 		{ UnHideRoom(SpyCharacter); }
 	}
 }

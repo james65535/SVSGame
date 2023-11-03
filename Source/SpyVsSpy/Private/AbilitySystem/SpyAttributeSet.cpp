@@ -6,7 +6,7 @@
 #include "AttributeSet.h"
 #include "GameplayEffectExtension.h"
 #include "SVSLogger.h"
-#include "net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 
 USpyAttributeSet::USpyAttributeSet()
 {

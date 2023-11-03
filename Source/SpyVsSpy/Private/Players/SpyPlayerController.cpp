@@ -26,7 +26,6 @@ void ASpyPlayerController::BeginPlay()
 	Super::BeginPlay();
 
 	SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	check(SpyGameState);
 
 	/** Player HUD related Tasks */
 	if (!IsRunningDedicatedServer())
@@ -295,7 +294,7 @@ void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }
 
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s called displaycharinv"),
+	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s called displaycharinventory"),
 		IsLocalController() ? *FString("Local") : *FString("Not Local"),
 		*SpyCharacter->GetName());
 	SpyPlayerHUD->DisplayCharacterInventory(SpyCharacter->GetPlayerInventoryComponent());

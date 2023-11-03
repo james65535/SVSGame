@@ -83,7 +83,7 @@ private:
 	
 	/** Allows Game Mode to determine if a single or multiplayer game is intended */
 	UPROPERTY(EditAnywhere, Category = "SVS|GameMode")
-	int32 NumExpectedPlayers = 1;
+	int32 NumExpectedPlayers = 2;
 	/** Setter to specify if a single or multiplayer game is intended */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameMode")
 	void SetNumExpectedPlayers(const int32 InNumExpectedPlayers) { NumExpectedPlayers = InNumExpectedPlayers; }

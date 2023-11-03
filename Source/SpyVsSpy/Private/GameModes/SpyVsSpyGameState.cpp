@@ -8,7 +8,7 @@
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryComponent.h"
 #include "Rooms/RoomManager.h"
-#include "net/UnrealNetwork.h"
+#include "Engine/Public/Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Players/SpyPlayerController.h"
 #include "Players/SpyCharacter.h"

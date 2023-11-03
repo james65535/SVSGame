@@ -9,25 +9,19 @@
 #include "Components/TimelineComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Rooms/SVSDynamicDoor.h"
-#include "net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
 UDoorInteractionComponent::UDoorInteractionComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-	
-
 	DoorState = EDoorState::Closed;
 	DoorTransitionTimeline = CreateDefaultSubobject<UTimelineComponent>("Door Transition Timeline");
 	TimelineDirection = ETimelineDirection::Forward;
+
+
 }
 
 void UDoorInteractionComponent::BeginPlay()
 {
-
-	
 	Super::BeginPlay();
 
 	if (IsValid(DoorTransitionTimelineCurve))
@@ -46,6 +40,9 @@ void UDoorInteractionComponent::BeginPlay()
 	}
 	else
 	{ UE_LOG(SVSLog, Warning, TEXT("Door transition timeline curve not valid")); }
+
+	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanelMesh())
+	{ StartRotation = DoorPanel->GetRelativeRotation(); }
 }
 
 bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequester)

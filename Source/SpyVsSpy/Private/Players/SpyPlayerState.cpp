@@ -8,7 +8,7 @@
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Kismet/GameplayStatics.h"
-#include "net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Players/SpyCharacter.h"
 #include "Players/SpyHUD.h"

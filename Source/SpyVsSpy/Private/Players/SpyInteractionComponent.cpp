@@ -6,9 +6,8 @@
 #include "SVSLogger.h"
 #include "Items/InteractInterface.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
-#include "Players/SpyCharacter.h"
 
 USpyInteractionComponent::USpyInteractionComponent()
 {
@@ -113,15 +112,6 @@ TScriptInterface<IInteractInterface> USpyInteractionComponent::RequestInteractWi
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
 	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return nullptr; }
-	
-	// if (LatestInteractableComponentFound->Execute_CheckHasTrap(LatestInteractableComponentFound.GetObjectRef()))
-	// {
-	// 	if (ASpyCharacter* OwnerSpyCharacter = GetOwner<ASpyCharacter>())
-	// 	{ OwnerSpyCharacter->RequestTrapTrigger(); }
-	// 	return LatestInteractableComponentFound;
-	// }
-	//
-	// S_RequestBasicInteractWithObject();
 
 	return LatestInteractableComponentFound;
 }

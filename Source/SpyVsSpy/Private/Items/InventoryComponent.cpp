@@ -10,7 +10,7 @@
 #include "Items/InventoryWeaponAsset.h"
 #include "UObject/PrimaryAssetId.h"
 #include "GameFramework/GameModeBase.h"
-#include "net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Players/SpyCharacter.h"
 #include "Players/SpyPlayerController.h"
@@ -43,7 +43,7 @@ void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPr
 
 	if (IsValid(GetWorld()->GetAuthGameMode()))
 	{
-		for (const FPrimaryAssetId PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
+		for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 		{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
 	}
 }
@@ -53,7 +53,7 @@ void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 	UE_LOG(SVSLogDebug, Log, TEXT(
 		"InventoryComponent running onrep with pids to load: %i"),
 		PrimaryAssetIdsToLoad.Num());
-	for (const FPrimaryAssetId PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
+	for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 	{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
 
 	/** If this load is done on a client while they are playing then display contents of inventory in UI */
@@ -173,8 +173,9 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 		}
 		else
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but cast failed"),
-				*GetOwner()->GetName());
+			UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but cast failed for object: %s"),
+				*GetOwner()->GetName(),
+				IsValid(AssetManagerObject) ? *AssetManagerObject->GetName() : *FString("Null object"));
 		}
 	}
 	else

@@ -33,5 +33,9 @@
 			"Name": "NiagaraFluids",
 			"Enabled": true
 		}
+	],
+	"TargetPlatforms": [
+		"Linux",
+		"Windows"
 	]
 }

@@ -30,7 +30,7 @@
 #include "Rooms/RoomManager.h"
 #include "Rooms/SVSRoom.h"
 #include "Rooms/SpyFurniture.h"
-#include "net/UnrealNetwork.h"
+#include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
@@ -145,9 +145,13 @@ void ASpyCharacter::BeginPlay()
 	GetLocalRole() == ROLE_SimulatedProxy ? bIsHiddenInGame = true : bIsHiddenInGame = false;
 	SetSpyHidden(bIsHiddenInGame);
 
+	// TODO test
+	bHasTeleported = true;
+	
 	/** Add delegates for Character Overlaps */
 	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
 	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
+	
 	AttackZone->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentBeginOverlap);
 	AttackZone->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentEndOverlap);
 }
@@ -167,6 +171,11 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		 * we provide need a way to avoid this check at start of game */
 		if (!IsValid(CurrentRoom) || bHasTeleported)
 		{
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character %s overlapped room %s at start of game"),
+				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				*GetName(),
+				*RoomEntering->GetName());
+			
 			/** Reset flag and process room change */
 			bHasTeleported = false;
 			ProcessRoomChange(RoomEntering);
@@ -199,7 +208,7 @@ void ASpyCharacter::OnAttackComponentBeginOverlap(UPrimitiveComponent* Overlappe
 	bAttackHitFound = true;
 	HandlePrimaryAttackOverlap(OtherActor);
 
-	// TODO move back to ability system component notify
+	// TODO move back to ability system component notify or use this for hitting any other object
 	// UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,
 	// 	AttackImpactSpark,
 	// 	AttackZone->GetComponentLocation(),
@@ -286,11 +295,6 @@ void ASpyCharacter::PrimaryAttackWindowStarted()
 	{ return; }
 
 	SetEnabledAttackState(true);
-
-	
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s PrimaryAttackWindowStarted called"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
 }
 
 void ASpyCharacter::PrimaryAttackWindowCompleted()
@@ -1022,7 +1026,10 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 	// TODO add getting for singular asset so we don't have to use arrays here
 	TArray<UInventoryBaseAsset*> InventoryAssets;
 	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	if (InventoryAssets.Num() > 0 && IsValid(InventoryAssets[ActiveWeaponInventoryIndex]))
+	if (InventoryAssets.Num() > 0 &&
+		ActiveWeaponInventoryIndex >= 0 &&
+		ActiveWeaponInventoryIndex < InventoryAssets.Num() &&
+		IsValid(InventoryAssets[ActiveWeaponInventoryIndex]))
 	{
 		if (UInventoryWeaponAsset* FoundWeaponItem = Cast<UInventoryWeaponAsset>(
 			InventoryAssets[ActiveWeaponInventoryIndex]))
@@ -1043,6 +1050,15 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 				IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"),
 				IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"));
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT(
+			"%s Spy: %s replicated weaponindex: %i with collection total %i"),
+			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+			*GetName(),
+			ActiveWeaponInventoryIndex,
+			InventoryAssets.Num());
 	}
 }
 
