@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "UIElementWidget.generated.h"
 
+struct FServerLobbyEntry;
 class UUIElementWidget;
 class UInventoryComponent;
 struct FGameResult;
@@ -100,6 +101,9 @@ public:
 	void DisplayGameModeUI();
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void UpdateDisplayedPlayerStatus(EPlayerGameStatus InPlayerStatus);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void UpdatePlayerLobby(const TArray<FServerLobbyEntry>& LobbyListing);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayGameMenu();

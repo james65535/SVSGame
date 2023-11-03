@@ -43,11 +43,10 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	FDoRepLifetimeParams OwnerOnlyPushedRepNotifyAlwaysParams;
-	OwnerOnlyPushedRepNotifyAlwaysParams.bIsPushBased = true;
-	OwnerOnlyPushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
-	//OwnerOnlyPushedRepNotifyAlwaysParams.Condition = COND_OwnerOnly;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, OwnerOnlyPushedRepNotifyAlwaysParams);
+	FDoRepLifetimeParams PushedRepNotifyAlwaysParams;
+	PushedRepNotifyAlwaysParams.bIsPushBased = true;
+	PushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, PushedRepNotifyAlwaysParams);
 
 	FDoRepLifetimeParams PushedRepNotifyParams;
 	PushedRepNotifyParams.bIsPushBased = true;
@@ -262,9 +261,18 @@ void ASpyPlayerState::OnPlayerReachedEnd()
 
 void ASpyPlayerState::OnRep_CurrentStatus()
 {
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{
+		SpyGameState->SetServerLobbyEntry(
+			GetPlayerName(),
+			BP_GetUniqueId(),
+			GetCurrentStatus(),
+			GetPingInMilliseconds());
+	}
+		
 	if (!IsValid(GetPlayerController()) || IsRunningDedicatedServer())
 	{ return; }
-	
+
 	if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(GetPlayerController()->GetHUD()))
 	{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 }
@@ -282,6 +290,21 @@ void ASpyPlayerState::OnRep_PlayerId()
 {
 	Super::OnRep_PlayerId();
 	UE_LOG(SVSLogDebug, Log, TEXT("Playerstate ID: %i Role: %hhd"), GetPlayerId(), GetLocalRole());
+}
+
+void ASpyPlayerState::OnDeactivated()
+{
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{
+		SpyGameState->SetServerLobbyEntry(
+		"",
+		BP_GetUniqueId(),
+		EPlayerGameStatus::None,
+		0.0f,
+		true);
+	}
+	
+	Super::OnDeactivated();
 }
 
 void ASpyPlayerState::SavePlayerDelegate(const FString& SlotName, const int32 UserIndex, bool bSuccess)

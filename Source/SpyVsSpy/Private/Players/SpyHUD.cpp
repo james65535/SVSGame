@@ -10,7 +10,6 @@
 #include "UI/UIElementAsset.h"
 #include "Players/SpyPlayerController.h"
 #include "Items/InventoryComponent.h"
-#include "Players/SpyCharacter.h"
 
 void ASpyHUD::BeginPlay()
 {
@@ -146,6 +145,17 @@ void ASpyHUD::UpdateResults(const TArray<FGameResult>& InResults) const
 {
 	checkfSlow(LevelEndWidget, "PlayerHUD attempted to update results but LevelEndWidget was null");
 	LevelEndWidget->UpdateResults(InResults);
+}
+
+void ASpyHUD::UpdateServerLobby(TArray<FServerLobbyEntry>& LobbyListings) const
+{
+	if (!IsValid(LevelMenuWidget))
+	{ return; }
+
+	UE_LOG(SVSLogDebug, Log, TEXT("SpyHUD Update Lobby Listings with %i entries"),
+		LobbyListings.Num());
+	
+	LevelMenuWidget->UpdatePlayerLobby(LobbyListings);
 }
 
 void ASpyHUD::RemoveResults()

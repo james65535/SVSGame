@@ -44,6 +44,17 @@ void ASpyVsSpyGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyMatchStartTime, SharedParamsRepNotifyChanged);
 }
 
+void ASpyVsSpyGameState::AddPlayerState(APlayerState* PlayerState)
+{
+	Super::AddPlayerState(PlayerState);
+
+	for (APlayerState* PlayerStateToRep : PlayerArray)
+	{
+		if (ASpyPlayerState* SpyPlayerStateToRep = Cast<ASpyPlayerState>(PlayerStateToRep))
+		{ SpyPlayerStateToRep->OnRep_CurrentStatus(); }
+	}
+}
+
 void ASpyVsSpyGameState::BeginPlay()
 {
 	/** Load RoomManager and persist reference for replication to clients */
@@ -88,6 +99,28 @@ void ASpyVsSpyGameState::SetAllPlayerGameStatus(const EPlayerGameStatus InPlayer
 		if (IsValid(SpyPlayerState) && !SpyPlayerState->IsSpectator())
 		{ SpyPlayerState->SetCurrentStatus(InPlayerGameStatus); }
 	}
+}
+
+void ASpyVsSpyGameState::SetServerLobbyEntry(const FString InPLayerName,
+	const FUniqueNetIdRepl& PlayerStateUniqueId, const EPlayerGameStatus SpyPLayerCurrentStatus, const float Ping, const bool bRemoveEntry)
+{
+	if (!PlayerStateUniqueId.IsValid())
+	{ return; }
+	
+	if (!bRemoveEntry)
+	{
+		FServerLobbyEntry LobbyEntry = FServerLobbyEntry(InPLayerName, SpyPLayerCurrentStatus, Ping);
+		ServerLobbyEntries.Emplace(PlayerStateUniqueId, LobbyEntry);
+	}
+	else
+	{ ServerLobbyEntries.Remove(PlayerStateUniqueId); }
+
+	OnServerLobbyUpdate.Broadcast();
+}
+
+void ASpyVsSpyGameState::GetServerLobbyEntry(TArray<FServerLobbyEntry>& LobbyListings)
+{
+	ServerLobbyEntries.GenerateValueArray(LobbyListings);
 }
 
 void ASpyVsSpyGameState::SetGameType(const ESVSGameType InGameType)

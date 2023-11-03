@@ -84,6 +84,9 @@ public:
 	void UpdateResults(const TArray<FGameResult>& InResults) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void UpdateServerLobby(TArray<FServerLobbyEntry>& LobbyListings) const;
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void RemoveResults();
 	
 	/** Display the Game Menu HUD within a Level */

@@ -75,6 +75,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void ConnectToServer(const FString InServerAddress);
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void OnServerLobbyUpdateDelegate();
 	
 	// UFUNCTION(NetMulticast, Reliable, Category = "SVS|Controller")
 	// void NM_SetControllerGameInputMode(const EPlayerInputMode InRequestedInputMode);

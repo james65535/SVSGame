@@ -42,6 +42,10 @@ public:
 	ASpyPlayerState();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/** OnRep Callbacks */
+	UFUNCTION()
+	virtual void OnRep_CurrentStatus();
+
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities")
 	USpyAbilitySystemComponent* GetSpyAbilitySystemComponent() const { return AbilitySystemComponent; }
@@ -87,6 +91,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void OnRep_PlayerName() override;
 	virtual void OnRep_PlayerId() override;
+	virtual void OnDeactivated() override;
 
 	/** Ability System */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SVS|Abilities")
@@ -118,8 +123,7 @@ private:
 	/** Player Status in the game */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")
 	EPlayerGameStatus CurrentStatus = EPlayerGameStatus::None;
-	UFUNCTION()
-	virtual void OnRep_CurrentStatus();
+
 
 	/** Game result winner state */
 	bool bIsWinner = false;

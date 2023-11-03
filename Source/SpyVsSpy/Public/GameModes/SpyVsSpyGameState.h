@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
+#include "Players/SpyPlayerState.h"
 #include "SpyVsSpyGameState.generated.h"
 
 class ASpyPlayerState;
@@ -51,6 +52,40 @@ struct FGameResult
 	bool bCompletedMission = false;
 };
 
+
+USTRUCT(BlueprintType)
+struct FServerLobbyEntry
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	FString SpyName = "Null";
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	EPlayerGameStatus SpyPlayerStatus;
+	
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	float Ping;
+
+	// TODO for multi-match score keeping
+	// UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
+	// uint8 Score;
+
+	FServerLobbyEntry()
+	{
+		SpyName = "Null";
+		SpyPlayerStatus = EPlayerGameStatus::None;
+		Ping = 0.0f;
+	}
+
+	FServerLobbyEntry(FString InSpyName, EPlayerGameStatus InSpyPlayerStatus, float InPing)
+	{
+		SpyName = InSpyName;
+		SpyPlayerStatus = InSpyPlayerStatus;
+		Ping = InPing;
+	}
+};
+
 /**
  * Track state related to online multiplayer versus game mode
  */
@@ -61,6 +96,8 @@ struct FGameResult
 DECLARE_MULTICAST_DELEGATE_OneParam(FGameTypeUpdateDelegate, ESVSGameType);
 /** Notify listeners match has started with the match start time */
 DECLARE_MULTICAST_DELEGATE_OneParam(FStartMatch, const float);
+/** Notify listeners server player lobby has updated */
+DECLARE_MULTICAST_DELEGATE(FServerLobbyUpdate);
 
 UCLASS()
 class SPYVSSPY_API ASpyVsSpyGameState : public AGameState
@@ -75,6 +112,8 @@ public:
 	/** Class Overrides */
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	/** Add PlayerState to the PlayerArray */
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetSpyMatchState(const ESpyMatchState InSpyMatchState);
@@ -119,6 +158,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetAllPlayerGameStatus(const EPlayerGameStatus InPlayerGameStatus);
 
+	/** manage listing of players and relevant info used by lobby UI element */
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void SetServerLobbyEntry(const FString InPLayerName,
+	const FUniqueNetIdRepl& PlayerStateUniqueId, EPlayerGameStatus SpyPLayerCurrentStatus, float Ping, const bool bRemoveEntry = false);
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void GetServerLobbyEntry(TArray<FServerLobbyEntry>& LobbyListings);
+	FServerLobbyUpdate OnServerLobbyUpdate;
 protected:
 
 	/** Item array with which a player must fully possess to complete the map */
@@ -128,6 +174,9 @@ protected:
 	/** Starting Match Time - Independent from game match time */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetSpyMatchStartTime(const float InMatchStartTime);
+
+	/** manage listing of players and relevant info used by lobby UI element */
+	TMap<const FUniqueNetIdRepl, FServerLobbyEntry> ServerLobbyEntries;
 
 	/** Game Time Values */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")

@@ -37,6 +37,7 @@ void ASpyPlayerController::BeginPlay()
 		/** If Local game as listener or single player then Grab Gametype, otherwise use delegate to update on replication */
 		UpdateHUDWithGameUIElements(SpyGameState->GetGameType());
 		SpyGameState->OnGameTypeUpdateDelegate.AddUObject(this, &ThisClass::UpdateHUDWithGameUIElements);
+		SpyGameState->OnServerLobbyUpdate.AddUObject(this, &ThisClass::OnServerLobbyUpdateDelegate);
 	}
 
 	/* Set Enhanced Input Mapping Context to Game Context */
@@ -239,6 +240,17 @@ void ASpyPlayerController::ConnectToServer(const FString InServerAddress)
 {
 	if (InServerAddress.IsEmpty()) { return; }
 	ClientTravel(InServerAddress, TRAVEL_Absolute, false);
+}
+
+void ASpyPlayerController::OnServerLobbyUpdateDelegate()
+{
+	SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	if (!IsValid(SpyGameState) || !IsValid(SpyPlayerHUD))
+	{ return; }
+
+	TArray<FServerLobbyEntry> LobbyListings;
+	SpyGameState->GetServerLobbyEntry(LobbyListings);
+	SpyPlayerHUD->UpdateServerLobby(LobbyListings);
 }
 
 void ASpyPlayerController::SetPlayerName(const FString& InPlayerName)
