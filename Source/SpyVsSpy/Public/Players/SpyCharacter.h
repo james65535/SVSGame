@@ -80,6 +80,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	UInventoryWeaponAsset* GetHeldWeapon() const { return CurrentHeldWeapon; }
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	uint8 SpyTeam = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UStaticMeshComponent* HatMeshComponent;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* TorsoTeamAMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* LegsTeamAMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* HatTeamAMaterialInstance;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* TorsoTeamBMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* LegsTeamBMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* HatTeamBMaterialInstance;
+
 #pragma region="Health"
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Character")
 	FCharacterDiedDelegate OnCharacterDied;

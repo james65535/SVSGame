@@ -16,6 +16,7 @@
 #include "Items/InventoryComponent.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryWeaponAsset.h"
+#include "Items/InventoryTrapAsset.h"
 #include "UI/GameUIElementsRegistry.h"
 #include "UI/UIElementAsset.h"
 #include "GameModes/SpyVsSpyGameState.h"
@@ -365,49 +366,29 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is attempting to place a trap in an interactable actor"),
 		IsLocalController() ? *FString("Local") : *FString("Not Local"),
 		*GetCharacter()->GetName());
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("Place trap - HasInterComp: %s HasInvComp %s Furniture HasInv: %s HasWeapon %s WeaponNotTrap: TBD"),
+
+	TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent();
+
+	if (!IsValid(TargetInteractionComponent.GetObjectRef()) ||
+		!IsValid(SpyCharacter->GetHeldWeapon()) ||
+		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT(
+			"Place trap invalid check - HasInterComp: %s HasInvComp %s Target Furniture %s HasWeapon %s WeaponNotTrap: %s"),
 			IsValid(SpyCharacter->GetInteractionComponent()) ? *FString("True") : *FString("False"),
 			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"),
-			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent()->Execute_HasInventory(SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()) ? *FString("True") : *FString("False"),
+			IsValid(TargetInteractionComponent.GetObjectRef()) ? *FString("True") : *FString("False"), 
+			IsValid(SpyCharacter->GetHeldWeapon()) ? *FString("True") : *FString("False"),
 			IsValid(SpyCharacter->GetHeldWeapon()) ? *FString("True") : *FString("False"));
-			//SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap ? *FString("True") : *FString("False"));
-
-	if (!IsValid(SpyCharacter) ||
-		!IsValid(SpyCharacter->GetInteractionComponent()) ||
-		!SpyCharacter->GetInteractionComponent()->
-			GetLatestInteractableComponent()->
-				Execute_HasInventory(
-					SpyCharacter->GetInteractionComponent()->
-						GetLatestInteractableComponent().GetObjectRef()) ||
-		!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
-		!IsValid(SpyCharacter->GetHeldWeapon()) ||
-		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
-	{ return; }
+		return;
+	}
 	
-	// TODO refactor this more cleanly across controller and character
-	if (!IsValid(SpyCharacter) ||
-		!IsValid(SpyCharacter->GetInteractionComponent()) ||
-		!SpyCharacter->GetInteractionComponent()->
-			GetLatestInteractableComponent()->
-				Execute_HasInventory(
-					SpyCharacter->GetInteractionComponent()->
-						GetLatestInteractableComponent().GetObjectRef()) ||
-		!IsValid(SpyCharacter->GetPlayerInventoryComponent()) ||
-		!IsValid(SpyCharacter->GetHeldWeapon()) ||
-		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
-	{ return; }
-
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has placed a trap in an interactable actor"),
-		IsLocalController() ? *FString("Local") : *FString("Not Local"),
-		*GetCharacter()->GetName());
-
-	SpyCharacter->
-		GetInteractionComponent()->
-			GetLatestInteractableComponent()->
-				Execute_GetInventory(SpyCharacter->GetInteractionComponent()->
-					GetLatestInteractableComponent().GetObjectRef())->
-						SetActiveTrap(SpyCharacter->GetHeldWeapon());
+	if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon()))
+	{
+		TargetInteractionComponent->Execute_GetInventory(
+			TargetInteractionComponent.GetObjectRef())->
+		SetActiveTrap(HeldTrap);
+	}
 }
 
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds()

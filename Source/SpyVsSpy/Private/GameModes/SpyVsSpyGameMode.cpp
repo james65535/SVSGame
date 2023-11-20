@@ -118,7 +118,8 @@ void ASpyVsSpyGameMode::StartGame()
 	if (IsValid(SpyItemWorldSubsystem) && SpyItemWorldSubsystem->AllItemsVerifiedLoaded())
 	{
 		SpyItemWorldSubsystem->DistributeItems(SpyMissionItemTypeToDistributed, ASpyFurniture::StaticClass());
-		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass()); 
+		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(SpyTrapItemTypeToDistributed, ASpyCharacter::StaticClass());
 	}
 
 	/** Start game for network clients */

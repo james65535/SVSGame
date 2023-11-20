@@ -92,7 +92,7 @@ private:
 	
 	/** Door Open Rotation Properties */
 	FRotator StartRotation = FRotator::ZeroRotator;
-	FRotator FinalRotation = FRotator(0.0f, 90.0f, 0.0f);
+	FRotator FinalRotation = FRotator::ZeroRotator;
 	UPROPERTY(EditAnywhere)
 	float TimeToRotate = 1.0f;
 	float CurrentRotationTime = 0.0f;

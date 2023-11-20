@@ -58,6 +58,8 @@ void ASpyPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SetPlayerName(DefaultSpyName);
+	
 	/** Update player controller with pointer to self */
 	if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetPlayerController()))
 	{
@@ -284,6 +286,21 @@ void ASpyPlayerState::OnRep_PlayerName()
 	if (const ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(
 		GetPlayerController()))
 	{ SpyPlayerController->OnPlayerStateReceived.Broadcast(); }
+
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{
+		SpyGameState->SetServerLobbyEntry(
+			GetPlayerName(),
+			BP_GetUniqueId(),
+			GetCurrentStatus(),
+			GetPingInMilliseconds());
+	}
+		
+	if (!IsValid(GetPlayerController()) || IsRunningDedicatedServer())
+	{ return; }
+
+	if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(GetPlayerController()->GetHUD()))
+	{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 }
 
 void ASpyPlayerState::OnRep_PlayerId()

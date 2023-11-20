@@ -7,6 +7,7 @@
 #include "FurnitureInteractionComponent.generated.h"
 
 class UInventoryBaseAsset;
+class UInventoryTrapAsset;
 
 /**
  * 
@@ -24,7 +25,7 @@ public:
 
 	virtual UInventoryComponent* GetInventory_Implementation() override;
 	virtual void GetInventoryListing_Implementation(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) override;
-	virtual UInventoryWeaponAsset* GetActiveTrap_Implementation() override;
-	virtual void RemoveActiveTrap_Implementation(UInventoryWeaponAsset* InActiveTrap) override;
+	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
+	virtual void RemoveActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
 	virtual bool HasInventory_Implementation() override;
 };

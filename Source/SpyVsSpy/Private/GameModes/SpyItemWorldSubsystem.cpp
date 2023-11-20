@@ -9,6 +9,7 @@
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryBaseAsset.h"
 #include "Items/InventoryComponent.h"
+#include "Rooms/FurnitureInteractionComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Players/SpyCharacter.h"
 #include "Rooms/SpyFurniture.h"
@@ -70,7 +71,8 @@ void USpyItemWorldSubsystem::LoadItemAssetFromAssetId(const FPrimaryAssetId& InI
 void USpyItemWorldSubsystem::OnItemAssetLoadFromAssetId(const FPrimaryAssetId InItemAssetId)
 {
 	const UAssetManager* AssetManager = UAssetManager::GetIfValid();
-	if (!IsValid(AssetManager) || !IsValid(AssetManager->GetPrimaryAssetObject(InItemAssetId)))
+	if (!IsValid(AssetManager) ||
+		!IsValid(AssetManager->GetPrimaryAssetObject(InItemAssetId)))
 	{ return; }
 
 	TotalItemsRequestedAndLoaded++;
@@ -144,12 +146,15 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyCharacter::StaticClass(), WorldActors);
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
+
 		/** convert object types and get primary asset ids */
 		TArray<FPrimaryAssetId> InventoryBaseAssetPrimaryAssetIdCollection;
 		for (UObject* AssetManagerObject : AssetManagerObjectList)
 		{
 			if (const UInventoryBaseAsset* AssetToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject))
-			{ InventoryBaseAssetPrimaryAssetIdCollection.Emplace(AssetToAdd->GetPrimaryAssetId()); }
+			{
+				InventoryBaseAssetPrimaryAssetIdCollection.AddUnique(AssetToAdd->GetPrimaryAssetId());
+			}
 		}
 
 		UE_LOG(SVSLogDebug, Log, TEXT("SpyItemSubsystem distribute items found %i actors and %i items"),
@@ -159,10 +164,13 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		for (AActor* WorldActor : WorldActors)
 		{
 			if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(WorldActor))
-			{ SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(InventoryBaseAssetPrimaryAssetIdCollection); }
+			{
+				SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(InventoryBaseAssetPrimaryAssetIdCollection);
+			}
 			else
 			{
-				UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem could not find a actor for items of type: %s"),
+				UE_LOG(SVSLog, Warning, TEXT(
+					"SpyItemSubsystem could not find a actor for items of type: %s"),
 					*ItemToDistributeAssetType.GetName().ToString());
 			}
 		}
@@ -181,15 +189,17 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 			const int32 RandomIndex = FMath::RandRange(0, RandomIndexMax); 
 			const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(WorldActors[RandomIndex]);
 			const FPrimaryAssetId ObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
-
+			const UFurnitureInteractionComponent* FurnitureInteractionComponent = SpyFurniture->GetInteractionComponent();
 			const UInventoryBaseAsset* InventoryItemToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject);
 			if (IsValid(SpyFurniture) &&
+				IsValid(FurnitureInteractionComponent) &&
+				FurnitureInteractionComponent->IsInteractionEnabled() &&
 				IsValid(SpyFurniture->GetInventoryComponent()) &&
 				IsValid(InventoryItemToAdd) &&
 				RandomIndex >= 0)
 			{
 				TArray<FPrimaryAssetId> AssetPrimaryIdsToAdd;
-				AssetPrimaryIdsToAdd.Emplace(ObjectPrimaryAssetId);
+				AssetPrimaryIdsToAdd.AddUnique(ObjectPrimaryAssetId);
 				SpyFurniture->GetInventoryComponent()->SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
 
 				/** Remove actor from candidates so we don't put all items in one basket */

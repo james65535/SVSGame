@@ -41,8 +41,12 @@ void UDoorInteractionComponent::BeginPlay()
 	else
 	{ UE_LOG(SVSLog, Warning, TEXT("Door transition timeline curve not valid")); }
 
-	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanelMesh())
-	{ StartRotation = DoorPanel->GetRelativeRotation(); }
+	if (const UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(
+		GetOwner())->GetDoorPanelMesh())
+	{
+		StartRotation = DoorPanel->GetRelativeRotation();
+		FinalRotation = StartRotation + FRotator(0.0f, 90.0f, 0.0f);
+	}
 }
 
 bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequester)

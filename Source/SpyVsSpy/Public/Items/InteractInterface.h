@@ -8,6 +8,7 @@
 
 class UInventoryComponent;
 class UInventoryBaseAsset;
+class UInventoryTrapAsset;
 class UInventoryItemComponent;
 
 // This class does not need to be modified.
@@ -44,7 +45,7 @@ public:
 	AActor* GetInteractableOwner();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	UInventoryWeaponAsset* GetActiveTrap();
+	UInventoryTrapAsset* GetActiveTrap();
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	void RemoveActiveTrap(UInventoryWeaponAsset* InActiveTrap);
+	void RemoveActiveTrap(UInventoryTrapAsset* InActiveTrap);
 };

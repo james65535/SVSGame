@@ -107,6 +107,9 @@ protected:
 	/** Ability System Tags */
 	FGameplayTag SpyDeadTag;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
+	FString DefaultSpyName = "SpyGuy";
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Replicated, Category = "SVS|Player")
 	float PlayerRemainingMatchTime = 0.0f;
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")

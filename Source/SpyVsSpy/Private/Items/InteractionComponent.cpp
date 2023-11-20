@@ -47,12 +47,12 @@ AActor* UInteractionComponent::GetInteractableOwner_Implementation()
 	return GetOwner();
 }
 
-UInventoryWeaponAsset* UInteractionComponent::GetActiveTrap_Implementation()
+UInventoryTrapAsset* UInteractionComponent::GetActiveTrap_Implementation()
 {
 	return nullptr;
 }
 
-void UInteractionComponent::RemoveActiveTrap_Implementation(UInventoryWeaponAsset* InActiveTrap)
+void UInteractionComponent::RemoveActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
 {
 	return;
 }

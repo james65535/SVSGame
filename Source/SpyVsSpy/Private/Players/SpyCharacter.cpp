@@ -2,14 +2,12 @@
 
 #include "Players/SpyCharacter.h"
 
-#include "NiagaraFunctionLibrary.h"
 #include "Players/IsoCameraActor.h"
 #include "Players/IsoCameraComponent.h"
 #include "Players/SpyPlayerController.h"
 #include "Players/SpyInteractionComponent.h"
 #include "Players/SpyCombatantInterface.h"
 #include "Players/SpyPlayerState.h"
-#include "Items/InventoryComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -23,8 +21,10 @@
 #include "Abilities/GameplayAbilityTypes.h"
 #include "Abilities/GameplayAbility.h"
 #include "GameModes/SpyVsSpyGameMode.h"
+#include "Items/InventoryComponent.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryWeaponAsset.h"
+#include "Items/InventoryTrapAsset.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/RoomManager.h"
@@ -79,6 +79,7 @@ ASpyCharacter::ASpyCharacter()
 	// TODO replace
 	AttackZone = CreateDefaultSubobject<USphereComponent>("AttackZoneSphere");
 	AttackZone->SetupAttachment(GetMesh(),"hand_rSocket");
+	AttackZone->SetVisibility(false);
 	AttackZone->SetIsReplicated(true);
 	AttackZone->SetSphereRadius(20.0f);
 	AttackZone->SetCollisionProfileName("CombatantPreset");
@@ -90,6 +91,15 @@ ASpyCharacter::ASpyCharacter()
 	{
 		WeaponMeshComponent->SetupAttachment(GetMesh(), FName("hand_rSocket"));
 		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		/** Visibility is enabled when the character has a weapon with a valid mesh in hand */
+		WeaponMeshComponent->SetVisibility(false);
+	}
+
+	HatMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("HatMeshComponent");
+	if (IsValid(HatMeshComponent))
+	{
+		HatMeshComponent->SetupAttachment(GetMesh(), FName("Hat_Socket"));
+		HatMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	}
 }
 
@@ -181,6 +191,22 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 			ProcessRoomChange(RoomEntering);
 		}
 	}
+
+	/** Setup team and mesh colours */
+	// TODO setup a more dynamic option
+	// SpyTeam = IsLocallyControlled();
+	// if (SpyTeam == 0)
+	// {
+	// 	GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamAMaterialInstance);
+	// 	GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamAMaterialInstance);
+	// 	HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
+	// }
+	// else if (SpyTeam == 1)
+	// {
+	// 	GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamBMaterialInstance);
+	// 	GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamBMaterialInstance);
+	// 	HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
+	// }
 }
 
 void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
@@ -604,9 +630,17 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName());
 
+	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
+		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
+	{
+		SetSpyHidden(true);
+		// TODO there should be a more elegant way to get them out of the way, collision, etc...
+		SetActorLocation(FVector(0.0f, 0.0f, 2000.0f));
+	}
+	
 	/** Only runs on Server */
 	if (GetLocalRole() == ROLE_Authority && GetLocalRole() != ROLE_AutonomousProxy)
-	{ RemoveCharacterAbilities();  } // TODO is this needed with cancelallabilities below?
+	{ RemoveCharacterAbilities(); } // TODO is this needed with cancelallabilities below?
 
 	if (GetLocalRole() != ROLE_SimulatedProxy || (IsValid(SpyAbilitySystemComponent)))
 	{
@@ -626,8 +660,8 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 void ASpyCharacter::FinishDeath()
 {
 	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
-	IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-	*GetName());
+		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		*GetName());
 	
 	// This is called from Server RPC
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
@@ -639,9 +673,12 @@ void ASpyCharacter::FinishDeath()
 
 	/** Removed dead state tag */
 	SpyAbilitySystemComponent->RemoveLooseGameplayTag(SpyDeadTag);
-	
-	/** Reset Character death state settings */
-	NM_SetEnableDeathState(false, GetSpyRespawnLocation());
+
+	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
+	{
+		/** Reset Character death state settings */
+		NM_SetEnableDeathState(false, GetSpyRespawnLocation());
+	}
 }
 
 void ASpyCharacter::HandlePrimaryAttackOverlap(AActor* OverlappedSpyCombatant)
@@ -743,7 +780,7 @@ void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue
 	// TODO Remove after testing
 	//SetEnabledAttackState(true);
 	
-	const bool bMontagePlayedSuccessfully = GetMesh()->GetAnimInstance()->Montage_Play(AttackMontage, 1.0f) > 0;
+	const bool bMontagePlayedSuccessfully = GetMesh()->GetAnimInstance()->Montage_Play(AttackMontage, 1.3f) > 0;
 	if (!AttackMontageEndedDelegate.IsBound())
 	{ AttackMontageEndedDelegate.BindUObject(this, &ThisClass::OnAttackMontageEnded); }
 	GetMesh()->GetAnimInstance()->Montage_SetEndDelegate(AttackMontageEndedDelegate, AttackMontage);
@@ -960,30 +997,43 @@ void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirec
 
 	if (InItemRotationDirection == EItemRotationDirection::Next)
 	{
-		if (ActiveWeaponInventoryIndex + 1 < InventoryAssets.Num())
-		{ StartIndex = ActiveWeaponInventoryIndex + 1; }
-	
-		for (; StartIndex < InventoryAssets.Num();StartIndex++)
+		StartIndex = ActiveWeaponInventoryIndex + 1;
+		if (StartIndex < InventoryAssets.Num() && StartIndex > 0)
 		{
-			UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
-			/** Quantities might be -1 which means unlimited */
-			if (IsValid(WeaponAsset))
+			for (; StartIndex < InventoryAssets.Num();StartIndex++)
 			{
-				if (WeaponAsset->Quantity != 0)
-				{ CurrentHeldWeapon = WeaponAsset; }
-				else
-				{ CurrentHeldWeapon = nullptr; }
+				UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
+				UInventoryWeaponAsset* OldWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex-1]);
+				/** Quantities might be -1 which means unlimited */
+				if (IsValid(WeaponAsset))
+				{
+					UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s potential trap: %s and old: %s"),
+						IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+						*GetName(),
+						*WeaponAsset->InventoryItemName.ToString(),
+						*OldWeaponAsset->InventoryItemName.ToString());
+					
+					if (WeaponAsset->Quantity != 0)
+					{
+						CurrentHeldWeapon = WeaponAsset;
+						SetWeaponMesh(WeaponAsset->Mesh);
+					}
+					else
+					{
+						CurrentHeldWeapon = nullptr;
+						SetWeaponMesh(nullptr);
+					}
 				
-				ActiveWeaponInventoryIndex = StartIndex;
-				MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
-				SetWeaponMesh(WeaponAsset->Mesh);
-				UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
-					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-					*GetName(),
-					ActiveWeaponInventoryIndex,
-					IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-					IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
-				return;
+					ActiveWeaponInventoryIndex = StartIndex;
+					MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
+					UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
+						IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+						*GetName(),
+						ActiveWeaponInventoryIndex,
+						IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
+						IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
+					return;
+				}
 			}
 		}
 	}
@@ -1095,7 +1145,7 @@ void ASpyCharacter::S_RequestInteract_Implementation(UObject* InInteractableActo
 		!IsValid(InteractableInterface->_getUObject()))
 	{ return; }
 	
-	if (UInventoryWeaponAsset* ActiveTrap = InteractableInterface->
+	if (UInventoryTrapAsset* ActiveTrap = InteractableInterface->
 		Execute_GetActiveTrap(InteractableInterface->_getUObject()))
 	{
 		// TODO move more of this server side for authorative info like trap damage etc..

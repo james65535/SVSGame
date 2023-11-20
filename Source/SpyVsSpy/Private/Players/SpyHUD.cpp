@@ -149,13 +149,16 @@ void ASpyHUD::UpdateResults(const TArray<FGameResult>& InResults) const
 
 void ASpyHUD::UpdateServerLobby(TArray<FServerLobbyEntry>& LobbyListings) const
 {
-	if (!IsValid(LevelMenuWidget))
+	if (!IsValid(LevelMenuWidget) || !IsValid(LevelEndWidget))
 	{ return; }
 
 	UE_LOG(SVSLogDebug, Log, TEXT("SpyHUD Update Lobby Listings with %i entries"),
 		LobbyListings.Num());
 	
-	LevelMenuWidget->UpdatePlayerLobby(LobbyListings);
+	if (LevelMenuWidget->IsVisible())
+	{ LevelMenuWidget->UpdatePlayerLobby(LobbyListings); }
+	else if (LevelEndWidget->IsVisible())
+	{ LevelEndWidget->UpdatePlayerLobby(LobbyListings); }
 }
 
 void ASpyHUD::RemoveResults()

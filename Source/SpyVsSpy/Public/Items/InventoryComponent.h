@@ -6,12 +6,21 @@
 #include "Components/ActorComponent.h"
 #include "InventoryComponent.generated.h"
 
-class UInventoryWeaponAsset;
-class UWeaponComponent;
+class UInventoryTrapAsset;
 class UInventoryItemComponent;
 class UInventoryBaseAsset;
 
 DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
+
+UENUM(BlueprintType)
+enum class EInventoryOwnerType : uint8
+{
+	None			UMETA(DisplayName = "None"),
+	Player			UMETA(DisplayName = "Player"),
+	Furniture		UMETA(DisplayName = "Furniture"),
+	Door			UMETA(DisplayName = "Door"),
+	Room			UMETA(DisplayName = "Room"),
+};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class SPYVSSPY_API UInventoryComponent : public UActorComponent
@@ -23,6 +32,11 @@ public:
 	UInventoryComponent();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	EInventoryOwnerType GetInventoryOwnerType() const { return InventoryOwnerType; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	void SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType);
+	
 	/**
 	 * @brief Is the correct way to add assets to inventory as this list replicates to clients and
 	 * clients then load assets from asset manager
@@ -38,14 +52,17 @@ public:
 	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const;
+
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void GetInventoryItemPrimaryAssetIdCollection(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) const;
-	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	UInventoryWeaponAsset* GetActiveTrap() const { return ActiveTrap; }
+
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	int GetCurrentCollectionSize() const { return InventoryCollection.Num(); }
+
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void SetActiveTrap(UInventoryWeaponAsset* InActiveTrap);
+	UInventoryTrapAsset* GetActiveTrap() const { return ActiveTrap; }
+	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
+	void SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
 	
 	FOnInventoryUpdated OnInventoryUpdated;
 
@@ -57,6 +74,9 @@ protected:
 	// TArray<UInventoryBaseAsset*> InventoryCollection;
 	// UFUNCTION()
 	// void OnRep_InventoryCollection() const;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
+	EInventoryOwnerType InventoryOwnerType = EInventoryOwnerType::None;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryCollection;
@@ -73,7 +93,7 @@ protected:
 
 	// TODO secure UPROP settings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
-	UInventoryWeaponAsset* ActiveTrap;
+	UInventoryTrapAsset* ActiveTrap;
 	// UFUNCTION()
 	// void OnRep_ActiveTrap();
 		
