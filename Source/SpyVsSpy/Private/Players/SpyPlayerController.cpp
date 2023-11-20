@@ -456,20 +456,14 @@ void ASpyPlayerController::UpdateHUDWithGameUIElements(const ESVSGameType InGame
 
 void ASpyPlayerController::RequestDisplayLevelMenu()
 {
-	if (CanProcessRequest())
-	{
-		SpyPlayerHUD->DisplayLevelMenu();
-		RequestInputMode(EPlayerInputMode::UIOnly);
-	}
+	SpyPlayerHUD->DisplayLevelMenu();
+	RequestInputMode(EPlayerInputMode::UIOnly);
 }
 
 void ASpyPlayerController::RequestHideLevelMenu()
 {
-	if (CanProcessRequest())
-	{
-		SpyPlayerHUD->HideLevelMenu();
-		RequestInputMode(EPlayerInputMode::GameOnly);
-	}
+	SpyPlayerHUD->HideLevelMenu();
+	RequestInputMode(EPlayerInputMode::GameOnly);
 }
 
 void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)

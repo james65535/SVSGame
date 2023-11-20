@@ -31,6 +31,32 @@ public:
 	float Traversal = 0.0f;
 	/** North or East(0.0) or South or West(1.0) */
 	float AxisDirection = 0.0f;
+	/** Whether to enable or disable these effects */
+	float ToggleEffectVisibility = 0.0f;
+
+	FVanishPrimitiveData()
+	{
+		/** X(0.0) or Y(1.0) Axis */
+		Axis = 0.0f;
+		/** Enter(0.0) or Exit(1.0) */
+		Traversal = 0.0f;
+		/** North or East(0.0) or South or West(1.0) */
+		AxisDirection = 0.0f;
+		/** Whether to enable or disable these effects */
+		ToggleEffectVisibility = 0.0f;
+	}
+
+	FVanishPrimitiveData(const float InAxis, const float InTraversal, const float InAxisDirection, const float InToggleVisibility)
+	{
+		/** X(0.0) or Y(1.0) Axis */
+		Axis = InAxis;
+		/** Enter(0.0) or Exit(1.0) */
+		Traversal = InTraversal;
+		/** North or East(0.0) or South or West(1.0) */
+		AxisDirection = InAxisDirection;
+		/** Whether to enable or disable these effects */
+		ToggleEffectVisibility = InToggleVisibility;
+	}
 };
 
 /** Begin Delegates */
@@ -58,13 +84,17 @@ public:
 	/** Class Overrides */
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
-	
+// #if WITH_EDITOR
+// 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+// #endif
 	/** Material properties for Warp In / Out Effect */
 	// TODO Confirm name and description
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	float VisibilityDirection = 0.0f;
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = "SVS|Room")
 	float VanishEffect = 1.0f;
+	UPROPERTY(BlueprintReadWrite, EditInstanceOnly, Category = "SVS|Room")
+	float ToggleVanishEffectVisibility = 1.0f;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
 	bool IsRoomLocallyHidden() const { return bRoomLocallyHiddenInGame; }
@@ -100,9 +130,7 @@ public:
 	bool IsFinalMissionRoom() const { return bIsFinalMissionRoom; }
 
 protected:
-
-	//virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
+	
 	UPROPERTY(BlueprintReadWrite, EditInstanceOnly, Category = "SVS|Room")
 	bool bIsFinalMissionRoom = false;
 	
@@ -111,7 +139,7 @@ private:
 	/** Unique Room Identifier used by Room Manager */
 	FGuid RoomGuid;
 
-	UPROPERTY(VisibleAnywhere, Category = "SVS|Room")
+	UPROPERTY(EditInstanceOnly, Category = "SVS|Room")
 	bool bRoomLocallyHiddenInGame = true;
 	
 	UFUNCTION()
@@ -119,15 +147,16 @@ private:
 	UFUNCTION()
 	void HideRoom(const ASpyCharacter* InSpyCharacter);
 
+	// TODO removed as this is now handled by CustomPrimitiveData
 	/** Properties Sent to Material for Warp In / Out Effect */
-	FName MPCDistanceHasEffectName = "HasEffect";
-	FName MPCDistanceEffectAxisName = "EffectAxis";
-	FName MPCDistanceVarName = "PlayerLoc";
-	UPROPERTY(EditDefaultsOnly, Category = "SVS Room")
-	UMaterialParameterCollection* WarpMPC;
-	FVector WarpEffectAxis = FVector::ZeroVector;
+	// FName MPCDistanceHasEffectName = "HasEffect";
+	// FName MPCDistanceEffectAxisName = "EffectAxis";
+	// FName MPCDistanceVarName = "PlayerLoc";
+	// UPROPERTY(EditDefaultsOnly, Category = "SVS|Room")
+	// UMaterialParameterCollection* WarpMPC;
+	// FVector WarpEffectAxis = FVector::ZeroVector;
 	/** Informs the Material the direction of player travel to handle warp in / out effect */
-	UFUNCTION(BlueprintCallable, Category = "SVS Room")
+	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
 	FVanishPrimitiveData SetRoomTraversalDirection(const ASpyCharacter* PlayerCharacter, const bool bIsEntering) const;
 
 	/** Timeline components for fade in / out effects */
@@ -153,8 +182,4 @@ private:
 	UFUNCTION()
 	void OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor);
 	TArray<ASpyCharacter*> OccupyingSpyCharacters;
-	// UPROPERTY(VisibleInstanceOnly, ReplicatedUsing=OnRep_bRoomOccupied, Category = "SVS|Room")
-	// bool bRoomOccupied; // TODO determine more robust way to handle this which provides security for player view and allows for opponent view
-	// UFUNCTION()
-	// void OnRep_bRoomOccupied() {}
 };

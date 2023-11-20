@@ -28,7 +28,7 @@ void AIsoCameraActor::BeginPlay()
 		MoveTimeline->SetTimelineLength(MoveTimelineLength);
 		MoveTimeline->SetTimelineFinishedFunc(OnMoveTimelineFinish);
 	}
-	else { UE_LOG(SVSLog, Warning, TEXT("Room Appear Timeline Curve not valid")); }
+	else { UE_LOG(SVSLog, Warning, TEXT("Iso Camera Room Appear Timeline Curve not valid")); }
 }
 
 void AIsoCameraActor::SetRoomTarget(const ASVSRoom* InRoom)

@@ -14,6 +14,7 @@
 #include "Components/TimelineComponent.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
 {
@@ -27,8 +28,6 @@ ASVSRoom::ASVSRoom() : ADynamicRoom()
 
 	/** Add room appear / vanish effect timeline */
 	AppearTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("Appear Timeline Component"));
-
-	// bRoomOccupied = false;
 }
 
 void ASVSRoom::OnConstruction(const FTransform& Transform)
@@ -50,23 +49,11 @@ void ASVSRoom::OnConstruction(const FTransform& Transform)
 	RoomGuid = UKismetGuidLibrary::NewGuid();
 }
 
-// void ASVSRoom::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-// {
-// 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-//
-// 	FDoRepLifetimeParams SharedParams;
-// 	SharedParams.bIsPushBased = true;
-// 	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
-//
-// 	DOREPLIFETIME_WITH_PARAMS_FAST(ASVSRoom, bRoomOccupied, SharedParams);
-// }
-
 void ASVSRoom::BeginPlay()
 {
 	Super::BeginPlay();
 	
 	SetActorHiddenInGame(bRoomLocallyHiddenInGame);
-
 	/** Configure room appear / vanish effect timeline */
 	if (IsValid(AppearTimelineCurve))
 	{
@@ -112,6 +99,81 @@ void ASVSRoom::BeginPlay()
 	
 }
 
+// #if WITH_EDITOR
+// void ASVSRoom::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+// {
+// 	Super::PostEditChangeProperty(PropertyChangedEvent);
+// 	
+// 	FName const PropertyName = (PropertyChangedEvent.Property != NULL) ?
+// 		PropertyChangedEvent.Property->GetFName() :
+// 		NAME_None;
+//
+// 	/** Allow devs to toggle visibility of room in editor */
+// 	FName const VanishEffectMemberName = GET_MEMBER_NAME_CHECKED(ASVSRoom, ToggleVanishEffectVisibility);
+// 	if (PropertyName == VanishEffectMemberName)
+// 	{
+// 		UE_LOG(SVSLogDebug, Log, TEXT("prop: %s changed with member name: %s "),
+// 			*PropertyName.ToString(),
+// 			*VanishEffectMemberName.ToString());
+//
+// 		/** Update Walls */
+// 		TArray<UDynamicWall*> WallSet;
+// 		Execute_GetWalls(this, WallSet);
+// 		UE_LOG(SVSLogDebug, Log, TEXT("num walls found: %i "),
+// 			WallSet.Num());
+// 		for (UDynamicWall* DynamicWall : WallSet)
+// 		{
+// 			if (UWorld* World = GEngine->GetWorldFromContextObject(
+// 					DynamicWall,
+// 					EGetWorldErrorMode::LogAndReturnNull))
+// 			{
+// 				UMaterialParameterCollectionInstance* Instance = World->GetParameterCollectionInstance(
+// 					WarpMPC);
+// 				const bool bInstanceSetParamSuccessful = Instance->SetScalarParameterValue(
+// 					FName("ToggleVanishEffectVisibility"),
+// 					ToggleVanishEffectVisibility);
+//
+// 				UE_LOG(SVSLogDebug, Log, TEXT("%s EnableVanishEffect set to: %f and was successful: %s"),
+// 					*DynamicWall->GetName(),
+// 					ToggleVanishEffectVisibility,
+// 					bInstanceSetParamSuccessful ? *FString("True") : *FString("False"));
+// 				
+// 				//UKismetMaterialLibrary::SetScalarParameterValue(DynamicWall, WarpMPC, FName("ToggleVanishEffectVisibility"), ToggleVanishEffectVisibility);
+// 			} else
+// 			{ UE_LOG(SVSLogDebug, Log, TEXT("get world failed")); }
+// 			
+// 			// DynamicWall->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+// 			// DynamicWall->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+// 			// if (IsValid(DynamicWall))
+// 			// {
+// 			// 	DynamicWall->SetScalarParameterValueOnMaterials(
+// 			// 		FName("ToggleVanishEffectVisibility"),
+// 			// 		ToggleVanishEffectVisibility);
+// 			// }
+// 		}
+//
+// 		/** Update Floor */
+// 		// Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
+// 		// Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+// 		//Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(0, CustomPrimitiveData.ToggleEffectVisibility);
+// 		if (IsValid(Execute_GetRoomFloor(this)))
+// 		{
+// 			if (UWorld* World = GEngine->GetWorldFromContextObject(Execute_GetRoomFloor(this), EGetWorldErrorMode::LogAndReturnNull))
+// 			{
+// 				UMaterialParameterCollectionInstance* Instance = World->GetParameterCollectionInstance(WarpMPC);
+// 				const bool bInstanceSetParamSuccessful = Instance->SetScalarParameterValue(FName("ToggleVanishEffectVisibility"), ToggleVanishEffectVisibility);
+// 				UE_LOG(SVSLogDebug, Log, TEXT("%s EnableVanishEffect set to: %f and was successful: %s"),
+// 					*FString("Floor"),
+// 					ToggleVanishEffectVisibility,
+// 					bInstanceSetParamSuccessful ? *FString("True") : *FString("False"));
+// 				
+// 			} else
+// 			{ UE_LOG(SVSLogDebug, Log, TEXT("get world failed")); }
+// 		}
+// 	}
+// }
+// #endif
+
 void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* RequestingCharacter, const bool bHideCharacters)
 {
 	/** Since these changes are just visual on the client then avoid running on server */
@@ -149,19 +211,19 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 			if(DistanceToPlayerCharacter.X > 0.0f)
 			{
 				/** Entering from North */
-				return FVanishPrimitiveData{0.0f, 0.0f, 0.0f};
+				return FVanishPrimitiveData{0.0f, 0.0f, 0.0f, ToggleVanishEffectVisibility};
 			}
 			/** Entering from South */
-			return FVanishPrimitiveData{0.0f, 0.0f, 1.0f};
+			return FVanishPrimitiveData{0.0f, 0.0f, 1.0f, ToggleVanishEffectVisibility};
 		}
 		/** Is Player Entering from East or West Door */
 		if(DistanceToPlayerCharacter.Y > 0.0f)
 		{
 			/** Entering from East */
-			return FVanishPrimitiveData{1.0f, 0.0f, 0.0f};
+			return FVanishPrimitiveData{1.0f, 0.0f, 0.0f, ToggleVanishEffectVisibility};
 		}
 		/** Entering from West */
-		return FVanishPrimitiveData{1.0f, 0.0f, 1.0f};
+		return FVanishPrimitiveData{1.0f, 0.0f, 1.0f, ToggleVanishEffectVisibility};
 	}
 	
 	/** Exiting */
@@ -175,19 +237,19 @@ FVanishPrimitiveData ASVSRoom::SetRoomTraversalDirection(const ASpyCharacter* Pl
 		if(DistanceToPlayerCharacter.X > 0.0f)
 		{
 			/** Exiting through North */
-			return FVanishPrimitiveData{0.0f, 1.0f, 0.0f};
+			return FVanishPrimitiveData{0.0f, 1.0f, 0.0f, ToggleVanishEffectVisibility};
 		}
 		/** Exiting through South */
-		return FVanishPrimitiveData{0.0f, 1.0f, 1.0f};
+		return FVanishPrimitiveData{0.0f, 1.0f, 1.0f, ToggleVanishEffectVisibility};
 	}
 	/** Is Player Exiting through East or West Door */
 	if(DistanceToPlayerCharacter.Y > 0.0f)
 	{
 		/** Exiting through East */
-		return FVanishPrimitiveData{1.0f, 1.0f, 0.0f};
+		return FVanishPrimitiveData{1.0f, 1.0f, 0.0f, ToggleVanishEffectVisibility};
 	}
 	/** Exiting through West */
-	return FVanishPrimitiveData{1.0f, 1.0f, 1.0f};
+	return FVanishPrimitiveData{1.0f, 1.0f, 1.0f, ToggleVanishEffectVisibility};
 }
 
 void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)

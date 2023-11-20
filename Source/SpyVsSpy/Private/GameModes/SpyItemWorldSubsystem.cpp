@@ -132,8 +132,10 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		!IsValid(AssetManager) ||
 		!ItemToDistributeAssetType.IsValid() ||
 		!AllItemsVerifiedLoaded())
-	{ UE_LOG(SVSLogDebug, Log, TEXT("SpyItemSubsystem distribute items failed validation check"));
-		return; }
+	{
+		UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem distribute items failed validation check"));
+		return;
+	}
 
 	// TODO refactor this with proper usage of tsubclassof
 	if (TargetActorClass == ASpyCharacter::StaticClass())
@@ -171,34 +173,38 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyFurniture::StaticClass(), WorldActors);
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
-
-		UE_LOG(SVSLogDebug, Log, TEXT("SpyItemSubsystem distribute items found %i actors and %i items"),
-			WorldActors.Num(),
-			AssetManagerObjectList.Num());
 	
-		const int32 RandomRangeMax = WorldActors.Num() - 1;
+		uint8 RandomIndexMax = WorldActors.Num() - 1;
 		for (UObject* AssetManagerObject : AssetManagerObjectList)
 		{
-			const int32 RandomIntFromRange = FMath::RandRange(0, RandomRangeMax); // refactor to re-roll til happy
-			ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(WorldActors[RandomIntFromRange]);
-			const FPrimaryAssetId AssetManagerObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
-			UE_LOG(SVSLogDebug, Log, TEXT(
-				"SpyItemSubsystem calling NM_DistributeItem for furniture: %s and AssetManagerObjectPrimaryAssetId: %s"),
-				*SpyFurniture->GetName(),
-				*AssetManagerObjectPrimaryAssetId.PrimaryAssetName.ToString());
+			// TODO refactor to re-roll til happy
+			const int32 RandomIndex = FMath::RandRange(0, RandomIndexMax); 
+			const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(WorldActors[RandomIndex]);
+			const FPrimaryAssetId ObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
 
-			UInventoryBaseAsset* InventoryItemToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject);
+			const UInventoryBaseAsset* InventoryItemToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject);
 			if (IsValid(SpyFurniture) &&
 				IsValid(SpyFurniture->GetInventoryComponent()) &&
-				IsValid(InventoryItemToAdd))
+				IsValid(InventoryItemToAdd) &&
+				RandomIndex >= 0)
 			{
 				TArray<FPrimaryAssetId> AssetPrimaryIdsToAdd;
-				AssetPrimaryIdsToAdd.Emplace(AssetManagerObjectPrimaryAssetId);
+				AssetPrimaryIdsToAdd.Emplace(ObjectPrimaryAssetId);
 				SpyFurniture->GetInventoryComponent()->SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+
+				/** Remove actor from candidates so we don't put all items in one basket */
+				const uint8 ActorsRemovedTotal = WorldActors.RemoveSingle(WorldActors[RandomIndex]);
+				if (ActorsRemovedTotal  >= 1)
+				{ RandomIndexMax--;}
+				else
+				{
+					UE_LOG(SVSLog, Warning, TEXT(
+						"SpyItemSubsystem failed to remove actor from distribution array after providing it with an item"));
+				}
 			}
 			else
 			{
-				UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem could not find a actor for item: %s"),
+				UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem could not find an actor for item: %s"),
 					*AssetManagerObject->GetName())
 			}
 		}

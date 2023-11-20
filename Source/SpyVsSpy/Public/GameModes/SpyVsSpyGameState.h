@@ -180,9 +180,9 @@ protected:
 
 	/** Game Time Values */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
-	float SpyMatchTimeLength;
+	float SpyMatchTimeLength = 0.0f;
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
-	float CountDownStartTime;
+	float CountDownStartTime = 1.0f;
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Replicated, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	float SpyMatchStartTime = 0.0f;
 	UFUNCTION()

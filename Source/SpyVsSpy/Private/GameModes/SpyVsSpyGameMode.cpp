@@ -44,21 +44,13 @@ void ASpyVsSpyGameMode::RestartPlayer(AController* NewPlayer)
 
 void ASpyVsSpyGameMode::PlayerNotifyIsReady(ASpyPlayerState* InPlayerState)
 {
-	const uint8 TotalPlayers = GetNumPlayers();
-	UE_LOG(SVSLogDebug, Log, TEXT("Game Mode was notified Player %s is ready with number of total players: %i"),
-		*InPlayerState->GetPlayerName(),
-		TotalPlayers);
-	
 	if(CheckAllPlayersStatus(EPlayerGameStatus::Ready))
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT("All players are ready, attempting to start game"));
-		AttemptStartGame();
-	}
+	{ AttemptStartGame(); }
 }
 
 void ASpyVsSpyGameMode::RequestSetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems)
 {
-	if (InRequiredMissionItems.Num() < 1)
+	if (InRequiredMissionItems.Num() < 1 )
 	{ return; }
 	
 	if (ASpyVsSpyGameState* SVSGameState = GetGameState<ASpyVsSpyGameState>())
@@ -169,11 +161,7 @@ bool ASpyVsSpyGameMode::CheckAllPlayersStatus(const EPlayerGameStatus StateToChe
 			Cast<ASpyPlayerController>(Iterator->Get())->GetPlayerState<ASpyPlayerState>())
 		{
 			if (PlayerState->GetCurrentStatus() != StateToCheck)
-			{
-				UE_LOG(SVSLogDebug, Log, TEXT("PlayerID: %i did not match requested state"),
-					PlayerState->GetPlayerId())
-				return false;
-			}
+			{ return false; }
 			Count++;
 		}
 	}
