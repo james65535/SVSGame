@@ -83,6 +83,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	uint8 SpyTeam = 0;
 
+
+	// TODO Refactor approach to materials and leverage a data asset
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UStaticMeshComponent* HatMeshComponent;
 	
@@ -91,12 +93,20 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UMaterialInterface* LegsTeamAMaterialInstance;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* GlovesTeamAMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* CoatTeamAMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UMaterialInterface* HatTeamAMaterialInstance;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UMaterialInterface* TorsoTeamBMaterialInstance;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UMaterialInterface* LegsTeamBMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* GlovesTeamBMaterialInstance;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
+	UMaterialInterface* CoatTeamBMaterialInstance;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
 	UMaterialInterface* HatTeamBMaterialInstance;
 

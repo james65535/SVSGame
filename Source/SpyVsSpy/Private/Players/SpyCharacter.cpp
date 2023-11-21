@@ -194,19 +194,26 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 
 	/** Setup team and mesh colours */
 	// TODO setup a more dynamic option
-	// SpyTeam = IsLocallyControlled();
-	// if (SpyTeam == 0)
-	// {
-	// 	GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamAMaterialInstance);
-	// 	GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamAMaterialInstance);
-	// 	HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
-	// }
-	// else if (SpyTeam == 1)
-	// {
-	// 	GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamBMaterialInstance);
-	// 	GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamBMaterialInstance);
-	// 	HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
-	// }
+	SpyTeam = IsLocallyControlled();
+	if (SpyTeam == 0)
+	{
+		// GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamAMaterialInstance);
+		// GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamAMaterialInstance);
+		GetMesh()->SetMaterial(0, CoatTeamAMaterialInstance); // Coat
+		//GetMesh()->SetMaterial(1, TorsoTeamAMaterialInstance); // Shoes
+		GetMesh()->SetMaterial(2, TorsoTeamAMaterialInstance); // Vest
+		GetMesh()->SetMaterial(3, LegsTeamAMaterialInstance); // Trousers
+		GetMesh()->SetMaterial(4, GlovesTeamAMaterialInstance); // Gloves
+		HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
+	}
+	else if (SpyTeam == 1)
+	{
+		GetMesh()->SetMaterial(0, CoatTeamBMaterialInstance); // Coat
+		GetMesh()->SetMaterial(2, TorsoTeamBMaterialInstance); // Vest
+		GetMesh()->SetMaterial(3, LegsTeamBMaterialInstance); // Trousers
+		GetMesh()->SetMaterial(4, GlovesTeamBMaterialInstance); // Gloves
+		HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
+	}
 }
 
 void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
