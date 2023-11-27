@@ -165,7 +165,8 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		{
 			if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(WorldActor))
 			{
-				SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(InventoryBaseAssetPrimaryAssetIdCollection);
+				SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(
+					InventoryBaseAssetPrimaryAssetIdCollection);
 			}
 			else
 			{
@@ -177,45 +178,37 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 	}
 	else if (TargetActorClass == ASpyFurniture::StaticClass())
 	{
-		TArray<AActor*> WorldActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyFurniture::StaticClass(), WorldActors);
+		TArray<AActor*> FurnitureWorldActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyFurniture::StaticClass(), FurnitureWorldActors);
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
-	
-		uint8 RandomIndexMax = WorldActors.Num() - 1;
-		for (UObject* AssetManagerObject : AssetManagerObjectList)
+		
+		for (const UObject* AssetManagerObject : AssetManagerObjectList)
 		{
-			// TODO refactor to re-roll til happy
-			const int32 RandomIndex = FMath::RandRange(0, RandomIndexMax); 
-			const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(WorldActors[RandomIndex]);
-			const FPrimaryAssetId ObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
-			const UFurnitureInteractionComponent* FurnitureInteractionComponent = SpyFurniture->GetInteractionComponent();
-			const UInventoryBaseAsset* InventoryItemToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject);
-			if (IsValid(SpyFurniture) &&
-				IsValid(FurnitureInteractionComponent) &&
-				FurnitureInteractionComponent->IsInteractionEnabled() &&
-				IsValid(SpyFurniture->GetInventoryComponent()) &&
-				IsValid(InventoryItemToAdd) &&
-				RandomIndex >= 0)
+			const uint8 MaxTries = FurnitureWorldActors.Num();
+			for (uint8 TryIndex = 0; TryIndex < MaxTries; TryIndex++)
 			{
-				TArray<FPrimaryAssetId> AssetPrimaryIdsToAdd;
-				AssetPrimaryIdsToAdd.AddUnique(ObjectPrimaryAssetId);
-				SpyFurniture->GetInventoryComponent()->SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+				const uint8 RandomIndexMax = FurnitureWorldActors.Num() - 1;
+				const int32 RandomIndex = FMath::RandRange(0, RandomIndexMax);
+				const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(FurnitureWorldActors[RandomIndex]);
+				const UFurnitureInteractionComponent* FurnitureInteractionComponent = SpyFurniture->GetInteractionComponent();
+
+				if (IsValid(SpyFurniture) && FurnitureInteractionComponent->IsInteractionEnabled())
+				{
+					const FPrimaryAssetId ObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
+					TArray<FPrimaryAssetId> AssetPrimaryIdsToAdd;
+					AssetPrimaryIdsToAdd.AddUnique(ObjectPrimaryAssetId);
+					SpyFurniture->GetInventoryComponent()->SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+					break;
+				}
 
 				/** Remove actor from candidates so we don't put all items in one basket */
-				const uint8 ActorsRemovedTotal = WorldActors.RemoveSingle(WorldActors[RandomIndex]);
-				if (ActorsRemovedTotal  >= 1)
-				{ RandomIndexMax--;}
-				else
+				const uint8 ActorsRemovedTotal = FurnitureWorldActors.RemoveSingle(FurnitureWorldActors[RandomIndex]);
+				if (ActorsRemovedTotal < 1)
 				{
 					UE_LOG(SVSLog, Warning, TEXT(
-						"SpyItemSubsystem failed to remove actor from distribution array after providing it with an item"));
+						"SpyItemSubsystem failed to remove actor from distribution array after trying to use it"));
 				}
-			}
-			else
-			{
-				UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem could not find an actor for item: %s"),
-					*AssetManagerObject->GetName())
 			}
 		}
 	}

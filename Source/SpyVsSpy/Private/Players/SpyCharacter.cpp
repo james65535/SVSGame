@@ -374,6 +374,7 @@ void ASpyCharacter::NM_FinishedMatch_Implementation()
 	{
 		SpyPlayerController->FinishedMatch();
 		GetCharacterMovement()->DisableMovement();
+		SetActorEnableCollision(false);
 	}
 	
 	SetSpyHidden(true);
@@ -733,16 +734,8 @@ void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
 	{
 		/** prevent additional runs if overlaps occur during same ability run */
 		bAttackHitFound = true;
-// TODO is this the right place?
+		// TODO is this the right place?
 		SetEnabledAttackState(false);
-		// UE_LOG(SVSLogDebug, Log, TEXT(
-		// 	"Handling Attack check - %s ActorHasTag: %s Implements SpyCombat: %s Implements UbilitySystem: %s"),
-		// 	*OverlappedSpyCombatant->GetName(),
-		// 	OverlappedSpyCombatant->ActorHasTag(CombatantTag) ? *FString("True") : *FString("False"),
-		// 	UKismetSystemLibrary::DoesImplementInterface(
-		// 		OverlappedSpyCombatant, USpyCombatantInterface::StaticClass()) ? *FString("True") : *FString("False"),
-		// 	UKismetSystemLibrary::DoesImplementInterface(
-		// 		OverlappedSpyCombatant, UAbilitySystemInterface::StaticClass()) ? *FString("True") : *FString("False"));
 		
 		/** Don't process attack if enemy is dead */
 		if (Cast<IAbilitySystemInterface>(OverlappedSpyCombatant)->
