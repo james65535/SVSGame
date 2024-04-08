@@ -363,7 +363,8 @@ void ASpyPlayerController::RequestPlaceTrap()
 
 void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s is attempting to place a trap in an interactable actor"),
+	UE_LOG(SVSLogDebug, Log,
+		TEXT("%s Character: %s is attempting to place a trap in an interactable actor"),
 		IsLocalController() ? *FString("Local") : *FString("Not Local"),
 		*GetCharacter()->GetName());
 
@@ -373,13 +374,18 @@ void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
 		!IsValid(SpyCharacter->GetHeldWeapon()) ||
 		SpyCharacter->GetHeldWeapon()->WeaponType != EWeaponType::Trap)
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT(
-			"Place trap invalid check - HasInterComp: %s HasInvComp %s Target Furniture %s HasWeapon %s WeaponNotTrap: %s"),
-			IsValid(SpyCharacter->GetInteractionComponent()) ? *FString("True") : *FString("False"),
-			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"),
-			IsValid(TargetInteractionComponent.GetObjectRef()) ? *FString("True") : *FString("False"), 
-			IsValid(SpyCharacter->GetHeldWeapon()) ? *FString("True") : *FString("False"),
-			IsValid(SpyCharacter->GetHeldWeapon()) ? *FString("True") : *FString("False"));
+		UE_LOG(SVSLogDebug, Log,
+			TEXT("Place trap invalid check - HasInterComp: %s HasInvComp %s Target Furniture %s HasWeapon %s WeaponNotTrap: %s"),
+			IsValid(SpyCharacter->GetInteractionComponent()) ?
+				*FString("True") : *FString("False"),
+			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ?
+				*FString("True") : *FString("False"),
+			IsValid(TargetInteractionComponent.GetObjectRef()) ?
+				*FString("True") : *FString("False"), 
+			IsValid(SpyCharacter->GetHeldWeapon()) ?
+				*FString("True") : *FString("False"),
+			IsValid(SpyCharacter->GetHeldWeapon()) ?
+				*FString("True") : *FString("False"));
 		return;
 	}
 	

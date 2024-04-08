@@ -54,7 +54,7 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 			*GetOwner()->GetName());
 		return;
 	}
-	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItemPrimaryAssetIdCollection(RequestedPrimaryAssetIds, RequestedPrimaryAssetType);
+	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItemPIDs(RequestedPrimaryAssetIds, RequestedPrimaryAssetType);
 }
 
 UInventoryTrapAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementation()

@@ -10,7 +10,6 @@
 #include "Items/InventoryWeaponAsset.h"
 #include "Players/SpyCombatantInterface.h"
 #include "GameplayAbilitySpecHandle.h"
-#include "Items/InteractInterface.h"
 #include "SpyCharacter.generated.h"
 
 class UInventoryWeaponAsset;

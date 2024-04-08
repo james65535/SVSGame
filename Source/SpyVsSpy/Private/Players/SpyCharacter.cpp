@@ -490,7 +490,7 @@ void ASpyCharacter::RemoveCharacterAbilities()
 {
 }
 
-
+// TODO OPTIMISATION - perhaps just send room ID instead of FVector
 void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled, const FVector RespawnLocation)
 {
 	SetEnableDeathState(bEnabled, RespawnLocation);

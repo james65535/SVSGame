@@ -34,9 +34,10 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"InventoryComponent calling SetPrimaryAssetIdsToLoad with count: %i"),
+	UE_LOG(SVSLogDebug, Log,
+		TEXT("InventoryComponent calling SetPrimaryAssetIdsToLoad with count: %i"),
 		InPrimaryAssetIdsToLoad.Num());
+	
 	PrimaryAssetIdsToLoad.Append(InPrimaryAssetIdsToLoad);
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
 
@@ -49,9 +50,9 @@ void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPr
 
 void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"InventoryComponent running onrep with pids to load: %i"),
-		PrimaryAssetIdsToLoad.Num());
+	UE_LOG(SVSLogDebug, Log,
+		TEXT("InventoryComponent running onrep with pids to load: %i"), PrimaryAssetIdsToLoad.Num());
+
 	for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 	{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
 
@@ -66,6 +67,7 @@ void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s InventoryComponent running onrep display inv"),
 				SpyCharacter->GetController()->IsLocalController() ? *FString("Local") : *FString("Remote"),
 				*SpyCharacter->GetName());
+
 			SpyPlayerController->C_DisplayCharacterInventory();
 		}
 	}
@@ -103,21 +105,23 @@ void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInve
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory list"),
 		*GetOwner()->GetName());
+	
 	InInventoryItems = InventoryCollection;
 }
 
-void UInventoryComponent::GetInventoryItemPrimaryAssetIdCollection(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) const
+void UInventoryComponent::GetInventoryItemPIDs(TArray<FPrimaryAssetId>& RequestedPIDs, const FPrimaryAssetType RequestedPrimaryAssetType) const
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory list PIDs"),
 		*GetOwner()->GetName());
+	
 	for (const UInventoryBaseAsset* InventoryBaseAsset : InventoryCollection)
 	{
 		if (InventoryBaseAsset->GetPrimaryAssetId().PrimaryAssetType == RequestedPrimaryAssetType)
 		{
-			RequestedPrimaryAssetIds.AddUnique(InventoryBaseAsset->GetPrimaryAssetId());
+			RequestedPIDs.AddUnique(InventoryBaseAsset->GetPrimaryAssetId());
+
 			UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent is providing inventory item pid: %s"),
-				*GetOwner()->GetName(),
-				*InventoryBaseAsset->GetPrimaryAssetId().ToString());
+				*GetOwner()->GetName(), *InventoryBaseAsset->GetPrimaryAssetId().ToString());
 		}
 	}
 }
@@ -131,15 +135,12 @@ void UInventoryComponent::SetActiveTrap(UInventoryTrapAsset* InActiveTrap)
 {
 	UE_LOG(SVSLogDebug, Log, TEXT("Actor has been given an active trap: %s"),
 		IsValid(InActiveTrap) ? *InActiveTrap->InventoryItemName.ToString() : *FString("Null Trap"));
+
 	ActiveTrap = InActiveTrap;
 }
 
 void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent calling load asset from PID: %s"),
-		*GetOwner()->GetName(),
-		*InInventoryAssetId.PrimaryAssetName.ToString());
-	
 	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
 		UObject* AssetManagerObject = AssetManager->GetPrimaryAssetObject(InInventoryAssetId);
@@ -147,7 +148,7 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 		{
 			InventoryCollection.AddUnique(SpyItem);
 			if (UInventoryTrapAsset* SpyTrapItem = Cast<UInventoryTrapAsset>(SpyItem))
-			{ SetActiveTrap(SpyTrapItem); }
+			{ SetActiveTrap(SpyTrapItem);	}
 		}
 		else
 		{
@@ -155,10 +156,5 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 				*GetOwner()->GetName(),
 				IsValid(AssetManagerObject) ? *AssetManagerObject->GetName() : *FString("Null object"));
 		}
-	}
-	else
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but could not get asset manager"),
-				*GetOwner()->GetName());
 	}
 }

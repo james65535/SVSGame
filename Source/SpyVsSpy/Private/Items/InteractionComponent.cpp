@@ -38,7 +38,7 @@ void UInteractionComponent::GetInventoryListing_Implementation(TArray<FPrimaryAs
 	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner()))
 	{
 		if (const UInventoryComponent* SpyInventory = SpyCharacter->GetPlayerInventoryComponent())
-		{ SpyInventory->GetInventoryItemPrimaryAssetIdCollection(RequestedPrimaryAssetIds, RequestedPrimaryAssetType); }
+		{ SpyInventory->GetInventoryItemPIDs(RequestedPrimaryAssetIds, RequestedPrimaryAssetType); }
 	}
 }
 

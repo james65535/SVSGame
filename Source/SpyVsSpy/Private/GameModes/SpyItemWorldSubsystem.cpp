@@ -6,7 +6,6 @@
 #include "SVSLogger.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
-#include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryBaseAsset.h"
 #include "Items/InventoryComponent.h"
 #include "Rooms/FurnitureInteractionComponent.h"
@@ -14,9 +13,13 @@
 #include "Players/SpyCharacter.h"
 #include "Rooms/SpyFurniture.h"
 
-USpyItemWorldSubsystem::USpyItemWorldSubsystem()
+void USpyItemWorldSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
+	Super::OnWorldBeginPlay(InWorld);
 
+	/** Setup manager references */
+	AssetManager = UAssetManager::GetIfValid();
+	checkf(IsValid(AssetManager), TEXT("ItemSubsystem could not find a valid Asset Manager"));
 }
 
 void USpyItemWorldSubsystem::Deinitialize()
@@ -49,13 +52,10 @@ void USpyItemWorldSubsystem::LoadSpyItemAssets(const TArray<FPrimaryAssetId>& In
 
 void USpyItemWorldSubsystem::LoadItemAssetFromAssetId(const FPrimaryAssetId& InItemAssetId, const FPrimaryAssetType& InAssetType)
 {
-	UAssetManager* AssetManager = UAssetManager::GetIfValid();
-	if (!IsValid(AssetManager) ||
-		!InItemAssetId.IsValid() ||
-		!InAssetType.IsValid())
+	if (!InItemAssetId.IsValid() || !InAssetType.IsValid())
 	{ return; }
 	
-	/** Asset Categories to load, empty array if getting all of them */
+	/** Asset Categories to load, use empty array to get all of them */
 	TArray<FName> CategoryBundles;
 
 	/** Async Load Delegate */
@@ -70,14 +70,18 @@ void USpyItemWorldSubsystem::LoadItemAssetFromAssetId(const FPrimaryAssetId& InI
 
 void USpyItemWorldSubsystem::OnItemAssetLoadFromAssetId(const FPrimaryAssetId InItemAssetId)
 {
-	const UAssetManager* AssetManager = UAssetManager::GetIfValid();
-	if (!IsValid(AssetManager) ||
-		!IsValid(AssetManager->GetPrimaryAssetObject(InItemAssetId)))
+	UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InItemAssetId));
+	if (!IsValid(InventoryAsset))
 	{ return; }
 
+	// TODO remove
+	/** Update Item's ItemID based upon location in registry array.  Assumes asset manager will not create dupes */
+	// const uint8 RegistryIndex = ItemRegistry.AddUnique(InventoryAsset);
+	// InventoryAsset->ItemID = RegistryIndex;
+	
 	TotalItemsRequestedAndLoaded++;
 	if (TotalItemsRequestedAndLoaded == TotalItemsRequested)
-	{ VerifyAllItemAssetsLoaded(); }
+	{ TryVerifyAllItemAssetsLoaded(); }
 	
 	UE_LOG(SVSLogDebug, Log, TEXT(
 		"Asset manager on assetload check totalitemsrequestedandloaded: %i and totalitemsrequested: %i"),
@@ -85,13 +89,8 @@ void USpyItemWorldSubsystem::OnItemAssetLoadFromAssetId(const FPrimaryAssetId In
 			TotalItemsRequested);
 }
 
-void USpyItemWorldSubsystem::VerifyAllItemAssetsLoaded()
+void USpyItemWorldSubsystem::TryVerifyAllItemAssetsLoaded()
 {
-	// TODO delegate for asset manager loads, does a count check 
-	const UAssetManager* AssetManager = UAssetManager::GetIfValid();
-	if (!IsValid(AssetManager))
-	{ return; }
-	
 	/** Success Count per FoundAssetType, incremented if successful */
 	int PerFoundAssetTypeCountCheckSuccessTotal = 0;
 	
@@ -114,6 +113,7 @@ void USpyItemWorldSubsystem::VerifyAllItemAssetsLoaded()
 				*FoundAssetType.ToString());
 		}
 	}
+	
 	if (TotalAssetsRequestedToLoadPerTypeMap.Num() != PerFoundAssetTypeCountCheckSuccessTotal)
 	{
 		UE_LOG(SVSLogDebug, Log, TEXT(
@@ -121,29 +121,27 @@ void USpyItemWorldSubsystem::VerifyAllItemAssetsLoaded()
 			TotalAssetsRequestedToLoadPerTypeMap.Num(),
 			PerFoundAssetTypeCountCheckSuccessTotal);
 	}
+
 	bAllItemAssetsLoaded = (TotalAssetsRequestedToLoadPerTypeMap.Num() == PerFoundAssetTypeCountCheckSuccessTotal);
 }
 
 void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass)
 {
 	/** Runs on Server Only */
-	const UAssetManager* AssetManager = UAssetManager::GetIfValid();
-	if (!IsValid(GetWorld()) ||
-		!IsValid(GetWorld()->GetAuthGameMode<ASpyVsSpyGameMode>()) ||
+	if (!IsRunningDedicatedServer() ||
 		!IsValid(TargetActorClass) ||
-		!IsValid(AssetManager) ||
 		!ItemToDistributeAssetType.IsValid() ||
 		!AllItemsVerifiedLoaded())
-	{
-		UE_LOG(SVSLog, Warning, TEXT("SpyItemSubsystem distribute items failed validation check"));
-		return;
-	}
-
+	{ return; }
+	
 	// TODO refactor this with proper usage of tsubclassof
 	if (TargetActorClass == ASpyCharacter::StaticClass())
 	{
 		TArray<AActor*> WorldActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyCharacter::StaticClass(), WorldActors);
+		UGameplayStatics::GetAllActorsOfClass(
+			GetWorld(),
+			ASpyCharacter::StaticClass(),
+			WorldActors);
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
 
@@ -153,7 +151,8 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		{
 			if (const UInventoryBaseAsset* AssetToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject))
 			{
-				InventoryBaseAssetPrimaryAssetIdCollection.AddUnique(AssetToAdd->GetPrimaryAssetId());
+				InventoryBaseAssetPrimaryAssetIdCollection.AddUnique(
+					AssetToAdd->GetPrimaryAssetId());
 			}
 		}
 

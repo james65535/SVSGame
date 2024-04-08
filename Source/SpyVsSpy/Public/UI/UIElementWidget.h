@@ -22,12 +22,6 @@ struct FGameUIClassInfo
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FName WidgetSlot;
-
-	// /** Constructor */
-	// FGameUIClassInfo()
-	// {
-	// 	WidgetSlot = FName("");
-	// }
 };
 
 /**
@@ -48,14 +42,6 @@ struct FGameUI
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FGameUIClassInfo GameEndScreenWidget;
-
-	// /** Constructor */
-	// FGameUI()
-	// {
-	// 	GamePlayWidget = FGameUIClassInfo::StaticStruct();
-	// 	GameMenuWidget = FGameUIClassInfo();
-	// 	GameEndScreenWidget = FGameUIClassInfo();
-	// }
 };
 
 /**

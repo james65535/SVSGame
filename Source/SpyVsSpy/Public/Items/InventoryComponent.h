@@ -38,7 +38,7 @@ public:
 	void SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType);
 	
 	/**
-	 * @brief Is the correct way to add assets to inventory as this list replicates to clients and
+	 * @brief Standard way to add assets to inventory as this list replicates to clients and
 	 * clients then load assets from asset manager
 	 * @param InPrimaryAssetIdsToLoad 
 	 */
@@ -54,7 +54,7 @@ public:
 	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void GetInventoryItemPrimaryAssetIdCollection(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) const;
+	void GetInventoryItemPIDs(TArray<FPrimaryAssetId>& RequestedPIDs, const FPrimaryAssetType RequestedPrimaryAssetType) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	int GetCurrentCollectionSize() const { return InventoryCollection.Num(); }
@@ -64,7 +64,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
 	
-	FOnInventoryUpdated OnInventoryUpdated;
+	//FOnInventoryUpdated OnInventoryUpdated;
 
 protected:
 
@@ -80,6 +80,8 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryCollection;
+
+	TArray<TTuple<int8, uint8, bool>> ItemsCollection;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_PrimaryAssetIdsToLoad, Category = "SVS|Inventory")
 	TArray<FPrimaryAssetId> PrimaryAssetIdsToLoad;

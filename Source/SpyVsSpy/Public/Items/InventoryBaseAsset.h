@@ -18,6 +18,10 @@ class SPYVSSPY_API UInventoryBaseAsset : public UPrimaryDataAsset
 
 public:
 
+	/** ID assigned by the Item Subsystem */
+	UPROPERTY(BlueprintReadOnly, Category = "SVS|Inventory")
+	uint8 ItemID;
+	
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
 	FName InventoryItemName;
 

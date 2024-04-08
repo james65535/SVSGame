@@ -20,7 +20,6 @@ public class SpyVsSpy : ModuleRules
 			"GeometryCore", 
 			"GeometryFramework", 
 			"GeometryScriptingCore", 
-			//"GeometryScriptingEditor",  // PackageBuildFixup
 			"DynamicMeshRoomGen", 
 			"HeadMountedDisplay", 
 			"EnhancedInput", 
