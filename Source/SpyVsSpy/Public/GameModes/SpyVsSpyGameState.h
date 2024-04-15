@@ -133,7 +133,7 @@ public:
 
 	/** Can be called during and after play */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
-	void RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired = false);
+	void RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, const bool bPlayerTimeExpired = false);
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	const TArray<FGameResult>& GetResults() { return Results; }
 	UFUNCTION()
@@ -170,6 +170,9 @@ protected:
 	/** Item array with which a player must fully possess to complete the map */
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	TArray<UInventoryBaseAsset*> RequiredMissionItems;
+
+	void FinaliseMatchEnd();
+	bool CheckSpyCompleteMission(const ASpyPlayerState* SpyPlayerState) const;
 
 	/** Starting Match Time - Independent from game match time */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")

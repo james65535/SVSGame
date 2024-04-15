@@ -368,21 +368,11 @@ void ASpyCharacter::SetWeaponMesh(UStaticMesh* InMesh)
 	WeaponMeshComponent->SetStaticMesh(InMesh);
 }
 
-void ASpyCharacter::NM_FinishedMatch_Implementation()
+void ASpyCharacter::DisableSpyCharacter()
 {
-	if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetController()))
-	{
-		SpyPlayerController->FinishedMatch();
-		GetCharacterMovement()->DisableMovement();
-		SetActorEnableCollision(false);
-	}
-	
 	SetSpyHidden(true);
-	
-	// TODO refactor to remove server rpc
-	/** Just run this on the server */
-	if (GetWorld()->GetNetMode() != NM_Client)
-	{ S_RequestDeath(); }
+	GetCharacterMovement()->DisableMovement();
+	SetActorEnableCollision(false);
 }
 
 void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const

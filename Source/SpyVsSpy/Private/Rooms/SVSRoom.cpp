@@ -179,16 +179,9 @@ void ASVSRoom::ChangeOpposingOccupantsVisibility(const ASpyCharacter* Requesting
 	/** Since these changes are just visual on the client then avoid running on server */
 	if (!IsValid(RequestingCharacter) || IsRunningDedicatedServer()) { return; }
 	
-
 	/** Look for other spies in room and adjust their visiblity occordingly */
 	for (ASpyCharacter* Spy : OccupyingSpyCharacters)
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("%s character: %s requested spy: %s hidden: %s"),
-			RequestingCharacter->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*RequestingCharacter->GetName(),
-			*Spy->GetName(),
-			bHideCharacters ? *FString("True") : *FString("False"));
-		
 		if (Spy != RequestingCharacter)
 		{ Spy->SetSpyHidden(bHideCharacters); }
 	}
@@ -278,6 +271,13 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	{ AppearTimeline->PlayFromStart(); }
 	else
 	{ UE_LOG(SVSLog, Warning, TEXT("Room timeline for appear effect is null")); }
+
+	/** Set Room Furniture visibility */
+	for (AFurnitureBase* Furniture : FurnitureCollection)
+	{
+		if (IsValid(Furniture))
+		{ Furniture->SetActorHiddenInGame(bRoomLocallyHiddenInGame); }
+	}
 }
 
 void ASVSRoom::HideRoom(const ASpyCharacter* InSpyCharacter)
@@ -309,6 +309,14 @@ void ASVSRoom::HideRoom(const ASpyCharacter* InSpyCharacter)
 	/** Update Floor */
 	Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(1, CustomPrimitiveData.AxisDirection);
 	Execute_GetRoomFloor(this)->SetCustomPrimitiveDataFloat(2, CustomPrimitiveData.Axis);
+
+	/** Set Room Furniture visibility */
+	for (AFurnitureBase* Furniture : FurnitureCollection)
+	{
+		if (IsValid(Furniture))
+		{ Furniture->SetActorHiddenInGame(bRoomLocallyHiddenInGame); }
+	}
+	OnRoomOccupancyChange.Broadcast(this, bRoomLocallyHiddenInGame);
 		
 	if (IsValid(AppearTimeline))
 	{ AppearTimeline->ReverseFromEnd();	}
@@ -364,13 +372,6 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 
 void ASVSRoom::TimelineAppearFinish()
 {
-	SetActorHiddenInGame(bRoomLocallyHiddenInGame); // Will already be visible if timeline makes room Appear
 	OnRoomOccupancyChange.Broadcast(this, bRoomLocallyHiddenInGame);
-
-	/** Set Room Furniture visibility */
-	for (AFurnitureBase* Furniture : FurnitureCollection)
-	{
-		if (IsValid(Furniture))
-		{ Furniture->SetActorHiddenInGame(bRoomLocallyHiddenInGame); }
-	}
+	SetActorHiddenInGame(bRoomLocallyHiddenInGame); // Will already be visible if timeline makes room Appear
 }

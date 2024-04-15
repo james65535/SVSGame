@@ -101,7 +101,7 @@ void ASpyHUD::DisplayMatchStartCountDownTime(const float InMatchStartCountDownTi
 	check(GameLevelWidget)
 	GameLevelWidget->InitiateMatchStartTimer(InMatchStartCountDownTime);
 	check(LevelMenuWidget)
-	LevelMenuWidget->HideGameMenu();
+	LevelMenuWidget->CloseGameMenu();
 }
 
 void ASpyHUD::DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth) const
@@ -126,6 +126,12 @@ void ASpyHUD::DisplaySelectedActorInventory(const UInventoryComponent* TargetInv
 	{ return; }
 
 	GameLevelWidget->DisplaySelectedActorInventory(TargetInventoryComponent);
+}
+
+void ASpyHUD::CloseInventory() const
+{
+	if (IsValid(GameLevelWidget))
+	{ GameLevelWidget->CloseInventory(); }
 }
 
 void ASpyHUD::UpdateUIOnFinish() const
@@ -177,10 +183,10 @@ void ASpyHUD::DisplayLevelMenu()
 	SpyPlayerController->RequestInputMode(EPlayerInputMode::UIOnly);
 }
 
-void ASpyHUD::HideLevelMenu()
+void ASpyHUD::CloseLevelMenu()
 {
 	checkfSlow(LevelMenuWidget, "PlayerHUD attempted to hide Level Menu but LevelMenuWidget was null");
-	LevelMenuWidget->HideGameMenu();
+	LevelMenuWidget->CloseGameMenu();
 	SpyPlayerController->RequestInputMode(EPlayerInputMode::GameOnly);
 }
 

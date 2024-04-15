@@ -202,28 +202,17 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 		GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
 	
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate trying matchtimeexpired with time: %f"),
-		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		GetPlayerSpyMatchSecondsRemaining());
-	
-	/** Player ran out of time so notify game that their match has ended */
-	GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
-	
 	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
 	{
-		SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
+		/** Player ran out of time so notify game that their match has ended */
+		GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
+		
+		SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired);
 		SpyGameState->RequestSubmitMatchResult(this, true);
-		SpyCharacter->NM_FinishedMatch();
-
-		// TODO probably don't need to actually destroy, character sets self to hidden and disables controls
-		// if(!Destroy())
-		// {
-		// 	UE_LOG(SVSLog, Warning, TEXT(
-		// 		"%s Character %s was not able to be destroyed by playerstate when time expired"),
-		// 		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		// 		*GetName());
-		// }
+		// TODO below needs to be multicast
+		SpyCharacter->DisableSpyCharacter();
+		if (ASpyHUD* SpyHUD = Cast<ASpyHUD>(GetOwningController()))
+		{ SpyHUD->DisplayLevelMenu(); }
 	}
 	else
 	{
@@ -234,31 +223,20 @@ void ASpyPlayerState::PlayerMatchTimeExpired()
 
 void ASpyPlayerState::OnPlayerReachedEnd()
 {
-	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
-	
 	/** just run this on the server */
-	if (!IsValid(SpyCharacter) ||
-		GetWorld()->GetNetMode() == NM_Client ||
+	if (GetWorld()->GetNetMode() == NM_Client ||
 		GetCurrentStatus() == EPlayerGameStatus::Finished ||
 		GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
 	{ return; }
 	
-	TArray<UInventoryBaseAsset*> PlayerInventory;
-	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
-	ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (IsValid(SpyGameState) && PlayerInventory.Num() >= 1)
-	{
-		TArray<UInventoryBaseAsset*> RequiredMissionItems;
-		SpyGameState->GetRequiredMissionItems(RequiredMissionItems);
-		for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
-		{
-			if (!PlayerInventory.Contains(MissionItem))
-			{ return; }
-		}
-		SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
-		SpyGameState->RequestSubmitMatchResult(this, false);
-		SpyCharacter->NM_FinishedMatch();
-	}
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{ SpyGameState->RequestSubmitMatchResult(this, false); }
+}
+
+void ASpyPlayerState::NM_EndMatch_Implementation()
+{
+	if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(GetPlayerController()))
+	{ SpyPlayerController->EndMatch(); }
 }
 
 void ASpyPlayerState::OnRep_CurrentStatus()

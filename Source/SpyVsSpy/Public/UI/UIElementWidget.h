@@ -54,15 +54,15 @@ class SPYVSSPY_API UUIElementWidget : public UUserWidget
 
 public:
 	
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tantrumn UI")
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void InitiateMatchStartTimer(float CountDownTime);
 	
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tantrumn UI")
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayGameTimer();
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tantrumn UI")
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void HideGameTimer();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Tantrumn UI")
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void UpdateOnFinish();
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
@@ -94,13 +94,15 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayGameMenu();
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
-	void HideGameMenu();
+	void CloseGameMenu();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayCharacterInventory(const UInventoryComponent* InCharacterInventory);
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplaySelectedActorInventory(const UInventoryComponent* InventoryComponent);
-
+	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
+	void CloseInventory();
+	
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth);
 	

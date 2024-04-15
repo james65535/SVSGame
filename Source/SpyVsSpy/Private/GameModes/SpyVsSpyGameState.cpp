@@ -5,6 +5,7 @@
 
 #include "SVSLogger.h"
 #include "GameModes/SpyVsSpyGameMode.h"
+#include "Items/InventoryComponent.h"
 #include "Rooms/RoomManager.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -144,6 +145,8 @@ void ASpyVsSpyGameState::SetSpyMatchTimeLength(const float InSecondsTotal)
 	SpyMatchTimeLength = InSecondsTotal;
 }
 
+
+
 void ASpyVsSpyGameState::SetSpyMatchStartTime(const float InMatchStartTime)
 {
 	SpyMatchStartTime = InMatchStartTime;
@@ -173,24 +176,83 @@ void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
 	}
 }
 
-void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, bool bPlayerTimeExpired)
+void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, const bool bPlayerTimeExpired)
 {
 	FGameResult Result;
 	Result.Time = GetSpyMatchElapsedTime();
 	Result.Name = InSpyPlayerState->GetPlayerName();
-	
-	bool IsWinner = false;
-	if (!bPlayerTimeExpired)
+
+	if (InSpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
 	{
-		IsWinner = Results.Num() == 0;
-		Result.bCompletedMission = true;
+		/** Process results for player since match has a winner */
+		Results.Add(Result);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
+		return;
 	}
-	InSpyPlayerState->SetIsWinner(IsWinner);
-	Result.bIsWinner = IsWinner;
 	
-	Results.Add(Result);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
+	const bool bMatchWinner = CheckSpyCompleteMission(InSpyPlayerState);
+	if (bPlayerTimeExpired)
+	{
+		/** Process results for player since they ran out of time */
+		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired);
+	}
+	else if (bMatchWinner && Results.Num() == 0)
+	{
+		/** Process player results and mark as winner of the match */
+		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
+		Result.bCompletedMission = true;
+		InSpyPlayerState->SetIsWinner(bMatchWinner);
+		Result.bIsWinner = bMatchWinner;
+		Results.Add(Result);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
+		FinaliseMatchEnd();
+	} 
+
+
+}
+
+void ASpyVsSpyGameState::FinaliseMatchEnd()
+{
+	for (APlayerState* PlayerState : PlayerArray)
+	{
+		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
+		{
+			/** Process match results for all non winners */
+			const EPlayerGameStatus SpyPlayerGameStatus = SpyPlayerState->GetCurrentStatus();
+			if (SpyPlayerGameStatus == EPlayerGameStatus::Playing || SpyPlayerGameStatus == EPlayerGameStatus::MatchTimeExpired)
+			{
+				SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
+				RequestSubmitMatchResult(SpyPlayerState, true);
+			}
+
+			SpyPlayerState->NM_EndMatch();
+		}
+	}
+
 	TryFinaliseScoreBoard();
+}
+
+bool ASpyVsSpyGameState::CheckSpyCompleteMission(const ASpyPlayerState* SpyPlayerState) const
+{
+	if (!IsValid(SpyPlayerState))
+	{ return false; }
+
+	if (const ASpyCharacter* SpyCharacter = SpyPlayerState->GetPawn<ASpyCharacter>())
+	{
+		TArray<UInventoryBaseAsset*> PlayerInventory;
+		SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
+		if (PlayerInventory.Num() > 0)
+		{
+			for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
+			{
+				if (!PlayerInventory.Contains(MissionItem))
+				{ return false; }
+			}
+			/** Player has required mission items */
+			return true;
+		}
+	}
+	return false;
 }
 
 void ASpyVsSpyGameState::TryFinaliseScoreBoard()

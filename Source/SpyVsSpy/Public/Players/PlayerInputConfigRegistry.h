@@ -46,14 +46,17 @@ public:
 	UInputAction* PrevTrapAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UInputAction* InputOpenMenu;
+	UInputAction* InputOpenMenuAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UInputAction* InputCloseMenu;
+	UInputAction* InputCloseMenuAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UInputAction* InteractAction;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UInputAction* OpenTargetInventoryAction;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UInputAction* CloseInventoryAction;
 };

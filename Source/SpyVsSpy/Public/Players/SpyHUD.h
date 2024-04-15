@@ -74,6 +74,9 @@ public:
 	void DisplayCharacterInventory(UInventoryComponent* InventoryComponent) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplaySelectedActorInventory(const UInventoryComponent* TargetInventoryComponent) const;
+
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void CloseInventory() const;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void UpdateUIOnFinish() const;
@@ -93,7 +96,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplayLevelMenu();
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void HideLevelMenu();
+	void CloseLevelMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void UpdateDisplayedPlayerStatus(const EPlayerGameStatus InPlayerStatus) const;
@@ -103,7 +106,7 @@ private:
 	UPROPERTY()
 	ASpyPlayerController* SpyPlayerController;
 
-	/** Network latency affects precision of the float so it is better to trim the fractionals when displaying */
+	/** Network latency affects precision of the float so it is better to trim the fractional when displaying */
 	FNumberFormattingOptions FloatDisplayFormat;
 	
 	/** Level Specific UI */

@@ -64,10 +64,10 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SVS|UI")
 	void C_StartGameCountDown(const float InCountDownDuration);
 
-	void FinishedMatch();
+	void EndMatch();
 	
 	/** Get the final results and call hud to display */
-	void RequestUpdatePlayerResults();
+	void RequestUpdatePlayerResults() const;
 	
 	/** Called by Server Authority to restart level */
 	UFUNCTION(Server, Reliable, Category = "SVS|UI")
@@ -78,9 +78,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void OnServerLobbyUpdateDelegate();
-	
-	// UFUNCTION(NetMulticast, Reliable, Category = "SVS|Controller")
-	// void NM_SetControllerGameInputMode(const EPlayerInputMode InRequestedInputMode);
 
 	/** UFUNCTION Wrapper for parent class SetName method */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
@@ -106,8 +103,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
-private:
-	
+protected:
+
+	/** Class Overrides */
+	virtual void BeginPlay() override;
+	virtual void OnRep_Pawn() override;
+	virtual void OnPossess(APawn* InPawn) override;
+
+#pragma region="HUD"
 	/** Player HUD */
 	UPROPERTY(VisibleInstanceOnly, Category = "SVS|UI")
 	ASpyHUD* SpyPlayerHUD;
@@ -116,11 +119,15 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void UpdateHUDWithGameUIElements(const ESVSGameType InGameType) const;
 	/** Level Menu Display Requests */
-	UFUNCTION(BlueprintCallable, Category = "SVS|")
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void RequestDisplayLevelMenu();
-	UFUNCTION(BlueprintCallable, Category = "SVS|")
-	void RequestHideLevelMenu();
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void RequestCloseLevelMenu();
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void RequestCloseInventory();
+#pragma endregion="HUD"
 	
+#pragma region="Input"
 	/** Enhanced Input Setup */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Input", meta = (AllowPrivateAccess))
 	TSoftObjectPtr<UInputMappingContext> GameInputMapping;
@@ -128,12 +135,10 @@ private:
 	TSoftObjectPtr<UInputMappingContext> MenuInputMapping;	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SVS|Input", meta = (AllowPrivateAccess))
 	class UPlayerInputConfigRegistry* InputActions;
+
 	/** Call to change Input Mapping Contexts for Controller */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Input")
-	void SetInputContext(TSoftObjectPtr<UInputMappingContext> InMappingContext);
-
-	/** Delegate related to Game State match start of play */
-	void StartMatchForPlayer(const float InMatchStartTime);
+	void SetInputContext(const TSoftObjectPtr<UInputMappingContext> InMappingContext) const;
 	
 	/** Checks if player is allowed to input movement commands given current state of play */
 	bool CanProcessRequest() const;
@@ -149,57 +154,7 @@ private:
 	void RequestInteract(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
 	void RequestPrimaryAttack(const FInputActionValue& ActionValue);
-	// UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
-	// void RequestOpenTargetInventory(const FInputActionValue& ActionValue);
 	
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestJump();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestStopJump();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestCrouch();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestStopCrouch();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestSprint();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestStopSprint();
-
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestLook(const FInputActionValue& ActionValue);
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestThrowObject(const FInputActionValue& ActionValue);
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestHoldObject();
-	// UFUNCTION(BlueprintCallable, Category = "CharacterMovement")
-	// void RequestStopHoldObject();
-	/** Character Look Inputs */
-	// UPROPERTY(EditAnywhere,Category = "CharacterMovement")
-	// float BaseLookPitchRate = 90.0f;
-	// UPROPERTY(EditAnywhere,Category = "CharacterMovement")
-	// float BaseLookYawRate = 90.0f;
-	// /** Base lookup rate, in deg/sec.  Other scaling may affect final lookup rate */
-	// UPROPERTY(EditAnywhere, Category = "Look")
-	// float BaseLookUpRate = 90.0f;
-	// /** Base look right rate, in deg/sec.  Other scaling may affect final lookup rate */
-	// UPROPERTY(EditAnywhere, Category = "Look")
-	// float BaseLookRightRate = 90.0f;
-
-protected:
-
-	/** Class Overrides */
-	virtual void BeginPlay() override;
-	virtual void OnRep_Pawn() override;
-	virtual void OnPossess(APawn* InPawn) override;
-
-	/** Game Related */
-	UPROPERTY()
-	ASpyVsSpyGameState* SpyGameState;
-	UPROPERTY()
-	ASpyCharacter* SpyCharacter;
-	UPROPERTY()
-	ASpyPlayerState* SpyPlayerState;
-
 	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|UI")
 	void C_RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
@@ -210,6 +165,19 @@ protected:
 	/** Server function to take inventory items from a target and place them in character inventory */
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
 	void S_RequestTakeAllFromTargetInventory();
+#pragma endregion="Input"
+
+#pragma region="Game"
+	/** Game Related */
+	UPROPERTY()
+	ASpyVsSpyGameState* SpyGameState;
+	UPROPERTY()
+	ASpyCharacter* SpyCharacter;
+	UPROPERTY()
+	ASpyPlayerState* SpyPlayerState;
+
+	/** Delegate related to Game State match start of play */
+	void StartMatchForPlayer(const float InMatchStartTime);
 
 	/** Values Used for Display Match Time to the Player */
 	FTimerHandle MatchClockDisplayTimerHandle;
@@ -217,5 +185,5 @@ protected:
 	float LocalClientCachedMatchStartTime = 0.0f;
 	void CalculateGameTimeElapsedSeconds();
 	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
-	
+#pragma endregion="Game"
 };

@@ -73,8 +73,8 @@ public:
 	bool PlayCelebrateMontage();
 
 	/** Activities needed after finishing a match */
-	UFUNCTION(NetMulticast, Reliable)
-	void NM_FinishedMatch();
+	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
+	void DisableSpyCharacter();
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	UInventoryWeaponAsset* GetHeldWeapon() const { return CurrentHeldWeapon; }

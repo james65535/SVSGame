@@ -76,6 +76,10 @@ public:
 	bool IsWinner() const { return bIsWinner; }
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
 	void OnPlayerReachedEnd();
+
+	/** Activities needed after finishing a match */
+	UFUNCTION(NetMulticast, Reliable)
+	void NM_EndMatch();
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerRemainingMatchTime(const float InMatchTimeLength = 0.0f, const bool bIncludeTimePenalty = false);
@@ -126,8 +130,7 @@ private:
 	/** Player Status in the game */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")
 	EPlayerGameStatus CurrentStatus = EPlayerGameStatus::None;
-
-
+	
 	/** Game result winner state */
 	bool bIsWinner = false;
 
