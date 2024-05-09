@@ -12,7 +12,7 @@ class UInventoryTrapAsset;
 class UInventoryItemComponent;
 
 // This class does not need to be modified.
-UINTERFACE(MinimalAPI)
+UINTERFACE(MinimalAPI, Blueprintable)
 class UInteractInterface : public UInterface
 {
 	GENERATED_BODY()
@@ -25,7 +25,6 @@ class SPYVSSPY_API IInteractInterface
 {
 	GENERATED_BODY()
 
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
@@ -47,5 +46,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
 	UInventoryTrapAsset* GetActiveTrap();
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
-	void RemoveActiveTrap(UInventoryTrapAsset* InActiveTrap);
+	void RemoveActiveTrap();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	bool SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
 };

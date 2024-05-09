@@ -23,9 +23,6 @@ void ARoomManager::GetRoomListingCollection(TArray<FRoomListing>& RoomListingCol
 
 	for (FRoomListing RoomListing : RoomCollection)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Room: %s is occupied: %s"),
-			*RoomListing.Room->GetName(),
-			RoomListing.bIsOccupied ? *FString("True") : *FString("False"));
 		if (RoomListing.bIsOccupied == bGetOccupiedRooms)
 		{ RoomListingCollection.Emplace(RoomListing); }
 	}
@@ -38,8 +35,6 @@ void ARoomManager::BeginPlay()
 
 	/** Run only on server if network game */
 	if (!HasAuthority()) { return; }
-	
-	UE_LOG(LogTemp, Warning, TEXT("Room Manager begin play"));
 
 	/** Collect all Room Actor References and update them with a reference to this manager */
 	TArray<AActor*> RoomActors;
@@ -65,11 +60,7 @@ void ARoomManager::AddRoom_Implementation(ASVSRoom* InDynamicRoom, const FGuid I
 void ARoomManager::SetRoomOccupied_Implementation(const ASVSRoom* InRoom, const bool bIsOccupied, const ASpyCharacter* PlayerCharacter)
 {
 	if (!IsValid(InRoom) || RoomCollection.Num() == 0 || !HasAuthority()) { return; }
-
-	if (IsValid(PlayerCharacter))
-	{
-		//PlayerCharacter->UpdateCameraLocation(InRoom);
-	}
+	
 	OnRoomOccupied.Broadcast(InRoom, PlayerCharacter, bIsOccupied);
 	
 	for (int32 Index = 0; Index < RoomCollection.Num(); Index++)

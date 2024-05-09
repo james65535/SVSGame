@@ -6,11 +6,11 @@
 
 #define COLLISION_INTERACT			ECollisionChannel::ECC_GameTraceChannel1
 #define PROJECT_PATH				"/Script/SpyVsSpy"
-#define ABILITY_INPUT_ID			"ESVSAbilityInputID"
+#define ABILITY_INPUT_ID			"ESpyAbilityInputID"
 
 
 UENUM(BlueprintType)
-enum class ESVSAbilityInputID : uint8
+enum class ESpyAbilityInputID : uint8
 {
 	// 0 None
 	None					UMETA(DisplayName = "None"),
@@ -30,6 +30,6 @@ enum class ESVSAbilityInputID : uint8
 	PrevTrapAction			UMETA(DisplayName = "Previous Trap"),
 	// 8 Interact
 	InteractAction			UMETA(DisplayName = "Interact"),
-	// 9 Interact
+	// 9 TrapTrigger
 	TrapTriggerAction		UMETA(DisplayName = "TrapTrigger")
 };

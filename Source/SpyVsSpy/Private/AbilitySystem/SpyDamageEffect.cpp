@@ -6,6 +6,4 @@
 void USpyDamageEffect::PostLoad()
 {
 	Super::PostLoad();
-
-	UE_LOG(SVSLog, Log, TEXT("SPY GE PostLoad")); 
 }

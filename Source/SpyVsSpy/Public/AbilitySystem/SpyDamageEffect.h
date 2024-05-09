@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayEffect.h"
-#include "SVSLogger.h"
 #include "SpyDamageEffect.generated.h"
 
 /**

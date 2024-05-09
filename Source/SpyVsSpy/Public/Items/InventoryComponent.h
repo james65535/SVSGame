@@ -62,7 +62,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	UInventoryTrapAsset* GetActiveTrap() const { return ActiveTrap; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
+	bool SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
 	
 	//FOnInventoryUpdated OnInventoryUpdated;
 

@@ -8,6 +8,7 @@
 
 class UDoorInteractionComponent;
 class ASVSRoom;
+class UInventoryComponent;
 
 /**
  * 
@@ -28,12 +29,17 @@ public:
 	/** Enables and Disables the Door, leaving the door frame */
 	virtual void SetEnableDoorMesh_Implementation(const bool bEnabled) override;
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Furniture")
+	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
 protected:
 
 	virtual void BeginPlay() override;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere,  meta = (AllowPrivateAccess))
 	UDoorInteractionComponent* DoorInteractionComponent;
+	UPROPERTY(BlueprintReadOnly, EditInstanceOnly, Meta = (AllowPrivateAccess = "true"), Category = "SVS")
+	UInventoryComponent* InventoryComponent;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Door")
 	UStaticMeshComponent* DoorPanel;

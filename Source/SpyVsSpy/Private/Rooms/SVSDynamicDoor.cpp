@@ -6,13 +6,18 @@
 #include "SVSLogger.h"
 #include "Rooms/DoorInteractionComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Items/InventoryTrapAsset.h"
 #include "Rooms/SVSRoom.h"
 
 ASVSDynamicDoor::ASVSDynamicDoor()
 {
 	bReplicates = true;
-	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>(
-		"Door Interaction Component");
+
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
+	if (IsValid(InventoryComponent))
+	{ InventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Door); }
+	
+	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>("Door Interaction Component");
 	DoorInteractionComponent->SetIsReplicated(true);
 
 	DoorPanel = CreateDefaultSubobject<UStaticMeshComponent>("Door Panel Mesh");

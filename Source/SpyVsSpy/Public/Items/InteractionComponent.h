@@ -42,13 +42,15 @@ protected:
 	virtual AActor* GetInteractableOwner_Implementation() override;
 
 	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
-	virtual void RemoveActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
+	virtual void RemoveActiveTrap_Implementation() override;
 	
 	virtual bool HasInventory_Implementation() override;
 
+	virtual bool SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
+
 private:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Meta = (AllowPrivateAccess = "true"), Category = "SVS|Furniture")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Meta = (AllowPrivateAccess = "true"), Category = "SVS")
 	bool bInteractionEnabled = true;
 		
 };

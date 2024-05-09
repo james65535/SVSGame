@@ -7,10 +7,10 @@
 #include "Items/InventoryBaseAsset.h"
 #include "InventoryWeaponAsset.generated.h"
 
-//enum class EWeaponType : uint8;
 class USoundCue;
 class UNiagaraSystem;
 class UWeaponComponent;
+class UGameplayCueNotify_Static;
 
 /**
  * 
@@ -39,7 +39,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Combat")
 	EWeaponType WeaponType = EWeaponType::None;
-	//TSubclassOf<UWeaponComponent> WeaponType;
+
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Combat")
+	UGameplayCueNotify_Static* DamageGameplayCueNotify;
 
 	/** Visual effect for the action of using the weapon */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Combat")

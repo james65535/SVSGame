@@ -52,12 +52,17 @@ UInventoryTrapAsset* UInteractionComponent::GetActiveTrap_Implementation()
 	return nullptr;
 }
 
-void UInteractionComponent::RemoveActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
+void UInteractionComponent::RemoveActiveTrap_Implementation()
 {
 	return;
 }
 
 bool UInteractionComponent::HasInventory_Implementation()
+{
+	return false;
+}
+
+bool UInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
 {
 	return false;
 }

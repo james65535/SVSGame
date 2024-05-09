@@ -18,6 +18,8 @@ class SPYVSSPY_API UAbilityTaskSuccessFailEvent : public UAbilityTask
 {
 	GENERATED_BODY()
 
+public:
+
 	UPROPERTY(BlueprintAssignable)
 	FWaitSuccessFailEventDelegate	SuccessEventReceived;
 	UPROPERTY(BlueprintAssignable)
@@ -32,6 +34,7 @@ class SPYVSSPY_API UAbilityTaskSuccessFailEvent : public UAbilityTask
 	UFUNCTION(BlueprintCallable, Category = "SVS|Ability|Tasks", meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "TRUE"))
 	static UAbilityTaskSuccessFailEvent* WaitSuccessFailEvent(UGameplayAbility* OwningAbility, const FGameplayTag SuccessTag, const FGameplayTag FailTag, AActor* OptionalExternalTarget, const bool OnlyTriggerOnce,  const bool OnlyMatchExact);
 
+protected:
 	void SetExternalTarget(const AActor* Actor);
 
 	UAbilitySystemComponent* GetTargetAbilitySystemComponent() const;

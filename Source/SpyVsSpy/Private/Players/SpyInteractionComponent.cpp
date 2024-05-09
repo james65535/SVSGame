@@ -74,7 +74,7 @@ void USpyInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedCompo
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s no longer overlapping with actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
 }
 
-bool USpyInteractionComponent::CanInteractWithKnownInteractionInterface() const
+bool USpyInteractionComponent::CanInteract() const
 {
 	return bCanInteractWithActor;
 }

@@ -8,6 +8,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Items/InventoryComponent.h"
+#include "Items/InventoryTrapAsset.h"
 #include "Rooms/SVSDynamicDoor.h"
 
 // Sets default values for this component's properties
@@ -16,8 +18,6 @@ UDoorInteractionComponent::UDoorInteractionComponent()
 	DoorState = EDoorState::Closed;
 	DoorTransitionTimeline = CreateDefaultSubobject<UTimelineComponent>("Door Transition Timeline");
 	TimelineDirection = ETimelineDirection::Forward;
-
-
 }
 
 void UDoorInteractionComponent::BeginPlay()
@@ -26,7 +26,6 @@ void UDoorInteractionComponent::BeginPlay()
 
 	if (IsValid(DoorTransitionTimelineCurve))
 	{
-		//Add the float curve to the timeline and connect it to your timelines's interpolation function
 		OnDoorTransitionUpdate.BindUFunction(this, "DoorTransitionTimelineUpdate");
 		OnDoorTransitionFinish.BindUFunction(this, "DoorTransitionTimelineFinish");
 
@@ -51,46 +50,37 @@ void UDoorInteractionComponent::BeginPlay()
 
 bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Starting door state %d"), DoorState);
 	// TODO Validate If Interaction is a valid one
 
 	switch (DoorState)
 	{
 		case EDoorState::Opened:
 			{
-				// TODO Validation Check
 				NM_CloseDoor();
 				return true;
 			}
 		case EDoorState::Opening:
 			{
-				// TODO Validation Check
 				NM_CloseDoor();
 				return true;
 			}
 		case EDoorState::Closed:
 			{
-				// TODO Validation Check
 				NM_OpenDoor();
 				return true;
 			}
 		case EDoorState::Closing:
 			{
-				// TODO Validation Check
 				NM_OpenDoor();
 				return true;
 			}
 		case EDoorState::Locked:
 			{
-				// TODO Validation Check
 				// UnlockDoor();
 				return true;
 			}
 		case EDoorState::Disabled:
-			{
-				// TODO Validation Check
-				return false;
-			}
+			{ return false; }
 		default: return false;
 	}
 }
@@ -121,12 +111,54 @@ void UDoorInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
 	DoorState = EDoorState::Disabled;
 }
 
+UInventoryTrapAsset* UDoorInteractionComponent::GetActiveTrap_Implementation()
+{
+	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
+	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
+	{ return nullptr; }
+	
+	return GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->GetActiveTrap();
+}
+
+void UDoorInteractionComponent::RemoveActiveTrap_Implementation()
+{
+	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
+	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
+	{ return; }
+
+	GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetActiveTrap(nullptr);
+}
+
+bool UDoorInteractionComponent::HasInventory_Implementation()
+{
+	return Super::HasInventory_Implementation();
+}
+
+bool UDoorInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
+{
+	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
+		!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()) ||
+		!IsValid(InActiveTrap))
+	{ return false; }
+
+	if (InActiveTrap->InventoryOwnerType == EInventoryOwnerType::Door)
+	{
+		/** Close door when trap is set as Quality of Life feature for players */
+		if (DoorState == EDoorState::Opened)
+		{ Interact_Implementation(nullptr); }
+		
+		GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetActiveTrap(InActiveTrap);
+		
+		return true;
+	}
+	return false;
+}
+
 void UDoorInteractionComponent::NM_OpenDoor_Implementation()
 {
 	if (IsValid(DoorOpenSfx))
 	{ DoorOpenSfx->Play(); }
 	
-	UE_LOG(SVSLogDebug, Log, TEXT("Opening Door"));
 	DoorState = EDoorState::Opening;
 	DoorTransitionTimeline->PlayFromStart();
 }
@@ -136,20 +168,17 @@ void UDoorInteractionComponent::NM_CloseDoor_Implementation()
 	if (IsValid(DoorCloseSfx))
 	{ DoorCloseSfx->Play(); }
 	
-	UE_LOG(SVSLogDebug, Log, TEXT("Closing Door"));
 	DoorState = EDoorState::Closing;
 	DoorTransitionTimeline->ReverseFromEnd();
 }
 
 void UDoorInteractionComponent::DoorOpened()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Door is Open"));
 	OnDoorOpened.Broadcast();
 }
 
 void UDoorInteractionComponent::DoorClosed()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Door is Closed"));
 	OnDoorClosed.Broadcast();
 }
 

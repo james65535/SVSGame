@@ -38,28 +38,28 @@ public:
 	
 	FOnDoorOpened OnDoorOpened;
 	FOnDoorClosed OnDoorClosed;
-
-	/** Timeline for door open / close */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	UCurveFloat* DoorTransitionTimelineCurve;
-	FName DoorTransitionTrackName = "DoorTransitionTrack";
-	FName AppearTimelinePropertyName = "DoorTransitionAmount";
+	
+	UFUNCTION(BlueprintCallable)
+	bool IsOpen() const { return DoorState == EDoorState::Opened; }
+	UFUNCTION(BlueprintCallable)
+	EDoorState GetDoorState() const { return DoorState; }
 
 	/** Interact Interface Override */
 	/** @return Success Status */
 	virtual bool Interact_Implementation(AActor* InteractRequester) override;
-
-	UFUNCTION(BlueprintCallable)
-	bool IsOpen() const { return DoorState == EDoorState::Opened; }
-
-	UFUNCTION(BlueprintCallable)
-	EDoorState GetDoorState() const { return DoorState; }
-	
 	virtual void SetInteractionEnabled(const bool bIsEnabled) override;
+	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
+	virtual void RemoveActiveTrap_Implementation() override;
+	virtual bool HasInventory_Implementation() override;
+	virtual bool SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
 	
 private:
 
-	// UTrapComponent* TrapComponent;
+	/** Timeline for door open / close */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess="true"))
+	UCurveFloat* DoorTransitionTimelineCurve;
+	FName DoorTransitionTrackName = "DoorTransitionTrack";
+	FName AppearTimelinePropertyName = "DoorTransitionAmount";
 	
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	EDoorState DoorState = EDoorState::Closed;

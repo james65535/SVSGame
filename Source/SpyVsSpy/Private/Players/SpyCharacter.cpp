@@ -22,14 +22,11 @@
 #include "Abilities/GameplayAbility.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryComponent.h"
-#include "Items/InteractInterface.h"
 #include "Items/InventoryWeaponAsset.h"
-#include "Items/InventoryTrapAsset.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/RoomManager.h"
 #include "Rooms/SVSRoom.h"
-#include "Rooms/SpyFurniture.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "SpyVsSpy/SpyVsSpy.h"
@@ -181,11 +178,6 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 		 * we provide need a way to avoid this check at start of game */
 		if (!IsValid(CurrentRoom) || bHasTeleported)
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character %s overlapped room %s at start of game"),
-				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-				*GetName(),
-				*RoomEntering->GetName());
-			
 			/** Reset flag and process room change */
 			bHasTeleported = false;
 			ProcessRoomChange(RoomEntering);
@@ -240,17 +232,6 @@ void ASpyCharacter::OnAttackComponentBeginOverlap(UPrimitiveComponent* Overlappe
 
 	bAttackHitFound = true;
 	HandlePrimaryAttackOverlap(OtherActor);
-
-	// TODO move back to ability system component notify or use this for hitting any other object
-	// UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,
-	// 	AttackImpactSpark,
-	// 	AttackZone->GetComponentLocation(),
-	// 	FRotator::ZeroRotator,
-	// 	FVector::OneVector,
-	// 	true,
-	// 	true,
-	// 	ENCPoolMethod::None,
-	// 	true);
 }
 
 void ASpyCharacter::OnAttackComponentEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -322,7 +303,7 @@ void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
 	SetActorHiddenInGame(bIsSpyHidden);
 }
 
-void ASpyCharacter::PrimaryAttackWindowStarted()
+void ASpyCharacter::StartPrimaryAttackWindow()
 {
 	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
@@ -330,7 +311,7 @@ void ASpyCharacter::PrimaryAttackWindowStarted()
 	SetEnabledAttackState(true);
 }
 
-void ASpyCharacter::PrimaryAttackWindowCompleted()
+void ASpyCharacter::CompletePrimaryAttackWindow()
 {
 	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
@@ -403,8 +384,8 @@ void ASpyCharacter::BindAbilitySystemComponentInput()
 		"Confirm",
 		"Cancel",
 		AbilityEnumAssetPath,
-		static_cast<int32>(ESVSAbilityInputID::Confirm),
-		static_cast<int32>(ESVSAbilityInputID::Cancel));
+		static_cast<int32>(ESpyAbilityInputID::Confirm),
+		static_cast<int32>(ESpyAbilityInputID::Cancel));
 	SpyAbilitySystemComponent->BindAbilityActivationToInputComponent(InputComponent, Binds);
 
 	bAbilitySystemComponentBound = true;
@@ -449,7 +430,7 @@ void ASpyCharacter::AddStartupGameplayAbilities()
 					this));
 			/** Hang on to this to prevent array iteration via lookup when we need to call it later */
 			if (static_cast<int32>(StartupAbility.GetDefaultObject()->AbilityInputID) ==
-				static_cast<int32>(ESVSAbilityInputID::TrapTriggerAction))
+				static_cast<int32>(ESpyAbilityInputID::TrapTriggerAction))
 			{ TrapTriggerSpecHandle = AbilitySpecHandle; }
 		}
 
@@ -488,32 +469,10 @@ void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled, c
 
 void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector RespawnLocation)
 {
-	if (IsValid(GetAbilitySystemComponent()))
-	{
-		FString TagsToPrintMessage = "";
-		FGameplayTagContainer TagsToPrintContainer;
-		GetAbilitySystemComponent()->GetOwnedGameplayTags(TagsToPrintContainer);
-		for (FGameplayTag TagToPrint : TagsToPrintContainer)
-		{ TagsToPrintMessage.Appendf(TEXT("%s "), *TagToPrint.GetTagName().ToString()); }
-
-		UE_LOG(SVSLog, Warning, TEXT(">>>>>>>>>>>%s Character: %s setenabledeathstate: %s with tags: %s"),
-			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*GetName(),
-			bEnabled ? *FString("True") : *FString("False"),
-			*TagsToPrintMessage);
-	}
-	else
-	{
-		UE_LOG(SVSLog, Warning, TEXT(
-			">>>>>>>>>>>%s Character: %s setenabledeathstate: %s could not print tags as no valid asc"),
-			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*GetName(),
-			bEnabled ? *FString("True") : *FString("False"));
-	}
 	// TODO are these replicated as currently this func is called via NetMulticast
 	if (bEnabled)
 	{
-		//GetCharacterMovement()->SetIsReplicated(false); // TODO this may not be set by default
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		GetMesh()->SetCollisionProfileName("Ragdoll", true);
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 		GetMesh()->SetAllBodiesSimulatePhysics(true);
@@ -521,8 +480,8 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector Respa
 		GetMesh()->WakeAllRigidBodies();
 		return;
 	}
-	
-	//GetCharacterMovement()->SetIsReplicated(true);
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetAllBodiesSimulatePhysics(false);
 	GetMesh()->SetSimulatePhysics(false);
 	GetMesh()->PutAllRigidBodiesToSleep();
@@ -538,9 +497,7 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector Respa
 	 * entry into ProcessRoomChange for overlap delegates */
 	bHasTeleported = true;
 	if (GetWorld()->GetNetMode() != NM_Client)
-	{
-		SetActorLocationAndRotation(RespawnLocation,FRotator::ZeroRotator);	
-	}
+	{ SetActorLocationAndRotation(RespawnLocation,FRotator::ZeroRotator); }
 }
 
 FVector ASpyCharacter::GetSpyRespawnLocation()
@@ -561,7 +518,7 @@ FVector ASpyCharacter::GetSpyRespawnLocation()
 	{
 		const uint8 RandomRangeMax = RoomCandidatesForSpyRelocation.Num() - 1;
 		const int32 RandomIntFromRange = FMath::RandRange(0, RandomRangeMax);
-		if (ASVSRoom* CandidateRoom = RoomCandidatesForSpyRelocation[RandomIntFromRange].Room)
+		if (const ASVSRoom* CandidateRoom = RoomCandidatesForSpyRelocation[RandomIntFromRange].Room)
 		{ SpyRelocationTarget = CandidateRoom->GetActorLocation(); }
 		else
 		{
@@ -608,26 +565,11 @@ void ASpyCharacter::S_RequestDeath_Implementation()
 				FinishDeathDelaySeconds,
 				false);
 	}
-	// else
-	// {
-	// 	if(!Destroy())
-	// 	{
-	// 		UE_LOG(SVSLog, Warning, TEXT(
-	// 			"%s Character %s was not able to be destroyed when requested"),
-	// 			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-	// 			*GetName());
-	// 	}
-	// 	//SetSpyHidden(true);
-	// }
 }
 
 void ASpyCharacter::NM_RequestDeath_Implementation()
 {
 	// TODO maybe make this server only
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s has requested death, may they be at peace"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
-
 	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
 		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
 	{
@@ -642,8 +584,6 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 
 	if (GetLocalRole() != ROLE_SimulatedProxy || (IsValid(SpyAbilitySystemComponent)))
 	{
-		// OnCharacterDied.Broadcast(this); // TODO borrowing for finishdeath
-
 		/** Ability Component System related work */
 		SpyAbilitySystemComponent->CancelAllAbilities();
 		FGameplayTagContainer EffectTagsToRemove;
@@ -657,26 +597,30 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 
 void ASpyCharacter::FinishDeath()
 {
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s is finishing their death process - RIP"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
-	
 	// This is called from Server RPC
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
 	
 	/** Reset health to max */
-	SpyPlayerState->GetAttributeSet()->SetHealth(SpyPlayerState->GetAttributeSet()->GetMaxHealth());
+	SpyPlayerState->GetAttributeSet()->SetHealth(
+		SpyPlayerState->GetAttributeSet()->GetMaxHealth());
 
 	/** Removed dead state tag */
 	SpyAbilitySystemComponent->RemoveLooseGameplayTag(SpyDeadTag);
 
-	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
+	/** Remove held weapon/trap */
+	if (IsValid(CurrentHeldWeapon))
 	{
-		/** Reset Character death state settings */
-		NM_SetEnableDeathState(false, GetSpyRespawnLocation());
+		CurrentHeldWeapon = nullptr;
+		SetWeaponMesh(nullptr);
+		ActiveWeaponInventoryIndex = 0;
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
 	}
+
+	/** Reset Character death state settings */
+	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
+	{ NM_SetEnableDeathState(false, GetSpyRespawnLocation()); }
 }
 
 void ASpyCharacter::HandlePrimaryAttackOverlap(AActor* OverlappedSpyCombatant)
@@ -761,15 +705,12 @@ void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
 
 void ASpyCharacter::PlayAttackAnimation(const float TimerValue)
 {
-	if(IsRunningDedicatedServer())
+	if (IsRunningDedicatedServer())
 	{ NM_PlayAttackAnimation(TimerValue); }
 }
 
 void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
 {
-	// TODO Remove after testing
-	//SetEnabledAttackState(true);
-	
 	const bool bMontagePlayedSuccessfully = GetMesh()->GetAnimInstance()->Montage_Play(AttackMontage, 1.3f) > 0;
 	if (!AttackMontageEndedDelegate.IsBound())
 	{ AttackMontageEndedDelegate.BindUObject(this, &ThisClass::OnAttackMontageEnded); }
@@ -783,74 +724,6 @@ void ASpyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupte
 		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName(),
 		AttackZone->IsCollisionEnabled() ? *FString("True") : *FString("False"));
-
-// TODO remove after testing
-	/** Notify ability of zero overlaps */
-	// if (!bAttackHitFound)
-	// {
-	// 	SetEnabledAttackState(false);
-	// 	HandlePrimaryAttackOverlap(nullptr);
-	// }
-}
-
-void ASpyCharacter::HandleTrapTrigger()
-{
-	// TODO might need to check on task count on simulated if we exclude them here
-	if (GetLocalRole() == ROLE_SimulatedProxy)
-	{ return; }
-	
-	ASpyFurniture* FurnitureActor = nullptr;
-	if (GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
-	{
-		FurnitureActor = Cast<ASpyFurniture>(
-			GetInteractionComponent()->
-			GetLatestInteractableComponent()->
-			Execute_GetInteractableOwner(
-				GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef()));
-	}
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("Handling Trap Trigger %s Victim: %s and %s Victim: %s"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		GetInstigator()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetInstigator()->GetName());
-	
-	// TODO sort out attack force and consider multiplayer aspect/multicast
-	// perhaps move this to gameplaycue and utilise magnitude...
-	constexpr float AttackForce = 700.0f;
-	const FVector AttackForceVector = FVector(
-		AttackForce,
-		AttackForce,
-		1.0f);
-	FVector AttackOrigin = FVector::ZeroVector;
-
-	if (GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
-	{
-		AttackOrigin = GetInteractionComponent()->
-			GetLatestInteractableComponent()->
-				Execute_GetInteractableOwner(
-					GetInteractionComponent()->
-						GetLatestInteractableComponent().GetObjectRef())->
-							GetActorLocation();
-	}
-
-	Cast<ISpyCombatantInterface>(this)->
-	ApplyAttackImpactForce(AttackOrigin, AttackForceVector);
-
-	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
-	FGameplayEventData Payload = FGameplayEventData();
-
-	if (IsValid(FurnitureActor))
-	{
-		Payload.Instigator = FurnitureActor;
-		UE_LOG(SVSLogDebug, Log, TEXT("Using furniture as instigator"));
-	}
-	else
-	{ Payload.Instigator = this; }
-
-	Payload.Target = this;
-	Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(this);
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, Tag, Payload);
 }
 
 void ASpyCharacter::NM_PlayTrapTriggerAnimation_Implementation(const float TimerValue)
@@ -947,12 +820,12 @@ void ASpyCharacter::RequestPrimaryAttack(const FInputActionValue& Value)
 	if (Value.Get<bool>())
 	{
 		SpyAbilitySystemComponent->AbilityLocalInputPressed(
-			static_cast<int32>(ESVSAbilityInputID::PrimaryAttackAction));
+			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction));
 	}
 	else
 	{
 		SpyAbilitySystemComponent->AbilityLocalInputReleased(
-			static_cast<int32>(ESVSAbilityInputID::PrimaryAttackAction));
+			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction));
 	}
 }
 
@@ -1081,24 +954,8 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 			
 			SetWeaponMesh(FoundWeaponItem->Mesh);
 			/** So that we do not see mesh wireframe for the null default weapon */
-			WeaponMeshComponent->SetVisibility(
-				(WeaponMeshComponent->GetStaticMesh() != nullptr));
-
-			UE_LOG(LogTemp, Warning, TEXT(
-				"Spy replicated weaponindex: %i heldweapon: %s and has valid weapon mesh: %s"),
-				ActiveWeaponInventoryIndex,
-				IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"),
-				IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"));
+			WeaponMeshComponent->SetVisibility((WeaponMeshComponent->GetStaticMesh() != nullptr));
 		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT(
-			"%s Spy: %s replicated weaponindex: %i with collection total %i"),
-			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*GetName(),
-			ActiveWeaponInventoryIndex,
-			InventoryAssets.Num());
 	}
 }
 
@@ -1117,49 +974,17 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 
 void ASpyCharacter::RequestInteract()
 {
-	// TODO refactor this more cleanly across character and controller
-	if (!IsValid(GetInteractionComponent()) ||
-		!GetInteractionComponent()->CanInteractWithKnownInteractionInterface())
+	if (GetLocalRole() == ROLE_SimulatedProxy ||
+		!IsValid(GetInteractionComponent()) ||
+		!GetInteractionComponent()->CanInteract())
 	{ return; }
 	
-	TScriptInterface<IInteractInterface> InteractableActor = GetInteractionComponent()->RequestInteractWithObject();
-	if (IsValid(InteractableActor.GetObjectRef()))
-	{ S_RequestInteract(InteractableActor.GetObject()); }
+	S_RequestInteract();
 }
 
-void ASpyCharacter::S_RequestInteract_Implementation(UObject* InInteractableActor)
+void ASpyCharacter::S_RequestInteract_Implementation()
 {
-	const IInteractInterface* InteractableInterface = Cast<IInteractInterface>(InInteractableActor);
-	ASpyPlayerController* SpyPlayerController = GetController<ASpyPlayerController>();
-	if (!IsValid(SpyPlayerController) ||
-		!IsValid(InteractableInterface->_getUObject()))
-	{ return; }
-	
-	if (UInventoryTrapAsset* ActiveTrap = InteractableInterface->
-		Execute_GetActiveTrap(InteractableInterface->_getUObject()))
-	{
-		// TODO move more of this server side for authorative info like trap damage etc..
-		RequestTrapTrigger();
-		InteractableInterface->
-			Execute_RemoveActiveTrap(InteractableInterface->_getUObject(), ActiveTrap);
-		return;
-	}
-
-	InteractableInterface->Execute_Interact(InteractableInterface->_getUObject(), this);
-
-	if (InteractableInterface->Execute_HasInventory(InteractableInterface->_getUObject()))
-	{
-		SpyPlayerController->C_DisplayTargetInventory(
-			InteractableInterface->Execute_GetInventory(InteractableInterface->_getUObject()));
-	}
-}
-
-void ASpyCharacter::RequestTrapTrigger()
-{
-	C_RequestTrapTrigger();
-}
-
-void ASpyCharacter::C_RequestTrapTrigger_Implementation()
-{
-	SpyAbilitySystemComponent->AbilityLocalInputPressed(static_cast<int32>(ESVSAbilityInputID::TrapTriggerAction));
+	SpyAbilitySystemComponent->TryActivateAbility(
+		SpyAbilitySystemComponent->FindAbilitySpecFromInputID(
+			static_cast<int32>(ESpyAbilityInputID::InteractAction))->Handle);
 }

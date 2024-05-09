@@ -20,6 +20,6 @@ void USpyGameplayAbility::PrintActiveTaskNames()
 	for (const UGameplayTask* ActiveTask : ActiveTasks)
 	{
 		UE_LOG(SVSLogDebug, Log, TEXT("Active Task Instance Name: %s"),
-		*ActiveTask->GetName());
+			*ActiveTask->GetName());
 	}
 }

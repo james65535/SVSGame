@@ -38,7 +38,6 @@ void UDamageEffectExecCalculation::Execute_Implementation(
 	const FGameplayEffectCustomExecutionParameters& ExecutionParams,
 	FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("UDamageEffectExecCalculation::Execute_Implementation called"));
 	USpyAbilitySystemComponent* SourceAbilitySystemComponent = Cast<USpyAbilitySystemComponent>(ExecutionParams.GetSourceAbilitySystemComponent());
 	USpyAbilitySystemComponent* TargetAbilitySystemComponent = Cast<USpyAbilitySystemComponent>(ExecutionParams.GetTargetAbilitySystemComponent());
 	
@@ -63,28 +62,23 @@ void UDamageEffectExecCalculation::Execute_Implementation(
 	/** Avoid Divide by Zero In Damage Calculation */
 	if (DefensePower == 0.0f)
 	{ DefensePower = 1.0f; }
-	UE_LOG(SVSLogDebug, Log, TEXT("DamageEffectCalculation Defense Power: %f"), DefensePower);
 
 	float AttackPower = 1.0f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
 		DamageStatics().AttackPowerDef,
 		EvaluationParameters,
 		AttackPower);
-	UE_LOG(SVSLogDebug, Log, TEXT("DamageEffectCalculation Attack Power: %f"), AttackPower);
 
 	float Damage = 0.0f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
 		DamageStatics().DamageDef,
 		EvaluationParameters,
 		Damage);
-	UE_LOG(SVSLogDebug, Log, TEXT("DamageEffectCalculation Damage: %f"), Damage);
 	
 	const float DamageDone = Damage * AttackPower / DefensePower;
-	UE_LOG(SVSLogDebug, Log, TEXT("DamageEffectCalculation calculated damage done: %f"), DamageDone);
 	
 	if (DamageDone > 0.0f)
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("DamageEffectCalculation calling executionoutputmodifier"));
 		OutExecutionOutput.AddOutputModifier(
 			FGameplayModifierEvaluatedData(
 				DamageStatics().DamageProperty,

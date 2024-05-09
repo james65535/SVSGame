@@ -7,7 +7,6 @@
 #include "GameFramework/Character.h"
 #include "GameplayTagContainer.h"
 #include "InputActionValue.h"
-#include "Items/InventoryWeaponAsset.h"
 #include "Players/SpyCombatantInterface.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "SpyCharacter.generated.h"
@@ -29,8 +28,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCharacterDiedDelegate, ASpyCharacte
 UENUM(BlueprintType)
 enum class EItemRotationDirection : uint8
 {
-	Previous						UMETA(DisplayName = "Previous Item"),
-	Next						UMETA(DisplayName = "NextItem")
+	Previous		UMETA(DisplayName = "Previous Item"),
+	Next			UMETA(DisplayName = "NextItem")
 };
 
 UCLASS()
@@ -64,9 +63,9 @@ public:
 	void ResetAttackHitFound() { bAttackHitFound = false; }
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
-	void PrimaryAttackWindowStarted();
+	void StartPrimaryAttackWindow();
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
-	void PrimaryAttackWindowCompleted();
+	void CompletePrimaryAttackWindow();
 	
 	/** Animation Montage for times of celebration such as winning match */
 	UFUNCTION()
@@ -140,8 +139,6 @@ public:
 	void RequestPreviousTrap(const FInputActionValue& Value);
 	/** Called for Interact Input */
 	void RequestInteract();
-	/** Called for Trap Trigger */
-	void RequestTrapTrigger();
 #pragma endregion="Movement"
 
 private:
@@ -216,7 +213,7 @@ protected:
 	void OnAttackComponentEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Interact")
-	void S_RequestInteract(UObject* InInteractableActor);
+	void S_RequestInteract();
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Animation")
 	UAnimMontage* CelebrateMontage = nullptr;
@@ -257,12 +254,7 @@ protected:
 	void PlayAttackAnimation(const float TimerValue = 0.3f);
 	UFUNCTION(NetMulticast, Reliable, BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void NM_PlayAttackAnimation(const float TimerValue = 0.3f);
-
-	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
-	void HandleTrapTrigger();
-
-	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Abilities|Combat")
-	void C_RequestTrapTrigger();
+	
 	/**
 	 * Plays an Attack Animation
 	 * @param TimerValue How much time it takes before another attack can execute.

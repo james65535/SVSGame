@@ -30,7 +30,7 @@ public:
 	void S_RequestBasicInteractWithObject();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Character")
-	bool CanInteractWithKnownInteractionInterface() const;
+	bool CanInteract() const;
 
 private:
 	

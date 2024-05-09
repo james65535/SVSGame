@@ -89,7 +89,7 @@ public:
 
 	/** Place currently held trap in current interactable actor */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
-	void RequestPlaceTrap();
+	bool RequestPlaceTrap() const;
 	
 	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|Player")
 	void C_DisplayCharacterInventory();

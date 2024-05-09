@@ -20,7 +20,7 @@ public:
 	USpyGameplayAbility();
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "SVS|Abilities")
-	ESVSAbilityInputID AbilityInputID { ESVSAbilityInputID::None };
+	ESpyAbilityInputID AbilityInputID { ESpyAbilityInputID::None };
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities")
 	bool AreTasksStillActive();

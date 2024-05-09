@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "InventoryComponent.h"
 #include "Items/InventoryWeaponAsset.h"
 #include "InventoryTrapAsset.generated.h"
@@ -23,5 +24,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Trap")
 	EInventoryOwnerType InventoryOwnerType = EInventoryOwnerType::None;
 
+	/** Local Space Transform for Effect */
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Trap")
+	FTransform TrapEffectTransformOffset;
+
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Trap", meta = (Categories = "GameplayCue.TrapTriggered" ))
+	FGameplayTag GameplayTriggerTag;
+	
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("InventoryTrapAsset", GetFName()); }
 };

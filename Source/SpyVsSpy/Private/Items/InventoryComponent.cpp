@@ -131,12 +131,15 @@ void UInventoryComponent::SetInventoryOwnerType(const EInventoryOwnerType InInve
 	InventoryOwnerType = InInventoryOwnerType;
 }
 
-void UInventoryComponent::SetActiveTrap(UInventoryTrapAsset* InActiveTrap)
+bool UInventoryComponent::SetActiveTrap(UInventoryTrapAsset* InActiveTrap)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Actor has been given an active trap: %s"),
+	UE_LOG(SVSLogDebug, Log, TEXT("Actor: %s has been given an active trap: %s"),
+		*GetOwner()->GetName(),
 		IsValid(InActiveTrap) ? *InActiveTrap->InventoryItemName.ToString() : *FString("Null Trap"));
-
+	// TODO check if trap is of valid type
 	ActiveTrap = InActiveTrap;
+
+	return true;
 }
 
 void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)

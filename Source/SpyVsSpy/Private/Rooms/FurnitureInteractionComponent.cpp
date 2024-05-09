@@ -5,11 +5,20 @@
 
 #include "SVSLogger.h"
 #include "Items/InventoryComponent.h"
-#include "Items/InventoryWeaponAsset.h"
+#include "Items/InventoryTrapAsset.h"
 #include "Rooms/SpyFurniture.h"
 
 bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
+	UE_LOG(LogTemp, Warning, TEXT("furniture interact called"));
+
+// check if armed with trap, trigger if so and return
+	// display inventory
+	
+
+
+
+	
 	return Super::Interact_Implementation(InteractRequester);
 
 	// TODO interact animation
@@ -66,7 +75,7 @@ UInventoryTrapAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementatio
 	return GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetActiveTrap();
 }
 
-void UFurnitureInteractionComponent::RemoveActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
+void UFurnitureInteractionComponent::RemoveActiveTrap_Implementation()
 {
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
@@ -81,4 +90,18 @@ bool UFurnitureInteractionComponent::HasInventory_Implementation()
 	{ return false; }
 	
 	return GetOwner<ASpyFurniture>()->GetInventoryComponent() != nullptr;
+}
+
+bool UFurnitureInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
+{
+	if (!IsValid(GetOwner<ASpyFurniture>()) ||
+		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
+	{ return false; }
+
+	if (InActiveTrap->InventoryOwnerType == EInventoryOwnerType::Furniture)
+	{
+		GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetActiveTrap(InActiveTrap);
+		return true;
+	}
+	return false;
 }

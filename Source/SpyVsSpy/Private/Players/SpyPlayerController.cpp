@@ -247,13 +247,13 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 {
 	// TODO refactor this more cleanly across controller and character
 	if (!IsValid(SpyCharacter->GetInteractionComponent()) ||
-		!SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ||
+		!SpyCharacter->GetInteractionComponent()->CanInteract() ||
 		!IsValid(SpyCharacter->GetPlayerInventoryComponent()))
 	{
 		UE_LOG(SVSLog, Warning, TEXT(
 			"Character %s tried to take items but validation failed - caninteract: %s inventory: %s"),
 			*SpyCharacter->GetName(),
-			SpyCharacter->GetInteractionComponent()->CanInteractWithKnownInteractionInterface() ? *FString("True") : *FString("False"),
+			SpyCharacter->GetInteractionComponent()->CanInteract() ? *FString("True") : *FString("False"),
 			IsValid(SpyCharacter->GetPlayerInventoryComponent()) ? *FString("True") : *FString("False"));
 		return;
 	}
@@ -277,24 +277,47 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 	SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(TargetInventoryPrimaryAssetIdCollection);
 }
 
-void ASpyPlayerController::RequestPlaceTrap()
-{
-	S_RequestPlaceTrap();
-}
-
-void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
+bool ASpyPlayerController::RequestPlaceTrap() const
 {
 	TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent();
 
 	if (!IsValid(TargetInteractionComponent.GetObjectRef()) ||
-		!IsValid(SpyCharacter->GetHeldWeapon()))
-	{ return; }
-	
+		!IsValid(SpyCharacter->GetHeldWeapon()) ||
+		IsRunningClientOnly())
+	{ return false; }
+
+	// TODO determine if refactor into controlled character's inventory component is required
 	if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon()))
 	{
-		TargetInteractionComponent->Execute_GetInventory(
-			TargetInteractionComponent.GetObjectRef())->SetActiveTrap(HeldTrap);
+		const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
+
+		UE_LOG(SVSLogDebug, Warning, TEXT("Character %s was able to set trap on %s with success %s"),
+			*SpyCharacter->GetName(),
+			*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
+			bTrapSetSuccessful ? *FString("True") : *FString("False"));
+		return bTrapSetSuccessful;
 	}
+	return false;
+}
+
+void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
+{
+	// TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent();
+	//
+	// if (!IsValid(TargetInteractionComponent.GetObjectRef()) ||
+	// 	!IsValid(SpyCharacter->GetHeldWeapon()))
+	// { return; }
+	//
+	// // TODO determine if refactor into controlled character's inventory component is required
+	// if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon()))
+	// {
+	// 	const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
+	//
+	// 	UE_LOG(SVSLogDebug, Warning, TEXT("Character %s was able to set trap on %s with success %s"),
+	// 		*SpyCharacter->GetName(),
+	// 		*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
+	// 		bTrapSetSuccessful ? *FString("True") : *FString("False"));
+	// }
 }
 
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
@@ -315,6 +338,40 @@ void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeTo
 	SpyPlayerHUD->SetMatchTimerSeconds(InTimeToDisplay);
 }
 
+void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
+{
+	RequestInputMode(EPlayerInputMode::GameOnly);
+	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
+
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		/** Handle Match Time - Most likely on 1 second repeat */
+		GetWorld()->GetTimerManager().SetTimer(
+			MatchClockDisplayTimerHandle,
+			this,
+			&ThisClass::CalculateGameTimeElapsedSeconds,
+			MatchClockDisplayRateSeconds,
+			true);
+	}
+	
+	/** Update Player Displays with character info */
+	if (GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		SpyPlayerHUD->ToggleDisplayGameTime(true);
+		SpyPlayerHUD->DisplayCharacterHealth(
+			SpyPlayerState->GetAttributeSet()->GetHealth(),
+			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
+		C_DisplayCharacterInventory();
+	}
+}
+
+bool ASpyPlayerController::CanProcessRequest() const
+{
+	if (SpyGameState && SpyGameState->IsMatchInPlay())
+	{ return (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing); }
+	return false;
+}
+
 void ASpyPlayerController::SetInputContext(const TSoftObjectPtr<UInputMappingContext> InMappingContext) const
 {
 	if(const ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Player))
@@ -324,7 +381,6 @@ void ASpyPlayerController::SetInputContext(const TSoftObjectPtr<UInputMappingCon
 		{
 			InputSystem->ClearAllMappings();
 			InputSystem->AddMappingContext(InMappingContextLoaded, 0, FModifyContextOptions());
-			UE_LOG(SVSLogDebug, Warning, TEXT("Mapping context: %s"), *InMappingContext->GetName());
 		}
 	}
 }
@@ -354,41 +410,6 @@ void ASpyPlayerController::RequestCloseInventory()
 	SpyPlayerHUD->CloseInventory();
 }
 
-void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
-{
-	RequestInputMode(EPlayerInputMode::GameOnly);
-	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
-
-	if (GetLocalRole() == ROLE_AutonomousProxy)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("running match start as automous proxy"));
-		/** Handle Match Time - Most likely on 1 second repeat */
-		GetWorld()->GetTimerManager().SetTimer(
-			MatchClockDisplayTimerHandle,
-			this,
-			&ThisClass::CalculateGameTimeElapsedSeconds,
-			MatchClockDisplayRateSeconds,
-			true);
-	}
-	
-	/** Update Player Displays with character info */
-	if (GetLocalRole() == ROLE_AutonomousProxy)
-	{
-		SpyPlayerHUD->ToggleDisplayGameTime(true);
-		SpyPlayerHUD->DisplayCharacterHealth(
-			SpyPlayerState->GetAttributeSet()->GetHealth(),
-			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
-		C_DisplayCharacterInventory();
-	}
-}
-
-bool ASpyPlayerController::CanProcessRequest() const
-{
-	if (SpyGameState && SpyGameState->IsMatchInPlay())
-	{ return (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing); }
-	return false;
-}
-
 void ASpyPlayerController::RequestMove(const FInputActionValue& ActionValue)
 {
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
@@ -414,7 +435,6 @@ void ASpyPlayerController::RequestMove(const FInputActionValue& ActionValue)
 
 void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Controller Next trap"));
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
@@ -423,7 +443,6 @@ void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
 
 void ASpyPlayerController::RequestPreviousTrap(const FInputActionValue& ActionValue)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Controller Prev trap"));
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
