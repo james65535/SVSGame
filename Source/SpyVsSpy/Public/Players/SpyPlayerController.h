@@ -158,10 +158,6 @@ protected:
 	UFUNCTION(BlueprintCallable, Client, Reliable, Category = "SVS|UI")
 	void C_RequestInputMode(const EPlayerInputMode DesiredInputMode);
 
-	/** Place currently held trap in current interactable actor */
-	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
-	void S_RequestPlaceTrap();
-
 	/** Server function to take inventory items from a target and place them in character inventory */
 	UFUNCTION(BlueprintCallable, Server, Reliable, Category = "SVS|Player")
 	void S_RequestTakeAllFromTargetInventory();

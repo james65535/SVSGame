@@ -93,7 +93,7 @@ bool USpyInteractAbility::RequestTriggerTrap()
 					{
 						TrapTriggerTaskResultTag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
 					
-						/** Carry out effects for Damage */
+						/** Carry out effects for Damage Calculation */
 						FActiveGameplayEffectHandle DamageGameplayEffectHandle = ApplyGameplayEffectToOwner(
 							GetCurrentAbilitySpecHandle(),
 							GetCurrentActorInfo(),
@@ -109,6 +109,7 @@ bool USpyInteractAbility::RequestTriggerTrap()
 						FGameplayCueParameters GameplayCueParameters = FGameplayCueParameters(GameplayEffectContextHandle);
 						GameplayCueParameters.Instigator = SpyCharacter;
 						GameplayCueParameters.EffectCauser = TargetActor;
+						GameplayCueParameters.SourceObject = TrapAsset;
 
 						UAbilitySystemComponent* const AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo_Checked();
 						AbilitySystemComponent->ExecuteGameplayCue(TrapAsset->GameplayTriggerTag, GameplayCueParameters);

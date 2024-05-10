@@ -19,10 +19,10 @@ public:
 	
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FName Name;
-
+	
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FText Description;
-
+	
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
 	FGameUI GameWidgetClasses;
 };

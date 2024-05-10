@@ -59,17 +59,11 @@ void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 	/** If this load is done on a client while they are playing then display contents of inventory in UI */
 	const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner());
 	if (IsValid(SpyCharacter) &&
-		IsValid(SpyCharacter->GetController()) &&
-		SpyCharacter->GetController()->GetLocalRole() == ROLE_AutonomousProxy)
+		IsValid(SpyCharacter->GetController<ASpyPlayerController>()) &&
+		SpyCharacter->GetController<ASpyPlayerController>()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
 		if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(SpyCharacter->GetController()))
-		{
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s InventoryComponent running onrep display inv"),
-				SpyCharacter->GetController()->IsLocalController() ? *FString("Local") : *FString("Remote"),
-				*SpyCharacter->GetName());
-
-			SpyPlayerController->C_DisplayCharacterInventory();
-		}
+		{ SpyPlayerController->C_DisplayCharacterInventory(); }
 	}
 }
 

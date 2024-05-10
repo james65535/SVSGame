@@ -112,12 +112,12 @@ void ASpyHUD::DisplayCharacterHealth(const float InCurrentHealth, const float In
 	{ GameLevelWidget->DisplayCharacterHealth(InCurrentHealth, InMaxHealth); }
 }
 
-void ASpyHUD::DisplayCharacterInventory(UInventoryComponent* InventoryComponent) const
+void ASpyHUD::DisplayCharacterInventory(const TMap<UObject*, bool>& InventoryItems) const
 {
-	if (!IsValid(GameLevelWidget) || !IsValid(InventoryComponent))
+	if (!IsValid(GameLevelWidget))
 	{ return; }
 
-	GameLevelWidget->DisplayCharacterInventory(InventoryComponent);
+	GameLevelWidget->DisplayCharacterInventory(InventoryItems);
 }
 
 void ASpyHUD::DisplaySelectedActorInventory(const UInventoryComponent* TargetInventoryComponent) const

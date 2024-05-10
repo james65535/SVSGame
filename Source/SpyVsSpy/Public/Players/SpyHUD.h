@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "UI/UIElementAsset.h"
-#include "UI/UIElementWidget.h"
 #include "GameFramework/HUD.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "SpyHUD.generated.h"
@@ -12,7 +11,42 @@
 class UInventoryComponent;
 class ASpyPlayerController;
 class ASpyVsSpyGameMode;
+class UUIElementWidget;
+
 enum class EPlayerMatchStatus : uint8;
+
+/**
+ * 
+ */
+// USTRUCT(BlueprintType, Category = "SVS|UI")
+// struct FItemDisplaySettings
+// {
+// 	GENERATED_BODY()
+// 	
+// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
+// 	FName ItemName;
+//
+// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
+// 	UTexture* IconImage;
+//
+// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
+// 	bool CurrentlySelected;
+//
+// 	FItemDisplaySettings()
+// 	{
+// 		ItemName = "";
+// 		IconImage = nullptr;
+// 		CurrentlySelected = false;
+// 	}
+//
+// 	FItemDisplaySettings(const FName InItemName, UTexture* InIconImage, const bool InCurrentlySelected)
+// 	{
+// 		ItemName = InItemName;
+// 		IconImage = InIconImage;
+// 		CurrentlySelected = InCurrentlySelected;
+// 	}
+// };
+
 
 /**
  * 
@@ -71,7 +105,8 @@ public:
 	void DisplayCharacterHealth(const float InCurrentHealth, const float InMaxHealth) const;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void DisplayCharacterInventory(UInventoryComponent* InventoryComponent) const;
+	void DisplayCharacterInventory(const TMap<UObject*, bool>& InventoryItems) const;
+	//void DisplayCharacterInventory(UInventoryComponent* InventoryComponent, const UInventoryWeaponAsset* SelectedWeaponAsset) const;
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplaySelectedActorInventory(const UInventoryComponent* TargetInventoryComponent) const;
 

@@ -230,10 +230,29 @@ void ASpyPlayerController::C_RequestInputMode_Implementation(const EPlayerInputM
 
 void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 {
-	if (GetLocalRole() != ROLE_AutonomousProxy)
+	if (GetLocalRole() != ROLE_AutonomousProxy || !IsValid(SpyCharacter))
 	{ return; }
+
+	/** Find out what items the Spy has in inventory */
+	TArray<UInventoryBaseAsset*> InventoryAssets;
+	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
 	
-	SpyPlayerHUD->DisplayCharacterInventory(SpyCharacter->GetPlayerInventoryComponent());
+	/** Grab name of held weapon so we can flag up to UI what is selected */
+	const FString HeldWeaponName =  IsValid(SpyCharacter->GetHeldWeapon()) ?
+		SpyCharacter->GetHeldWeapon()->GetName() :
+		"NotAName";
+	
+	TMap<UObject*, bool> DisplayedItems;
+	for (UObject* InventoryAsset : InventoryAssets)
+	{
+		const bool bSelectedWeapon = InventoryAsset->GetName().Equals(HeldWeaponName) ?
+			true :
+			false;
+		
+		DisplayedItems.Add(InventoryAsset, bSelectedWeapon);
+	}
+	
+	SpyPlayerHUD->DisplayCharacterInventory(DisplayedItems);
 }
 
 void ASpyPlayerController::RequestTakeAllFromTargetInventory()
@@ -300,26 +319,6 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 	return false;
 }
 
-void ASpyPlayerController::S_RequestPlaceTrap_Implementation()
-{
-	// TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent();
-	//
-	// if (!IsValid(TargetInteractionComponent.GetObjectRef()) ||
-	// 	!IsValid(SpyCharacter->GetHeldWeapon()))
-	// { return; }
-	//
-	// // TODO determine if refactor into controlled character's inventory component is required
-	// if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon()))
-	// {
-	// 	const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
-	//
-	// 	UE_LOG(SVSLogDebug, Warning, TEXT("Character %s was able to set trap on %s with success %s"),
-	// 		*SpyCharacter->GetName(),
-	// 		*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
-	// 		bTrapSetSuccessful ? *FString("True") : *FString("False"));
-	// }
-}
-
 void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
 {
 	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
@@ -352,15 +351,13 @@ void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 			&ThisClass::CalculateGameTimeElapsedSeconds,
 			MatchClockDisplayRateSeconds,
 			true);
-	}
 	
-	/** Update Player Displays with character info */
-	if (GetLocalRole() == ROLE_AutonomousProxy)
-	{
+		/** Update Player Displays with character info */
 		SpyPlayerHUD->ToggleDisplayGameTime(true);
 		SpyPlayerHUD->DisplayCharacterHealth(
 			SpyPlayerState->GetAttributeSet()->GetHealth(),
 			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
+
 		C_DisplayCharacterInventory();
 	}
 }

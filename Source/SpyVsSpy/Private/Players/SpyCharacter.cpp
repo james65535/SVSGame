@@ -29,6 +29,7 @@
 #include "Rooms/SVSRoom.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Players/SpyHUD.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
 ASpyCharacter::ASpyCharacter()
@@ -848,85 +849,52 @@ void ASpyCharacter::RequestPreviousTrap(const FInputActionValue& Value)
 void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirection InItemRotationDirection)
 {
 	// TODO replace with WeaponMesh = GetPlayerInventoryComponent()->SelectWeapon(bChoosePrevious);
-	
 	if (!IsValid(GetPlayerInventoryComponent()))
+	{ return; }
+		
+	int8 IndexModifier = 1;
+	if (InItemRotationDirection == EItemRotationDirection::Previous)
+	{ IndexModifier = -1; }
+
+	const int32 InventoryCollectionSize = GetPlayerInventoryComponent()->GetCurrentCollectionSize();
+	const int32 StartIndex = ActiveWeaponInventoryIndex + IndexModifier;
+	if (InventoryCollectionSize < 1 || StartIndex < 0 || StartIndex >= InventoryCollectionSize)
 	{ return; }
 	
 	TArray<UInventoryBaseAsset*> InventoryAssets;
 	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	int StartIndex = ActiveWeaponInventoryIndex;
-	if (InventoryAssets.Num() < 1)
-	{ return; }
-
-	if (InItemRotationDirection == EItemRotationDirection::Next)
+	if (InventoryAssets.IsValidIndex(StartIndex))
 	{
-		StartIndex = ActiveWeaponInventoryIndex + 1;
-		if (StartIndex < InventoryAssets.Num() && StartIndex > 0)
+		UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
+		UInventoryWeaponAsset* OldWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[ActiveWeaponInventoryIndex]);
+		/** Quantities might be -1 which means unlimited */
+		if (IsValid(WeaponAsset))
 		{
-			for (; StartIndex < InventoryAssets.Num();StartIndex++)
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s potential trap: %s and old: %s"),
+				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				*GetName(),
+				*WeaponAsset->InventoryItemName.ToString(),
+				*OldWeaponAsset->InventoryItemName.ToString());
+			
+			if (WeaponAsset->Quantity != 0)
 			{
-				UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
-				UInventoryWeaponAsset* OldWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex-1]);
-				/** Quantities might be -1 which means unlimited */
-				if (IsValid(WeaponAsset))
-				{
-					UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s potential trap: %s and old: %s"),
-						IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-						*GetName(),
-						*WeaponAsset->InventoryItemName.ToString(),
-						*OldWeaponAsset->InventoryItemName.ToString());
-					
-					if (WeaponAsset->Quantity != 0)
-					{
-						CurrentHeldWeapon = WeaponAsset;
-						SetWeaponMesh(WeaponAsset->Mesh);
-					}
-					else
-					{
-						CurrentHeldWeapon = nullptr;
-						SetWeaponMesh(nullptr);
-					}
-				
-					ActiveWeaponInventoryIndex = StartIndex;
-					MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
-					UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
-						IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-						*GetName(),
-						ActiveWeaponInventoryIndex,
-						IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-						IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
-					return;
-				}
-			}
-		}
-	}
-	else
-	{
-		if (ActiveWeaponInventoryIndex-1 >= 0)
-		{ StartIndex = ActiveWeaponInventoryIndex-1; }
-
-		for (; StartIndex >= 0;StartIndex--)
-		{
-			UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
-			/** Quantities might be -1 which means unlimited */
-			if (IsValid(WeaponAsset))
-			{
-				if (WeaponAsset->Quantity != 0)
-				{ CurrentHeldWeapon = WeaponAsset; }
-				else
-				{ CurrentHeldWeapon = nullptr; }
-				
-				ActiveWeaponInventoryIndex = StartIndex;
-				MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
+				CurrentHeldWeapon = WeaponAsset;
 				SetWeaponMesh(WeaponAsset->Mesh);
-				UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested previous trap with new index: %i with valid mesh: %s and name: %s"),
-					IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-					*GetName(),
-					ActiveWeaponInventoryIndex,
-					IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-					IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
-				return;
 			}
+			else
+			{
+				CurrentHeldWeapon = nullptr;
+				SetWeaponMesh(nullptr);
+			}
+		
+			ActiveWeaponInventoryIndex = StartIndex;
+			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
+			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
+				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				*GetName(),
+				ActiveWeaponInventoryIndex,
+				IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
+				IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
 		}
 	}
 }
@@ -939,10 +907,8 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 	// TODO add getting for singular asset so we don't have to use arrays here
 	TArray<UInventoryBaseAsset*> InventoryAssets;
 	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	if (InventoryAssets.Num() > 0 &&
-		ActiveWeaponInventoryIndex >= 0 &&
-		ActiveWeaponInventoryIndex < InventoryAssets.Num() &&
-		IsValid(InventoryAssets[ActiveWeaponInventoryIndex]))
+
+	if (InventoryAssets.Num() > 0 && InventoryAssets.IsValidIndex(ActiveWeaponInventoryIndex))
 	{
 		if (UInventoryWeaponAsset* FoundWeaponItem = Cast<UInventoryWeaponAsset>(
 			InventoryAssets[ActiveWeaponInventoryIndex]))
@@ -951,6 +917,10 @@ void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
 			{ CurrentHeldWeapon = FoundWeaponItem; }
 			else
 			{ CurrentHeldWeapon = nullptr; }
+
+			/** Update player UI */
+			if (ASpyPlayerController* PlayerController = GetController<ASpyPlayerController>())
+			{ PlayerController->C_DisplayCharacterInventory(); }
 			
 			SetWeaponMesh(FoundWeaponItem->Mesh);
 			/** So that we do not see mesh wireframe for the null default weapon */

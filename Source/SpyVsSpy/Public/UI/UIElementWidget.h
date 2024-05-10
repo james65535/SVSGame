@@ -6,9 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "UIElementWidget.generated.h"
 
-struct FServerLobbyEntry;
 class UUIElementWidget;
 class UInventoryComponent;
+struct FServerLobbyEntry;
 struct FGameResult;
 enum class EPlayerGameStatus : uint8;
 
@@ -25,10 +25,8 @@ struct FGameUIClassInfo
 };
 
 /**
- * This class is a good place to trace back from when trying to find which game logic impacts what is
- * displayed in the HUD
+ * 
  */
-
 USTRUCT(BlueprintType, Category = "SVS|UI")
 struct FGameUI
 {
@@ -45,7 +43,8 @@ struct FGameUI
 };
 
 /**
- * 
+ *This class is a good place to trace back from when trying to find which game logic impacts what is
+ * displayed in the HUD
  */
 UCLASS()
 class SPYVSSPY_API UUIElementWidget : public UUserWidget
@@ -97,7 +96,7 @@ public:
 	void CloseGameMenu();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
-	void DisplayCharacterInventory(const UInventoryComponent* InCharacterInventory);
+	void DisplayCharacterInventory(const TMap<UObject*, bool>& InventoryItems);
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
 	void DisplaySelectedActorInventory(const UInventoryComponent* InventoryComponent);
 	UFUNCTION(BlueprintImplementableEvent, Category = "SVS|UI")
