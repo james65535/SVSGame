@@ -14,6 +14,7 @@
 #include "Components/TimelineComponent.h"
 #include "GameModes/SpyVsSpyGameState.h"
 #include "Kismet/KismetGuidLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 
 ASVSRoom::ASVSRoom() : ADynamicRoom()
@@ -272,6 +273,29 @@ void ASVSRoom::UnHideRoom(const ASpyCharacter* InSpyCharacter)
 	else
 	{ UE_LOG(SVSLog, Warning, TEXT("Room timeline for appear effect is null")); }
 
+
+
+	// FVector TraceDirection = FVector(0.0f, NeighboringRoomCheckTraceLength, 0.0f);
+	// const FVector RoomLocation = GetRoomLocation_Implementation() - FVector(0.0f, 0.0f, FloorHeight);
+	// const FVector TraceStartLocation = RoomLocation + TraceDirection;
+	// const TArray<TEnumAsByte<EObjectTypeQuery>> TraceObjectTypes = {UEngineTypes::ConvertToObjectType(ECC_WorldDynamic)};
+	// const TArray<AActor*> TraceActorsToIgnore;
+	// FHitResult TraceHitResult;
+	// if (UKismetSystemLibrary::SphereTraceSingle(
+	// 	this,
+	// 	TraceStartLocation,
+	// 	RoomLocation,
+	// 	TraceObjectTypes,
+	// 	true,
+	// 	TraceActorsToIgnore,
+	// 	EDrawDebugTrace::ForDuration,
+	// 	TraceHitResult,
+	// 	true,
+	// 	FLinearColor::Red,
+	// 	FLinearColor::Green,
+	// 	20.0f))
+	// {}
+
 	/** Set Room Furniture visibility */
 	for (AFurnitureBase* Furniture : FurnitureCollection)
 	{
@@ -362,8 +386,12 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 	/** Hide the Hierarchical Instanced Static Meshes which are used as Room Decorators */
 	for (UDynamicWall* DynamicWall : WallSet)
 	{
-		// TODO need to flip effect since walls are mirrored
-		DynamicWall->SetCustomPrimitiveDataFloat(0, VisibilityInterp);
+		// TODO refactor this for dynamic checks
+		if (DynamicWall != WestWall && DynamicWall != SouthWall)
+		{
+			// TODO need to flip effect since walls are mirrored
+			DynamicWall->SetCustomPrimitiveDataFloat(0, VisibilityInterp);	
+		}
 	}
 
 	/** Apply effect to floor */
@@ -374,4 +402,14 @@ void ASVSRoom::TimelineAppearFinish()
 {
 	OnRoomOccupancyChange.Broadcast(this, bRoomLocallyHiddenInGame);
 	SetActorHiddenInGame(bRoomLocallyHiddenInGame); // Will already be visible if timeline makes room Appear
+
+	// TODO refactor this so that a trace determines which walls to
+	// hide should camera change cardinal directions
+	WestWall->SetCustomPrimitiveDataFloat(0, 0.0);
+	WestWall->SetCustomPrimitiveDataFloat(1, 0);
+	WestWall->SetCustomPrimitiveDataFloat(2, 0);
+	SouthWall->SetCustomPrimitiveDataFloat(0, 0.0);
+	SouthWall->SetCustomPrimitiveDataFloat(1, 0);
+	SouthWall->SetCustomPrimitiveDataFloat(2, 0);
+	
 }
