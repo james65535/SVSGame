@@ -210,3 +210,15 @@ void UDoorInteractionComponent::DoorTransitionTimelineFinish()
 		}
 	}
 }
+
+void UDoorInteractionComponent::EnableInteractionVisualAid_Implementation(const bool bEnabled)
+{
+	if (IsRunningDedicatedServer())
+	{ return; }
+	
+	if (const ASVSDynamicDoor* Door = GetOwner<ASVSDynamicDoor>())
+	{
+		Door->GetStaticMeshComponent()->SetRenderCustomDepth(bEnabled);
+		Door->GetStaticMeshComponent()->SetCustomDepthStencilValue(bEnabled ? 2 : 0);
+	}
+}

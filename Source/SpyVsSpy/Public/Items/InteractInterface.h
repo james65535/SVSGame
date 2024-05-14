@@ -11,6 +11,29 @@ class UInventoryBaseAsset;
 class UInventoryTrapAsset;
 class UInventoryItemComponent;
 
+USTRUCT(BlueprintType, Category = "DynamicRoom|Furniture")
+struct FInteractableObjectInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TScriptInterface<class IInteractInterface> LatestInteractableComponentFound;
+	UPROPERTY()
+	bool bCanInteract;
+
+	FInteractableObjectInfo()
+	{
+		LatestInteractableComponentFound = nullptr;
+		bCanInteract = false;
+	}
+
+	FInteractableObjectInfo(TScriptInterface<class IInteractInterface> InComponent, const bool bInteractable)
+	{
+		LatestInteractableComponentFound = InComponent;
+		bCanInteract = bInteractable;
+	}
+};
+
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, Blueprintable)
 class UInteractInterface : public UInterface
@@ -50,4 +73,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
 	bool SetActiveTrap(UInventoryTrapAsset* InActiveTrap);
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "SVS|Interaction")
+	void EnableInteractionVisualAid(const bool bEnabled);
 };

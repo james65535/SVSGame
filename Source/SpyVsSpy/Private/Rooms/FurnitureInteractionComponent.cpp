@@ -10,42 +10,11 @@
 
 bool UFurnitureInteractionComponent::Interact_Implementation(AActor* InteractRequester)
 {
-	UE_LOG(LogTemp, Warning, TEXT("furniture interact called"));
-
-// check if armed with trap, trigger if so and return
-	// display inventory
-	
-
-
-
-	
 	return Super::Interact_Implementation(InteractRequester);
 
 	// TODO interact animation
 	// TODO interact sound
 	// TODO think about associating the player who placed the trap so we can track stats...
-	
-	/** Check owner for an inventory component */
-	// if (const UInventoryComponent* FurnitureInventoryComponent = GetOwner<ASpyFurniture>()->GetInventoryComponent())
-	// {
-	// 	TArray<UInventoryBaseAsset*> InventoryItems;
-	// 	FurnitureInventoryComponent->GetInventoryItems(InventoryItems);
-	//
-	// 	for (const UInventoryBaseAsset* InventoryItem : InventoryItems)
-	// 	{ UE_LOG(SVSLogDebug, Log, TEXT(
-	// 		"Furniture: %s interaction component found inventory item: %s"),
-	// 		*GetOwner()->GetName(),
-	// 		*InventoryItem->InventoryItemName.ToString()); }
-	// 	
-	// 	/** Interaction Request deemed successful */
-	// 	return true;
-	// }
-
-	/** No inventory component found so interaction was not successful */
-	// UE_LOG(SVSLogDebug, Log, TEXT(
-	// 	"Furniture: %s did not find an inventory component during interact request"),
-	// 	*GetOwner()->GetName());
-	// return false;
 }
 
 UInventoryComponent* UFurnitureInteractionComponent::GetInventory_Implementation()
@@ -59,7 +28,8 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("Furniture: %s Interactioncomponent cannot get inventorylisting"),
+		UE_LOG(SVSLog, Log,
+			TEXT("Furniture: %s Interactioncomponent cannot get inventorylisting"),
 			*GetOwner()->GetName());
 		return;
 	}
@@ -105,3 +75,17 @@ bool UFurnitureInteractionComponent::SetActiveTrap_Implementation(UInventoryTrap
 	}
 	return false;
 }
+
+void UFurnitureInteractionComponent::EnableInteractionVisualAid_Implementation(const bool bEnabled)
+{
+	if (IsRunningDedicatedServer())
+	{ return; }
+	
+	if (const ASpyFurniture* SpyFurniture = GetOwner<ASpyFurniture>())
+	{
+		SpyFurniture->GetMesh()->SetRenderCustomDepth(bEnabled);
+		SpyFurniture->GetMesh()->SetCustomDepthStencilValue(bEnabled ? 2 : 0);
+	}
+}
+
+

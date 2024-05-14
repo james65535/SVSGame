@@ -27,10 +27,9 @@ void USpyInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	FDoRepLifetimeParams SharedParams;
 	SharedParams.bIsPushBased = true;
 	SharedParams.RepNotifyCondition = REPNOTIFY_Always;
-	SharedParams.Condition = COND_OwnerOnly;
+	SharedParams.Condition = COND_AutonomousOnly;
 
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyInteractionComponent, LatestInteractableComponentFound, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(USpyInteractionComponent, bCanInteractWithActor, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USpyInteractionComponent, InteractableObjectInfo, SharedParams);
 }
 
 void USpyInteractionComponent::BeginPlay()
@@ -53,24 +52,21 @@ void USpyInteractionComponent::OnOverlapBegin(UPrimitiveComponent* OverlappedCom
 	
 	for (UActorComponent* Component : OtherActor->GetComponentsByInterface(UInteractInterface::StaticClass()))
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s overlapped with interactable actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
-		SetLatestInteractableComponentFound(Component);
-		
 		// TODO Consider impact of handling multiple interactable actors
+		SetLatestInteractableComponentFound(Component);
 		return;
 	}
 }
 
 void USpyInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (GetOwnerRole() != ROLE_Authority || !IsValid(LatestInteractableComponentFound.GetObjectRef()))
+	if (IsRunningClientOnly())
 	{ return; }
 
-	if (LatestInteractableComponentFound->Execute_GetInteractableOwner(LatestInteractableComponentFound.GetObjectRef()) == OtherActor)
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s ended overlap with interactable actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
-		SetLatestInteractableComponentFound(nullptr);
-	}
+	if (IsValid(LatestInteractableComponentFound.GetObjectRef()) &&
+		LatestInteractableComponentFound->Execute_GetInteractableOwner(
+			LatestInteractableComponentFound.GetObjectRef()) == OtherActor)
+	{ SetLatestInteractableComponentFound(nullptr); }
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s no longer overlapping with actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
 }
 
@@ -79,39 +75,45 @@ bool USpyInteractionComponent::CanInteract() const
 	return bCanInteractWithActor;
 }
 
-void USpyInteractionComponent::OnRep_LatestInteractableComponentFound()
-{
-	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return; }
-	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact with with component %s"), *GetOwner()->GetName(), *LatestInteractableComponentFound.GetObjectRef()->GetName());
-}
-
 void USpyInteractionComponent::SetLatestInteractableComponentFound(UActorComponent* InFoundInteractableComponent)
 {
-	if (GetOwnerRole() != ROLE_Authority)
+	if (IsRunningClientOnly())
 	{ return; }
 	
 	if (UKismetSystemLibrary::DoesImplementInterface(InFoundInteractableComponent, UInteractInterface::StaticClass()))
 	{ LatestInteractableComponentFound = InFoundInteractableComponent; }
 	else
 	{ LatestInteractableComponentFound = nullptr; }
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, LatestInteractableComponentFound, this)
 
 	if (IsValid(LatestInteractableComponentFound.GetObjectRef()))
 	{ bCanInteractWithActor = true; }
 	else
 	{ bCanInteractWithActor = false; }
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bCanInteractWithActor, this);
+	
+	InteractableObjectInfo = {LatestInteractableComponentFound, bCanInteractWithActor};
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, InteractableObjectInfo, this);
 }
 
-void USpyInteractionComponent::OnRep_bCanInteractWithActor()
+void USpyInteractionComponent::OnRep_InteractableInfo()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Pawn %s can interact: %s"), *GetOwner()->GetName(), bCanInteractWithActor ? *FString("True") : *FString("True")); 
+	if (IsValid(LatestInteractableComponentFound.GetObject()))
+	{ LatestInteractableComponentFound->EnableInteractionVisualAid_Implementation(false);	}
+
+	LatestInteractableComponentFound = InteractableObjectInfo.LatestInteractableComponentFound;
+	bCanInteractWithActor = InteractableObjectInfo.bCanInteract;
+
+	if (IsValid(InteractableObjectInfo.LatestInteractableComponentFound.GetObjectRef()))
+	{
+		LatestInteractableComponentFound->Execute_EnableInteractionVisualAid(
+			LatestInteractableComponentFound.GetObjectRef(),
+			true);
+	}
 }
 
 TScriptInterface<IInteractInterface> USpyInteractionComponent::RequestInteractWithObject()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("Character Triggered Interact"));
-	if (!IsValid(LatestInteractableComponentFound.GetObjectRef())) { return nullptr; }
+	if (!IsValid(LatestInteractableComponentFound.GetObjectRef()))
+	{ return nullptr; }
 
 	return LatestInteractableComponentFound;
 }

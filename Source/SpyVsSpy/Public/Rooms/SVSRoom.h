@@ -166,7 +166,7 @@ private:
 	FOnTimelineFloat OnAppearTimelineUpdate;
 	FOnTimelineEvent OnAppearTimelineFinish;
 	UFUNCTION()
-	void TimelineAppearUpdate(float const VisibilityInterp);
+	void TimelineAppearUpdate(float const VisibilityInterp) const;
 	UFUNCTION()
 	void TimelineAppearFinish();
 

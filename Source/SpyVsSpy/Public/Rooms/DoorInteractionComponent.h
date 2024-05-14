@@ -52,6 +52,7 @@ public:
 	virtual void RemoveActiveTrap_Implementation() override;
 	virtual bool HasInventory_Implementation() override;
 	virtual bool SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
+	virtual void EnableInteractionVisualAid_Implementation(const bool bEnabled) override;
 	
 private:
 

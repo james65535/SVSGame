@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/CapsuleComponent.h"
+#include "Items/InteractInterface.h"
 #include "SpyInteractionComponent.generated.h"
 
+struct FInteractableObjectInfo;
 class IInteractInterface;
 
 /**
@@ -35,10 +37,9 @@ public:
 private:
 	
 	/** Most recently found overlapping component which satisfies interact interface */
-	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess="true"), ReplicatedUsing=OnRep_LatestInteractableComponentFound, Category = "SVS|Character")
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess="true"), Category = "SVS|Character")
 	TScriptInterface<IInteractInterface> LatestInteractableComponentFound;
-	UFUNCTION()
-	void OnRep_LatestInteractableComponentFound();
+	
 	UFUNCTION()
 	void SetLatestInteractableComponentFound(UActorComponent* InFoundInteractableComponent);
 	
@@ -60,8 +61,12 @@ protected:
 	void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	
 	/** Current Interaction State */
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_bCanInteractWithActor, VisibleAnywhere, Category = "SVS|Character")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "SVS|Character")
 	bool bCanInteractWithActor = false;
+
+	UPROPERTY(ReplicatedUsing=OnRep_InteractableInfo)
+	FInteractableObjectInfo InteractableObjectInfo;
 	UFUNCTION()
-	void OnRep_bCanInteractWithActor();
+	void OnRep_InteractableInfo();
+	
 };

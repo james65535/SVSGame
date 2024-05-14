@@ -378,7 +378,7 @@ void ASVSRoom::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 	}
 }
 
-void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
+void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp) const
 {
 	TArray<UDynamicWall*> WallSet;
 	Execute_GetWalls(this, WallSet);
@@ -387,11 +387,9 @@ void ASVSRoom::TimelineAppearUpdate(float const VisibilityInterp)
 	for (UDynamicWall* DynamicWall : WallSet)
 	{
 		// TODO refactor this for dynamic checks
+		// TODO need to flip effect since walls are mirrored
 		if (DynamicWall != WestWall && DynamicWall != SouthWall)
-		{
-			// TODO need to flip effect since walls are mirrored
-			DynamicWall->SetCustomPrimitiveDataFloat(0, VisibilityInterp);	
-		}
+		{ DynamicWall->SetCustomPrimitiveDataFloat(0, VisibilityInterp); }
 	}
 
 	/** Apply effect to floor */
