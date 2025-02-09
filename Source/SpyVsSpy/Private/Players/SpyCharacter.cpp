@@ -34,7 +34,7 @@ ASpyCharacter::ASpyCharacter()
 	/** ASC Binding occurs in setupinput and onrep_playerstate due possibility of race condition
 	 * bool prevents duplicate binding as it is called in both methods */
 	bAbilitySystemComponentBound = false;
-	SpyDeadTag = FGameplayTag::RequestGameplayTag("State.Dead");
+	//SpyDeadTag = FGameplayTag::RequestGameplayTag("State.Waiting");
 	
 	/** Set size for collision capsule */
 	GetCapsuleComponent()->InitCapsuleSize(35.0f, 90.0f);
@@ -483,7 +483,7 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector& Resp
 	GetMesh()->SetSimulatePhysics(false);
 	GetMesh()->PutAllRigidBodiesToSleep();
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	GetMesh()->SetCollisionProfileName("SpyCharacterMesh", true);
+	GetMesh()->SetCollisionProfileName(SpyMeshCollisionProfile, true);
 	GetMesh()->AttachToComponent(GetCapsuleComponent(),
 		FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
 	GetMesh()->SetRelativeLocationAndRotation(
@@ -588,7 +588,7 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 		int32 NumEffectsRemoved = SpyAbilitySystemComponent->RemoveActiveEffectsWithTags(
 			EffectTagsToRemove);
 		// TODO see about moving this to enabledeathstate
-		SpyAbilitySystemComponent->AddLooseGameplayTag(SpyDeadTag);
+		SpyAbilitySystemComponent->AddLooseGameplayTag(SpyStateDeadTag);
 	}
 }
 
@@ -604,8 +604,8 @@ void ASpyCharacter::FinishDeath()
 		SpyPlayerState->GetAttributeSet()->GetMaxHealth());
 
 	/** Removed dead state tag */
-	SpyAbilitySystemComponent->RemoveLooseGameplayTag(SpyDeadTag);
-
+	SpyAbilitySystemComponent->RemoveLooseGameplayTag(SpyStateDeadTag);
+	
 	/** Remove held weapon/trap */
 	if (IsValid(PlayerInventoryComponent))
 	{ PlayerInventoryComponent->ResetEquipped(); }
@@ -838,9 +838,8 @@ void ASpyCharacter::UpdateCharacterTeam(const EPlayerTeam InPlayerTeam)
 					GetMesh()->SetMaterial(4, GlovesTeamAMaterialInstance); // Gloves
 					HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
 				}
-
-				/** This is a hack to be able to use blocking hits on the attack zone without self trigger */
-				GetMesh()->SetCollisionProfileName("SpyCharacterMeshA", true);
+				
+				SpyMeshCollisionProfile = "SpyCharacterMeshA";
 				break;}
 
 		case EPlayerTeam::TeamB : {
@@ -854,10 +853,12 @@ void ASpyCharacter::UpdateCharacterTeam(const EPlayerTeam InPlayerTeam)
 					HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
 				}
 
-				/** This is a hack to be able to use blocking hits on the attack zone without self trigger */
-				GetMesh()->SetCollisionProfileName("SpyCharacterMeshB", true);
+				SpyMeshCollisionProfile = "SpyCharacterMeshB";
 				break;}
 	}
+
+	/** This is a hack to be able to use blocking hits on the attack zone without self trigger */
+	GetMesh()->SetCollisionProfileName(SpyMeshCollisionProfile, true);
 }
 
 void ASpyCharacter::EquippedItemUpdated()

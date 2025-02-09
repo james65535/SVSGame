@@ -29,7 +29,7 @@ protected:
 	
 	/** Used to calculate and apply damage. Needs to be set in child blueprint */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
-	TAssetSubclassOf<USpyDamageEffect> SpyTrapDamageEffectClass;
+	TSoftClassPtr<USpyDamageEffect> SpyTrapDamageEffectClass;
 
 	/** Allows for blueprint behaviour to be defined if an interaction is possible */
 	UFUNCTION(BlueprintNativeEvent)

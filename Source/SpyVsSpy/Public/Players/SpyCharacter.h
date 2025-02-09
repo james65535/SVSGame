@@ -351,9 +351,15 @@ protected:
 	float FinishDeathDelaySeconds = 5.0f;
 	
 	/** GAS related tags */
-	FGameplayTag SpyDeadTag;
+
+	/* Spy State Dead Tag Expected to be checked only on server */
+	FGameplayTag SpyStateDeadTag = FGameplayTag::RequestGameplayTag("State.Dead");
+	// FGameplayTag SpyStateWaitingTag = FGameplayTag::RequestGameplayTag("State.Waiting");
+	// FGameplayTag SpyStateAliveTag = FGameplayTag::RequestGameplayTag("State.Alive");
 	FGameplayTag EffectRemoveOnDeathTag;
 
 	FGameplayAbilitySpecHandle TrapTriggerSpecHandle;
 #pragma endregion="Ability System"
+
+	FName SpyMeshCollisionProfile = "";
 };
