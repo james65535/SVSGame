@@ -35,9 +35,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
 	TSubclassOf<UInventoryItemComponent> ItemClass;
 
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
-	UStaticMesh* Mesh;
-
 	/** -1 Signifies unlimited */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
 	int Quantity = -1;

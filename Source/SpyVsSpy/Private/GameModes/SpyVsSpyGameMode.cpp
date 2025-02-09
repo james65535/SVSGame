@@ -86,28 +86,28 @@ void ASpyVsSpyGameMode::StartGame()
 	if (!HasAuthority())
 	{ return; }
 
-	/** Set player status to playing */
-	for (FConstControllerIterator Iterator = GetWorld()->GetControllerIterator(); Iterator; ++Iterator)
-	{
-		if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(Iterator->Get()))
-		{
-			if (!MustSpectate(PlayerController))
-			{
-				ASpyPlayerState* PlayerState = PlayerController->GetPlayerState<ASpyPlayerState>();
-				check(PlayerState);
-				PlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
-				PlayerState->SetIsWinner(false);
-			}
-		}
-		
-		if (const ASpyAIController* SpyAIController = Cast<ASpyAIController>(Iterator->Get()))
-		{
-			ASpyPlayerState* AIPlayerState = SpyAIController->GetPlayerState<ASpyPlayerState>();
-			check(AIPlayerState)
-			AIPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
-			AIPlayerState->SetIsWinner(false);
-		}
-	}
+	// /** Set player status to playing */
+	// for (FConstControllerIterator Iterator = GetWorld()->GetControllerIterator(); Iterator; ++Iterator)
+	// {
+	// 	if(ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(Iterator->Get()))
+	// 	{
+	// 		if (!MustSpectate(PlayerController))
+	// 		{
+	// 			ASpyPlayerState* PlayerState = PlayerController->GetPlayerState<ASpyPlayerState>();
+	// 			check(PlayerState);
+	// 			PlayerState->SetIsWinner(false);
+	// 			PlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
+	// 		}
+	// 	}
+	// 	
+	// 	if (const ASpyAIController* SpyAIController = Cast<ASpyAIController>(Iterator->Get()))
+	// 	{
+	// 		ASpyPlayerState* AIPlayerState = SpyAIController->GetPlayerState<ASpyPlayerState>();
+	// 		check(AIPlayerState)
+	// 		AIPlayerState->SetIsWinner(false);
+	// 		AIPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
+	// 	}
+	// }
 
 	/** Load ref to gamestate for further use later */
 	ASpyVsSpyGameState* SpyGameState = GetGameState<ASpyVsSpyGameState>();
@@ -121,9 +121,9 @@ void ASpyVsSpyGameMode::StartGame()
 		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass());
 		SpyItemWorldSubsystem->DistributeItems(SpyTrapItemTypeToDistributed, ASpyCharacter::StaticClass());
 	}
-
+	
 	/** Start game for network clients */
-	SpyGameState->NM_MatchStart();
+	SpyGameState->MatchStart();
 }
 
 void ASpyVsSpyGameMode::DisplayCountDown()

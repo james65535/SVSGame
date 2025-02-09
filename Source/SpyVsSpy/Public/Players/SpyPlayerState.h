@@ -26,7 +26,19 @@ enum class EPlayerGameStatus : uint8
 	LoadingLevel					UMETA(DisplayName = "Loading Level"),
 };
 
+/** Enum to track the player's assigned team */
+UENUM(BlueprintType)
+enum class EPlayerTeam : uint8
+{
+	None							UMETA(DisplayName = "None"),
+	TeamA							UMETA(DisplayName = "Spy Team A"),
+	TeamB							UMETA(DisplayName = "Spy Team B"),
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveGameUpdate);
+
+/** Notify listeners that the spy has changed teams */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSpyTeamUpdate, const EPlayerTeam);
 
 /**
  * 
@@ -72,6 +84,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus);
 
+	void SetSpyPlayerTeam(const EPlayerTeam InSpyPlayerTeam);
+	FOnSpyTeamUpdate OnSpyTeamUpdate;
+	
 	UFUNCTION(BlueprintPure, Category = "SVS|Player")
 	bool IsWinner() const { return bIsWinner; }
 	void SetIsWinner(const bool IsWinner) { bIsWinner = IsWinner; }
@@ -130,6 +145,12 @@ private:
 	/** Player Status in the game */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_CurrentStatus, Category = "SVS|Player")
 	EPlayerGameStatus CurrentStatus = EPlayerGameStatus::None;
+
+	/** Player Status in the game */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_SpyPlayerTeam, Category = "SVS|Player")
+	EPlayerTeam SpyPlayerTeam = EPlayerTeam::None;
+	UFUNCTION()
+	void OnRep_SpyPlayerTeam();
 	
 	/** Game result winner state */
 	bool bIsWinner = false;

@@ -6,6 +6,8 @@
 USpyAbilitySystemComponent::USpyAbilitySystemComponent()
 {
 	bCharacterAbilitiesGiven  = false;
+
+	// TODO check on this: Starting with 4.24 up to 5.2, it is mandatory to call UAbilitySystemGlobals::Get().InitGlobalData() to use TargetData.
 }
 
 void USpyAbilitySystemComponent::ReceiveDamage(const USpyAbilitySystemComponent* SourceAbilitySystemComponent, float DamageDone)

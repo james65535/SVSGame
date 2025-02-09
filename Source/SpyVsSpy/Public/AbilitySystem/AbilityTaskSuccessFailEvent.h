@@ -33,7 +33,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Ability|Tasks", meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "TRUE"))
 	static UAbilityTaskSuccessFailEvent* WaitSuccessFailEvent(UGameplayAbility* OwningAbility, const FGameplayTag SuccessTag, const FGameplayTag FailTag, AActor* OptionalExternalTarget, const bool OnlyTriggerOnce,  const bool OnlyMatchExact);
-
+	FDelegateHandle SuccessHandle;
+	FDelegateHandle FailHandle;
+	
 protected:
 	void SetExternalTarget(const AActor* Actor);
 
@@ -58,6 +60,5 @@ protected:
 	bool OnlyTriggerOnce;
 	bool OnlyMatchExact;
 
-	FDelegateHandle SuccessHandle;
-	FDelegateHandle FailHandle;
+
 };

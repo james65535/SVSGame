@@ -13,5 +13,9 @@ UCLASS()
 class SPYVSSPY_API USpyAbilityCoolDownEffect : public UGameplayEffect
 {
 	GENERATED_BODY()
+
+public:
+
+	USpyAbilityCoolDownEffect();
 	
 };

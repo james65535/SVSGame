@@ -23,7 +23,7 @@ bool UWeaponComponent::LoadWeaponPropertyValuesFromDataAsset()
 	// if (!IsValid())
 	// { return false; }
 	
-	WeaponType = EWeaponType::None;
+	//WeaponType = EWeaponType::None;
 
 	/** Damage Info */
 	bInstaKillEnabled = false;

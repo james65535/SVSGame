@@ -41,11 +41,7 @@ void USpyInteractAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	CheckTrapTriggeredTask->ReadyForActivation();
 
 	/** Trigger trap if there is one */
-	const bool bTrapTriggered = RequestTriggerTrap();
-	
-	UE_LOG(SVSLogDebug, Warning, TEXT("GA-SpyAbilityInteract activate called for %s and trap triggered: %s"),
-		*ActorInfo->AvatarActor->GetName(),
-		bTrapTriggered ? *FString("True") : *FString("False"));
+	RequestTriggerTrap();
 	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
@@ -56,9 +52,6 @@ void USpyInteractAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	if (AreTasksStillActive() && IsValid(CheckTrapTriggeredTask))
 	{ CheckTrapTriggeredTask->EndTask(); }
-
-	UE_LOG(SVSLogDebug, Warning, TEXT("GA-SpyAbilityInteract EndAbility and was cancelled: %s"),
-		bWasCancelled ? *FString("True") : *FString("False"));
 		
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -164,7 +157,7 @@ bool USpyInteractAbility::CanInteract() const
 {
 	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetActorInfo().AvatarActor.Get()))
 	{
-		if (IsValid(Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon())))
+		if (IsValid(Cast<UInventoryTrapAsset>(SpyCharacter->GetEquippedItemAsset())))
 		{
 			if (const ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(SpyCharacter->GetController()))
 			{
@@ -183,10 +176,8 @@ bool USpyInteractAbility::CanInteract() const
 
 void USpyInteractAbility::InteractionSuccess_Implementation(FGameplayEventData Payload)
 {
-	UE_LOG(SVSLogDebug, Warning, TEXT("GA-SpyAbilityInteract interaction success called"));
 }
 
 void USpyInteractAbility::InteractionFail_Implementation(FGameplayEventData Payload)
 {
-	UE_LOG(SVSLogDebug, Warning, TEXT("GA-SpyAbilityInteract interaction failed called"));
 }

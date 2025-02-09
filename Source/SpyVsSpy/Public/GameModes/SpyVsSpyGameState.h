@@ -142,8 +142,8 @@ public:
 	/** Methods relating to Match Start and Time Management */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	void SetSpyMatchTimeLength(const float InSecondsTotal);
-	UFUNCTION(NetMulticast, Reliable, Category = "SVS|GameState")
-	void NM_MatchStart();
+	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
+	void MatchStart();
 	FStartMatch OnStartMatchDelegate;
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
 	float GetSpyMatchStartTime() const { return SpyMatchStartTime; }
@@ -186,7 +186,7 @@ protected:
 	float SpyMatchTimeLength = 0.0f;
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	float CountDownStartTime = 1.0f;
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Replicated, meta = (AllowPrivateAccess), Category = "SVS|GameState")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, ReplicatedUsing = OnRep_SpyMatchStartTime, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	float SpyMatchStartTime = 0.0f;
 	UFUNCTION()
 	void UpdatePlayerStateWithMatchTimeLength();
@@ -206,6 +206,8 @@ private:
 	void OnRep_SpyMatchState() const;
 	UPROPERTY()
 	ESpyMatchState OldSpyMatchState = ESpyMatchState::None;
+	UFUNCTION()
+	void OnRep_SpyMatchStartTime();
 
 	/** The type of game being played - is correlated to which gamemode is selected */
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing = OnRep_SVSGameType, Category = "SVS|GameState")

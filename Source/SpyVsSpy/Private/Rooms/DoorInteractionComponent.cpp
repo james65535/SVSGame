@@ -117,7 +117,7 @@ UInventoryTrapAsset* UDoorInteractionComponent::GetActiveTrap_Implementation()
 	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
 	{ return nullptr; }
 	
-	return GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->GetActiveTrap();
+	return GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->GetRiggedTrapAsset();
 }
 
 void UDoorInteractionComponent::RemoveActiveTrap_Implementation()
@@ -126,7 +126,7 @@ void UDoorInteractionComponent::RemoveActiveTrap_Implementation()
 	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
 	{ return; }
 
-	GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetActiveTrap(nullptr);
+	GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetRiggedTrapAsset(nullptr);
 }
 
 bool UDoorInteractionComponent::HasInventory_Implementation()
@@ -147,7 +147,7 @@ bool UDoorInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset
 		if (DoorState == EDoorState::Opened)
 		{ Interact_Implementation(nullptr); }
 		
-		GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetActiveTrap(InActiveTrap);
+		GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetRiggedTrapAsset(InActiveTrap);
 		
 		return true;
 	}

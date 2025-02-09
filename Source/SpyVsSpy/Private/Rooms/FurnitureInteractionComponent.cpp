@@ -42,7 +42,7 @@ UInventoryTrapAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementatio
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
 	{ return nullptr; }
 	
-	return GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetActiveTrap();
+	return GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetRiggedTrapAsset();
 }
 
 void UFurnitureInteractionComponent::RemoveActiveTrap_Implementation()
@@ -51,7 +51,7 @@ void UFurnitureInteractionComponent::RemoveActiveTrap_Implementation()
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
 	{ return; }
 
-	GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetActiveTrap(nullptr);
+	GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetRiggedTrapAsset(nullptr);
 }
 
 bool UFurnitureInteractionComponent::HasInventory_Implementation()
@@ -70,7 +70,7 @@ bool UFurnitureInteractionComponent::SetActiveTrap_Implementation(UInventoryTrap
 
 	if (InActiveTrap->InventoryOwnerType == EInventoryOwnerType::Furniture)
 	{
-		GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetActiveTrap(InActiveTrap);
+		GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetRiggedTrapAsset(InActiveTrap);
 		return true;
 	}
 	return false;
@@ -78,6 +78,7 @@ bool UFurnitureInteractionComponent::SetActiveTrap_Implementation(UInventoryTrap
 
 void UFurnitureInteractionComponent::EnableInteractionVisualAid_Implementation(const bool bEnabled)
 {
+	/** Client side only since this is a cosmetic feature */
 	if (IsRunningDedicatedServer())
 	{ return; }
 	

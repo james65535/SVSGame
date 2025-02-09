@@ -32,10 +32,15 @@
 		{
 			"Name": "NiagaraFluids",
 			"Enabled": true
+		},
+		{
+			"Name": "NetworkPredictionInsights",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
 		"Linux",
-		"Windows"
+		"Windows",
+		"HoloLens"
 	]
 }

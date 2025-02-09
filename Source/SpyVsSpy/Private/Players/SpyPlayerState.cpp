@@ -46,12 +46,14 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	FDoRepLifetimeParams PushedRepNotifyAlwaysParams;
 	PushedRepNotifyAlwaysParams.bIsPushBased = true;
 	PushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, CurrentStatus, PushedRepNotifyAlwaysParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, CurrentStatus, PushedRepNotifyAlwaysParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerRemainingMatchTime, PushedRepNotifyAlwaysParams);
 
 	FDoRepLifetimeParams PushedRepNotifyParams;
 	PushedRepNotifyParams.bIsPushBased = true;
-	PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_OnChanged;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, PlayerRemainingMatchTime, PushedRepNotifyParams);
+	PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_Always;
+	PushedRepNotifyParams.Condition = COND_None;
+	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, SpyPlayerTeam, PushedRepNotifyParams)
 }
 
 void ASpyPlayerState::BeginPlay()
@@ -121,6 +123,29 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 		check(SVSGameMode);
 		SVSGameMode->PlayerNotifyIsReady(this);
 	}
+}
+
+void ASpyPlayerState::SetSpyPlayerTeam(const EPlayerTeam InSpyPlayerTeam)
+{
+	UE_LOG(SVSLogDebug, Log, TEXT("PlayerState for %s PlayerID: %i ran SetPlayerTeam"),
+		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+		GetPlayerId());
+	SpyPlayerTeam = InSpyPlayerTeam;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyPlayerTeam, this);
+	/** to trigger on the server */
+	OnRep_SpyPlayerTeam();
+}
+
+void ASpyPlayerState::OnRep_SpyPlayerTeam()
+{
+	if (IsValid(GetPawn()))
+	{
+		UE_LOG(SVSLogDebug, Log, TEXT("OnRep PlayerState for %s PlayerID: %i updated team to: %hhd"),
+			GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+			GetPlayerId(),
+			SpyPlayerTeam);
+	}
+	OnSpyTeamUpdate.Broadcast(SpyPlayerTeam);
 }
 
 void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTimeLength, const bool bIncludeTimePenalty)

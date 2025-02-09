@@ -9,7 +9,6 @@
 #include "Players/SpyCombatantInterface.h"
 #include "Players/SpyPlayerState.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameModeBase.h"
@@ -19,7 +18,6 @@
 #include "AbilitySystem/SpyAbilitySystemComponent.h"
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "Abilities/GameplayAbilityTypes.h"
-#include "Abilities/GameplayAbility.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryComponent.h"
 #include "Items/InventoryWeaponAsset.h"
@@ -27,9 +25,6 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/RoomManager.h"
 #include "Rooms/SVSRoom.h"
-#include "Net/UnrealNetwork.h"
-#include "Net/Core/PushModel/PushModel.h"
-#include "Players/SpyHUD.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
 ASpyCharacter::ASpyCharacter()
@@ -44,9 +39,6 @@ ASpyCharacter::ASpyCharacter()
 	/** Set size for collision capsule */
 	GetCapsuleComponent()->InitCapsuleSize(35.0f, 90.0f);
 
-	GetMesh()->SetCollisionProfileName("SpyCharacterMesh", true);
-	GetMesh()->SetGenerateOverlapEvents(true); // TODO check into perf
-
 	SpyInteractionComponent = CreateDefaultSubobject<USpyInteractionComponent>("Interaction Component");
 	SpyInteractionComponent->SetupAttachment(RootComponent);
 	SpyInteractionComponent->SetRelativeLocation(FVector(25.0f, 0.0f, 0.0f));
@@ -54,6 +46,7 @@ ASpyCharacter::ASpyCharacter()
 
 	PlayerInventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
 	PlayerInventoryComponent->SetIsReplicated(true);
+	PlayerInventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Player);
 	
 	/** Don't rotate when the controller rotates. Let that just affect the camera. */
 	bUseControllerRotationPitch = false;
@@ -73,25 +66,71 @@ ASpyCharacter::ASpyCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	
 	FollowCamera = CreateDefaultSubobject<UIsoCameraComponent>(TEXT("FollowCamera"));
-
-	// TODO replace
-	AttackZone = CreateDefaultSubobject<USphereComponent>("AttackZoneSphere");
-	AttackZone->SetupAttachment(GetMesh(),"hand_rSocket");
-	AttackZone->SetVisibility(false);
-	AttackZone->SetIsReplicated(true);
-	AttackZone->SetSphereRadius(20.0f);
-	AttackZone->SetCollisionProfileName("CombatantPreset");
-	/** Preset has Collision disabled - Query is enabled when attacking */
-	AttackZone->SetCollisionObjectType(ECC_GameTraceChannel2);
 	
-	WeaponMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("WeaponMeshComponent");
-	if (IsValid(WeaponMeshComponent))
-	{
-		WeaponMeshComponent->SetupAttachment(GetMesh(), FName("hand_rSocket"));
-		WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		/** Visibility is enabled when the character has a weapon with a valid mesh in hand */
-		WeaponMeshComponent->SetVisibility(false);
-	}
+	// TODO replace with held weapon info
+
+	// AttackZoneAlt = CreateDefaultSubobject<USkeletalMeshComponent>("AttackZoneSMr");
+	// if (IsValid(AttackZoneAlt))
+	// {
+	// 	if (FBodyInstance* AttackZoneBI = AttackZoneAlt->GetBodyInstance())
+	// 	{ AttackZoneBI->bAutoWeld = false;}
+	//
+	// 	AttackZoneAlt->SetupAttachment(GetMesh(), "hand_rSocket");
+	// 			// AttackZone->SetCapsuleRadius(80.0f);
+	// 	// AttackZone->SetCapsuleHalfHeight(40.0f);
+	//
+	// 	AttackZoneAlt->SetCollisionProfileName("CombatantPreset");
+	// 	// TODO cleanup
+	// 	/** Preset has Collision disabled - Query is enabled when attacking */
+	// 	AttackZoneAlt->SetCollisionObjectType(ECC_GameTraceChannel2);
+	// 	AttackZoneAlt->SetCollisionEnabled(ECollisionEnabled::QueryAndProbe);
+	// 	AttackZoneAlt->SetSimulatePhysics(true);
+	// 	AttackZoneAlt->PhysicsTransformUpdateMode = EPhysicsTransformUpdateMode::ComponentTransformIsKinematic;
+	// 	AttackZoneAlt->SetEnableGravity(false);
+	// 	AttackZoneAlt->SetNotifyRigidBodyCollision(true);
+	// 	AttackZoneAlt->SetGenerateOverlapEvents(false);
+	// 	AttackZoneAlt->CanCharacterStepUpOn = ECB_No;
+	// 	
+	// 	GetMesh()->PhysicsTransformUpdateMode = EPhysicsTransformUpdateMode::ComponentTransformIsKinematic;
+	// 		
+	// 	// TODO replace with oncomponenthit to get exact location of impact
+	// 	// AttackZone->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentBeginOverlap);
+	// 	// AttackZone->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentEndOverlap);
+	//
+	// 	// TODO remove after troubleshooting
+	// 	//AttackZone->ShapeColor = FColor::Green;
+	// 	AttackZoneAlt->SetVisibility(true);
+	// 	AttackZoneAlt->SetHiddenInGame(false);
+	// 	
+	// 	
+	// 	AttackZoneAlt->SetIsReplicated(true);
+	// 	AttackHitLocation = FVector::ZeroVector;
+	//
+	//
+	// 	WeaponPhysicsConstraintComponent = CreateDefaultSubobject<UPhysicsConstraintComponent>("WeaponPhysicsConstraint");
+	// 	if (IsValid(WeaponPhysicsConstraintComponent) && IsValid(AttackZoneAlt))
+	// 	{
+	// 		WeaponPhysicsConstraintComponent->SetupAttachment(GetMesh(),"hand_rSocket");
+	// 		WeaponPhysicsConstraintComponent->ComponentName1.ComponentName = GetMesh()->GetFName();
+	// 		WeaponPhysicsConstraintComponent->ComponentName2.ComponentName = AttackZoneAlt->GetFName();
+	// 		WeaponPhysicsConstraintComponent->SetAngularTwistLimit(ACM_Locked, 0.0f);
+	// 		WeaponPhysicsConstraintComponent->SetAngularSwing1Limit(ACM_Locked, 0.0f);
+	// 		WeaponPhysicsConstraintComponent->SetAngularSwing2Limit(ACM_Locked, 0.0f);
+	// 		//WeaponPhysicsConstraintComponent->SetDisableCollision(true);
+	// 	}
+	// 	else
+	// 	{ UE_LOG(SVSLogDebug, Log, TEXT("WeaponPSC failed to be created")); }
+	// }
+	//
+	//
+	// WeaponMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("WeaponMeshComponent");
+	// // if (IsValid(WeaponMeshComponent))
+	// // {
+	// // 	WeaponMeshComponent->SetupAttachment(GetMesh(), FName("hand_rSocket"));
+	// // 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// // 	/** Visibility is enabled when the character has a weapon with a valid mesh in hand */
+	// // 	WeaponMeshComponent->SetVisibility(false);
+	// // }
 
 	HatMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("HatMeshComponent");
 	if (IsValid(HatMeshComponent))
@@ -99,16 +138,6 @@ ASpyCharacter::ASpyCharacter()
 		HatMeshComponent->SetupAttachment(GetMesh(), FName("Hat_Socket"));
 		HatMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	}
-}
-
-void ASpyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	FDoRepLifetimeParams GeneralSharedParams;
-	GeneralSharedParams.bIsPushBased = true;
-	GeneralSharedParams.RepNotifyCondition = REPNOTIFY_OnChanged;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyCharacter, ActiveWeaponInventoryIndex, GeneralSharedParams);
 }
 
 void ASpyCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -124,6 +153,10 @@ void ASpyCharacter::PossessedBy(AController* NewController)
 
 	if (!IsValid(SpyPlayerState))
 	{ SpyPlayerState = GetPlayerStateChecked<ASpyPlayerState>(); }
+
+	/** Add delegate for server side */
+	if (IsValid(SpyPlayerState) && !SpyPlayerState->OnSpyTeamUpdate.IsBoundToObject(this))
+	{ SpyPlayerState->OnSpyTeamUpdate.AddUObject(this, &ThisClass::UpdateCharacterTeam); }
 	
 	AbilitySystemComponentInit();
 	AddStartupGameplayAbilities();
@@ -137,10 +170,14 @@ ASpyPlayerState* ASpyCharacter::GetSpyPlayerState() const
 void ASpyCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
-
+	
 	if (!IsValid(SpyPlayerState))
 	{ SpyPlayerState = GetPlayerState<ASpyPlayerState>(); }
-	
+
+	/** Add delegate for client side */
+	if (IsValid(SpyPlayerState) && !SpyPlayerState->OnSpyTeamUpdate.IsBoundToObject(this))
+	{ SpyPlayerState->OnSpyTeamUpdate.AddUObject(this, &ThisClass::UpdateCharacterTeam); }
+
 	AbilitySystemComponentInit();
 	BindAbilitySystemComponentInput();
 }
@@ -148,9 +185,12 @@ void ASpyCharacter::OnRep_PlayerState()
 void ASpyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// TODO check into whether this should be forced from server
 	/** Hide opponents character on local client */
-	GetLocalRole() == ROLE_SimulatedProxy ? bIsHiddenInGame = true : bIsHiddenInGame = false;
+	GetLocalRole() == ROLE_SimulatedProxy ?
+		bIsHiddenInGame = true :
+		bIsHiddenInGame = false;
 	SetSpyHidden(bIsHiddenInGame);
 
 	// TODO test
@@ -159,9 +199,10 @@ void ASpyCharacter::BeginPlay()
 	/** Add delegates for Character Overlaps */
 	OnActorBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapBegin);
 	OnActorEndOverlap.AddUniqueDynamic(this, &ThisClass::OnOverlapEnd);
-	
-	AttackZone->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentBeginOverlap);
-	AttackZone->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentEndOverlap);
+	if (IsValid(PlayerInventoryComponent))
+	{
+		PlayerInventoryComponent->OnEquippedUpdated.AddUniqueDynamic(this, &ThisClass::EquippedItemUpdated);
+	}
 }
 
 void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
@@ -184,29 +225,6 @@ void ASpyCharacter::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
 			ProcessRoomChange(RoomEntering);
 		}
 	}
-
-	/** Setup team and mesh colours */
-	// TODO setup a more dynamic option
-	SpyTeam = IsLocallyControlled();
-	if (SpyTeam == 0)
-	{
-		// GetMesh()->SetMaterialByName(FName("M_torso"), TorsoTeamAMaterialInstance);
-		// GetMesh()->SetMaterialByName(FName("M_HeadLegs"), LegsTeamAMaterialInstance);
-		GetMesh()->SetMaterial(0, CoatTeamAMaterialInstance); // Coat
-		//GetMesh()->SetMaterial(1, TorsoTeamAMaterialInstance); // Shoes
-		GetMesh()->SetMaterial(2, TorsoTeamAMaterialInstance); // Vest
-		GetMesh()->SetMaterial(3, LegsTeamAMaterialInstance); // Trousers
-		GetMesh()->SetMaterial(4, GlovesTeamAMaterialInstance); // Gloves
-		HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
-	}
-	else if (SpyTeam == 1)
-	{
-		GetMesh()->SetMaterial(0, CoatTeamBMaterialInstance); // Coat
-		GetMesh()->SetMaterial(2, TorsoTeamBMaterialInstance); // Vest
-		GetMesh()->SetMaterial(3, LegsTeamBMaterialInstance); // Trousers
-		GetMesh()->SetMaterial(4, GlovesTeamBMaterialInstance); // Gloves
-		HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
-	}
 }
 
 void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
@@ -217,38 +235,6 @@ void ASpyCharacter::OnOverlapEnd(AActor* OverlappedActor, AActor* OtherActor)
 	{
 		if (OverlapEndRoom == CurrentRoom && IsValid(RoomEntering))
 		{ ProcessRoomChange(RoomEntering); }
-	}
-}
-
-void ASpyCharacter::OnAttackComponentBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (OtherActor == this)
-	{ return; }
-
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s has begun OnAttackComponentOverlap with other actor: %s"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		*OtherActor->GetName());
-
-	bAttackHitFound = true;
-	HandlePrimaryAttackOverlap(OtherActor);
-}
-
-void ASpyCharacter::OnAttackComponentEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	if (OtherActor == this)
-	{ return; }
-
-	if (const ASpyCharacter* OpponentSpyCharacter = Cast<ASpyCharacter>(OtherActor))
-	{
-		if (OpponentSpyCharacter != this)
-		{ UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s ended OnAttackComponentOverlap with %s attacker: %s"),
-			IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*GetName(),
-			OpponentSpyCharacter->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*OpponentSpyCharacter->GetName()); }
 	}
 }
 
@@ -300,8 +286,14 @@ void ASpyCharacter::ProcessRoomChange(ASVSRoom* NewRoom)
 
 void ASpyCharacter::SetSpyHidden(const bool bIsSpyHidden)
 {
-	bIsHiddenInGame = bIsSpyHidden;
+	bIsHiddenInGame = bIsSpyHidden; 
 	SetActorHiddenInGame(bIsSpyHidden);
+
+	/** Hide any weapons which are attached as actors */
+	TArray<AActor*> AttachedActors;
+	GetAttachedActors(AttachedActors);
+	for (AActor* AttachedActor : AttachedActors)
+	{ AttachedActor->SetActorHiddenInGame(bIsHiddenInGame); }
 }
 
 void ASpyCharacter::StartPrimaryAttackWindow()
@@ -309,25 +301,26 @@ void ASpyCharacter::StartPrimaryAttackWindow()
 	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
 
-	SetEnabledAttackState(true);
+	SetAttackActive(true);
 }
 
 void ASpyCharacter::CompletePrimaryAttackWindow()
 {
-	if (GetWorld()->GetNetMode() == NM_Client)
+	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{ return; }
 
-	/** Notify ability of zero overlaps */
+	/** Notify ability of zero hits */
 	if (!bAttackHitFound)
 	{
-		SetEnabledAttackState(false);
-		HandlePrimaryAttackOverlap(nullptr);
+		SetAttackActive(false);
+		/** Payload setup to send to GameplayEvent to Actor */
+		const FGameplayTag ResultTag = FGameplayTag::RequestGameplayTag("Attack.NoHit");
+		FGameplayEventData Payload = FGameplayEventData();
+		Payload.Instigator = this;
+		Payload.Target = nullptr;
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, ResultTag, Payload);
 	}
 	bAttackHitFound = false;
-	
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s PrimaryAttackWindowCompleted called"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
 }
 
 bool ASpyCharacter::PlayCelebrateMontage()
@@ -345,16 +338,18 @@ bool ASpyCharacter::PlayCelebrateMontage()
 	return bPlayedSuccessfully;
 }
 
-void ASpyCharacter::SetWeaponMesh(UStaticMesh* InMesh)
-{
-	WeaponMeshComponent->SetStaticMesh(InMesh);
-}
-
 void ASpyCharacter::DisableSpyCharacter()
 {
 	SetSpyHidden(true);
 	GetCharacterMovement()->DisableMovement();
 	SetActorEnableCollision(false);
+}
+
+UInventoryBaseAsset* ASpyCharacter::GetEquippedItemAsset() const
+{
+	if (IsValid(PlayerInventoryComponent))
+	{ return PlayerInventoryComponent->GetEquippedItemAsset(); }
+	return nullptr;
 }
 
 void ASpyCharacter::UpdateCameraLocation(const ASVSRoom* InRoom) const
@@ -403,7 +398,8 @@ void ASpyCharacter::AbilitySystemComponentInit()
 	{
 		SpyAbilitySystemComponent = SpyPlayerState->GetSpyAbilitySystemComponent();
 		SpyAbilitySystemComponent->InitAbilityActorInfo(SpyPlayerState, this);
-	} else
+	}
+	else
 	{
 		UE_LOG(SVSLog, Warning, TEXT(
 			"%s Character: %s could not get valid playerstate to init ability system component"),
@@ -468,7 +464,7 @@ void ASpyCharacter::NM_SetEnableDeathState_Implementation(const bool bEnabled, c
 	SetEnableDeathState(bEnabled, RespawnLocation);
 }
 
-void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector RespawnLocation)
+void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector& RespawnLocation)
 {
 	// TODO are these replicated as currently this func is called via NetMulticast
 	if (bEnabled)
@@ -598,7 +594,7 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 
 void ASpyCharacter::FinishDeath()
 {
-	// This is called from Server RPC
+	/** Expected to run on Server */
 	// TODO Verify HasAuthority check is sufficient for multiplayer server/client architecture
 	if (GetWorld()->GetNetMode() == NM_Client)
 	{ return; }
@@ -611,107 +607,76 @@ void ASpyCharacter::FinishDeath()
 	SpyAbilitySystemComponent->RemoveLooseGameplayTag(SpyDeadTag);
 
 	/** Remove held weapon/trap */
-	if (IsValid(CurrentHeldWeapon))
-	{
-		CurrentHeldWeapon = nullptr;
-		SetWeaponMesh(nullptr);
-		ActiveWeaponInventoryIndex = 0;
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
-	}
+	if (IsValid(PlayerInventoryComponent))
+	{ PlayerInventoryComponent->ResetEquipped(); }
 
 	/** Reset Character death state settings */
 	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing)
 	{ NM_SetEnableDeathState(false, GetSpyRespawnLocation()); }
 }
 
-void ASpyCharacter::HandlePrimaryAttackOverlap(AActor* OverlappedSpyCombatant)
+void ASpyCharacter::SetAttackActive(const bool bEnabled) const
 {
-	HandlePrimaryAttackAbility(OverlappedSpyCombatant);
+	GetPlayerInventoryComponent()->EnableWeaponAttackPhase(bEnabled);
+	
+	// TODO can we just tick hand bone or perhaps use replicated movement on the attack component?
+	/** Required for using component collisions off of animation montages
+	 * otherwise location of component is not replicated.
+	 * This might conflict with ragdolling on simulated proxy */
+	GetMesh()->VisibilityBasedAnimTickOption = bEnabled ?
+		EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones :
+		EVisibilityBasedAnimTickOption::AlwaysTickPose;
 }
 
-void ASpyCharacter::SetEnabledAttackState(const bool bEnabled) const
+void ASpyCharacter::HandlePrimaryAttackHit(const FHitResult& HitResult)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s SetEnableAttack: %s"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		bEnabled ? *FString("True") : *FString("False"));
-	
-	if (bEnabled)
-	{
-		AttackZone->ShapeColor = FColor::Red;
-		AttackZone->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-
-		// TODO can we just tick hand bone or perhaps use replicated movement on the attack component?
-		/** Required for using collisions off of animation montages
-		 * This might conflict with ragdolling on simulated proxy */
-		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-
-		return;
-	}
-	
-	AttackZone->ShapeColor = FColor::Blue;
-	AttackZone->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
-}
-
-void ASpyCharacter::HandlePrimaryAttackAbility(AActor* OverlappedSpyCombatant)
-{
-	// TODO might need to check on task count on simulated if we exclude them here
-	if (GetLocalRole() == ROLE_SimulatedProxy)
+// TODO might need to check on task count on simulated if we exclude them here
+	if (IsRunningClientOnly() || GetLocalRole() == ROLE_SimulatedProxy)
 	{ return; }
-
-	/** check if we have a valid attack hit */
-	if (IsValid(OverlappedSpyCombatant) &&
-		OverlappedSpyCombatant != this &&
-		OverlappedSpyCombatant->ActorHasTag(CombatantTag) &&
-		UKismetSystemLibrary::DoesImplementInterface(OverlappedSpyCombatant, USpyCombatantInterface::StaticClass()) &&
-		UKismetSystemLibrary::DoesImplementInterface(OverlappedSpyCombatant, UAbilitySystemInterface::StaticClass()))
-	{
-		/** prevent additional runs if overlaps occur during same ability run */
-		bAttackHitFound = true;
-		// TODO is this the right place?
-		SetEnabledAttackState(false);
-		
-		/** Don't process attack if enemy is dead */
-		if (Cast<IAbilitySystemInterface>(OverlappedSpyCombatant)->
+	
+	/** check if we have a valid attack hit and target is not dead */
+	ACharacter* HitCharacter = Cast<ACharacter>(HitResult.GetActor());
+	if (!bAttackHitFound ||
+		IsValid(HitCharacter) &&
+		HitCharacter->ActorHasTag(CombatantTag) &&
+		UKismetSystemLibrary::DoesImplementInterface(HitCharacter, USpyCombatantInterface::StaticClass()) &&
+		UKismetSystemLibrary::DoesImplementInterface(HitCharacter, UAbilitySystemInterface::StaticClass()) &&
+		!Cast<IAbilitySystemInterface>(HitCharacter)->
 			GetAbilitySystemComponent()->
-			HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Dead")))
-		{ UE_LOG(SVSLogDebug, Log, TEXT("Found IsDead")); } // TODO Revisit this to remove or buildout
-		
-		// TODO sort out attack force and consider multiplayer aspect/multicast
-		constexpr float AttackForce = 750.0f;
-		const FVector AttackForceVector = FVector(AttackForce, AttackForce, 1.0f);
-		Cast<ISpyCombatantInterface>(OverlappedSpyCombatant)->ApplyAttackImpactForce(GetActorLocation(), AttackForceVector);
+				HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Dead")))
+	{
+		/** prevent additional runs if more hits occur during same ability run */
+		bAttackHitFound = true;
+		SetAttackActive(false);
 
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.Hit");
-		FGameplayEventData Payload = FGameplayEventData();
-		Payload.Instigator = GetInstigator();
-		Payload.Target = OverlappedSpyCombatant;
-		Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(OverlappedSpyCombatant);
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
+		/** Payload setup to send to GameplayEvent to Actor */
+		const FGameplayTag ResultTag = FGameplayTag::RequestGameplayTag("Attack.Hit");
+		FGameplayEventData GameplayEventData = FGameplayEventData();
+		GameplayEventData.Instigator = this;
+		GameplayEventData.Target = HitCharacter;
+		GameplayEventData.TargetData = new FGameplayAbilityTargetData_SingleTargetHit(HitResult); 
+
+		GetAbilitySystemComponent()->HandleGameplayEvent(ResultTag, &GameplayEventData);
 	}
 	else
 	{
-		UE_LOG(SVSLogDebug, Log, TEXT(
-			"%s Spy: %s Attack hit zero combatants"),
-			this->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			*this->GetName());
 		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag("Attack.NoHit");
 		FGameplayEventData Payload = FGameplayEventData();
-		Payload.Instigator = IsValid(GetInstigator()) ? GetInstigator() : this;
+		Payload.Instigator = this;
 		Payload.TargetData = FGameplayAbilityTargetDataHandle();
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetInstigator(), Tag, Payload);
 	}
 }
 
-void ASpyCharacter::PlayAttackAnimation(const float TimerValue)
+void ASpyCharacter::PlayAttackAnimation(UAnimMontage* AttackMontage, const float TimerValue)
 {
 	if (IsRunningDedicatedServer())
-	{ NM_PlayAttackAnimation(TimerValue); }
+	{ NM_PlayAttackAnimation(AttackMontage, TimerValue); }
 }
 
-void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue)
+void ASpyCharacter::NM_PlayAttackAnimation_Implementation(UAnimMontage* AttackMontage, const float TimerValue)
 {
+	ResetAttackHitFound();
 	const bool bMontagePlayedSuccessfully = GetMesh()->GetAnimInstance()->Montage_Play(AttackMontage, 1.3f) > 0;
 	if (!AttackMontageEndedDelegate.IsBound())
 	{ AttackMontageEndedDelegate.BindUObject(this, &ThisClass::OnAttackMontageEnded); }
@@ -720,42 +685,28 @@ void ASpyCharacter::NM_PlayAttackAnimation_Implementation(const float TimerValue
 
 void ASpyCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"%s Character: %s received on attack montage ended and collision enabled: %s"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName(),
-		AttackZone->IsCollisionEnabled() ? *FString("True") : *FString("False"));
+
 }
 
-void ASpyCharacter::NM_PlayTrapTriggerAnimation_Implementation(const float TimerValue)
+void ASpyCharacter::ApplyAttackImpactForce_Implementation(const FVector FromLocation, const FVector ImpactForce) const
 {
-	if (IsRunningDedicatedServer())
-	{ return; }
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Triggered Play Trap Trigger Anim Montage"),
-		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		*GetName());
-	PlayAnimMontage(AttackMontage); // TODO update
-}
-
-void ASpyCharacter::ApplyAttackImpactForce(const FVector FromLocation, const FVector InAttackForce) const
-{
+	// TODO this will not get called as the caller is client side only
+	// https://github.com/james65535/GASDocumentation?tab=readme-ov-file#456-granted-abilities
 	if (GetLocalRole() != ROLE_Authority)
 	{ return; }
 	
-	NM_ApplyAttackImpactForce(FromLocation, InAttackForce);
+	NM_ApplyAttackImpactForce(FromLocation, ImpactForce);
 }
 
-void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromLocation,
-	const FVector InAttackForce) const
+void ASpyCharacter::NM_ApplyAttackImpactForce_Implementation(const FVector FromLocation, const FVector ImpactForce) const
 {
 	const FVector TargetLocation = GetActorLocation();
 	const FVector Direction = UKismetMathLibrary::GetDirectionUnitVector(FromLocation, TargetLocation);
 	const FVector AdjustedLaunchVector = FVector(
-			Direction.X * InAttackForce.X,
-			Direction.Y * InAttackForce.Y,
-			abs(Direction.Z + 1) * InAttackForce.Z); 
-
+			Direction.X * ImpactForce.X,
+			Direction.Y * ImpactForce.Y,
+			abs(Direction.Z + 1) * ImpactForce.Z); 
+	
 	UE_LOG(SVSLogDebug, Log, TEXT("%s Chracter: %s launched after attack - X: %f Y: %f Z: %f"),
 		IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName(),
@@ -814,133 +765,48 @@ void ASpyCharacter::RequestSprint(const FInputActionValue& Value)
 
 void ASpyCharacter::RequestPrimaryAttack(const FInputActionValue& Value)
 {
-	if (GetLocalRole() == ROLE_SimulatedProxy)
+	if (GetLocalRole() == ROLE_SimulatedProxy || !IsValid(GetAbilitySystemComponent()))
 	{ return; }
-	
-	/** Start ability from client */
-	if (Value.Get<bool>())
-	{
-		SpyAbilitySystemComponent->AbilityLocalInputPressed(
-			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction));
-	}
-	else
-	{
-		SpyAbilitySystemComponent->AbilityLocalInputReleased(
-			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction));
-	}
+
+	S_RequestPrimaryAttack();
 }
 
-void ASpyCharacter::RequestNextTrap(const FInputActionValue& Value)
+void ASpyCharacter::S_RequestPrimaryAttack_Implementation()
+{
+	SpyAbilitySystemComponent->TryActivateAbility(
+		SpyAbilitySystemComponent->FindAbilitySpecFromInputID(
+			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction))->Handle);
+}
+
+void ASpyCharacter::RequestEquipNextInventoryItem(const FInputActionValue& Value)
 {
 	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }
 
-	S_RequestEquipWeapon(EItemRotationDirection::Next);
+	S_RequestEquipItem(EItemRotationDirection::Next);
 }
 
-void ASpyCharacter::RequestPreviousTrap(const FInputActionValue& Value)
+void ASpyCharacter::RequestEquipPreviousInventoryItem(const FInputActionValue& Value)
 {
 	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }
 	
-	S_RequestEquipWeapon(EItemRotationDirection::Previous);
+	S_RequestEquipItem(EItemRotationDirection::Previous);
 }
 
-void ASpyCharacter::S_RequestEquipWeapon_Implementation(const EItemRotationDirection InItemRotationDirection)
-{
-	// TODO replace with WeaponMesh = GetPlayerInventoryComponent()->SelectWeapon(bChoosePrevious);
-	if (!IsValid(GetPlayerInventoryComponent()))
-	{ return; }
-		
-	int8 IndexModifier = 1;
-	if (InItemRotationDirection == EItemRotationDirection::Previous)
-	{ IndexModifier = -1; }
-
-	const int32 InventoryCollectionSize = GetPlayerInventoryComponent()->GetCurrentCollectionSize();
-	const int32 StartIndex = ActiveWeaponInventoryIndex + IndexModifier;
-	if (InventoryCollectionSize < 1 || StartIndex < 0 || StartIndex >= InventoryCollectionSize)
-	{ return; }
-	
-	TArray<UInventoryBaseAsset*> InventoryAssets;
-	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	if (InventoryAssets.IsValidIndex(StartIndex))
-	{
-		UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[StartIndex]);
-		UInventoryWeaponAsset* OldWeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAssets[ActiveWeaponInventoryIndex]);
-		/** Quantities might be -1 which means unlimited */
-		if (IsValid(WeaponAsset))
-		{
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s potential trap: %s and old: %s"),
-				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-				*GetName(),
-				*WeaponAsset->InventoryItemName.ToString(),
-				*OldWeaponAsset->InventoryItemName.ToString());
-			
-			if (WeaponAsset->Quantity != 0)
-			{
-				CurrentHeldWeapon = WeaponAsset;
-				SetWeaponMesh(WeaponAsset->Mesh);
-			}
-			else
-			{
-				CurrentHeldWeapon = nullptr;
-				SetWeaponMesh(nullptr);
-			}
-		
-			ActiveWeaponInventoryIndex = StartIndex;
-			MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, ActiveWeaponInventoryIndex, this);
-			UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s Has requested next trap with new index: %i with valid mesh: %s and name: %s"),
-				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-				*GetName(),
-				ActiveWeaponInventoryIndex,
-				IsValid(WeaponMeshComponent->GetStaticMesh()) ? *FString("True") : *FString("False"),
-				IsValid(CurrentHeldWeapon) ? *CurrentHeldWeapon->InventoryItemName.ToString() : *FString("null weapon"));
-		}
-	}
-}
-
-void ASpyCharacter::OnRep_ActiveWeaponInventoryIndex()
+void ASpyCharacter::S_RequestEquipItem_Implementation(const EItemRotationDirection InItemRotationDirection)
 {
 	if (!IsValid(GetPlayerInventoryComponent()))
 	{ return; }
 
-	// TODO add getting for singular asset so we don't have to use arrays here
-	TArray<UInventoryBaseAsset*> InventoryAssets;
-	GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-
-	if (InventoryAssets.Num() > 0 && InventoryAssets.IsValidIndex(ActiveWeaponInventoryIndex))
-	{
-		if (UInventoryWeaponAsset* FoundWeaponItem = Cast<UInventoryWeaponAsset>(
-			InventoryAssets[ActiveWeaponInventoryIndex]))
-		{
-			if (FoundWeaponItem->Quantity != 0)
-			{ CurrentHeldWeapon = FoundWeaponItem; }
-			else
-			{ CurrentHeldWeapon = nullptr; }
-
-			/** Update player UI */
-			if (ASpyPlayerController* PlayerController = GetController<ASpyPlayerController>())
-			{ PlayerController->C_DisplayCharacterInventory(); }
-			
-			SetWeaponMesh(FoundWeaponItem->Mesh);
-			/** So that we do not see mesh wireframe for the null default weapon */
-			WeaponMeshComponent->SetVisibility((WeaponMeshComponent->GetStaticMesh() != nullptr));
-		}
-	}
+	PlayerInventoryComponent->EquipInventoryItem(
+	GetMesh(),
+	RightHandSocketName,
+	LeftHandSocketName,
+	InItemRotationDirection);
 }
 
-// void ASpyCharacter::Look(const FInputActionValue& Value)
-// {
-// 	// input is a Vector2D
-// 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
-//
-// 	if (Controller != nullptr)
-// 	{
-// 		// add yaw and pitch input to controller
-// 		AddControllerYawInput(LookAxisVector.X);
-// 		AddControllerPitchInput(LookAxisVector.Y);
-// 	}
-// }
+
 
 void ASpyCharacter::RequestInteract()
 {
@@ -950,6 +816,54 @@ void ASpyCharacter::RequestInteract()
 	{ return; }
 	
 	S_RequestInteract();
+}
+
+void ASpyCharacter::UpdateCharacterTeam(const EPlayerTeam InPlayerTeam)
+{
+	switch (InPlayerTeam)
+	{
+		case EPlayerTeam::None : {
+			UE_LOG(SVSLog, Log, TEXT("%s SpyCharacter: %s updated team NONE!"),
+				IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
+				*GetName());
+			break;}
+
+		case EPlayerTeam::TeamA : {
+				/** Cosmetic Change */
+				if (!IsRunningDedicatedServer())
+				{
+					GetMesh()->SetMaterial(0, CoatTeamAMaterialInstance); // Coat
+					GetMesh()->SetMaterial(2, TorsoTeamAMaterialInstance); // Vest
+					GetMesh()->SetMaterial(3, LegsTeamAMaterialInstance); // Trousers
+					GetMesh()->SetMaterial(4, GlovesTeamAMaterialInstance); // Gloves
+					HatMeshComponent->SetMaterial(0, HatTeamAMaterialInstance);
+				}
+
+				/** This is a hack to be able to use blocking hits on the attack zone without self trigger */
+				GetMesh()->SetCollisionProfileName("SpyCharacterMeshA", true);
+				break;}
+
+		case EPlayerTeam::TeamB : {
+				/** Cosmetic Change */
+				if (!IsRunningDedicatedServer())
+				{
+					GetMesh()->SetMaterial(0, CoatTeamBMaterialInstance); // Coat
+					GetMesh()->SetMaterial(2, TorsoTeamBMaterialInstance); // Vest
+					GetMesh()->SetMaterial(3, LegsTeamBMaterialInstance); // Trousers
+					GetMesh()->SetMaterial(4, GlovesTeamBMaterialInstance); // Gloves
+					HatMeshComponent->SetMaterial(0, HatTeamBMaterialInstance);
+				}
+
+				/** This is a hack to be able to use blocking hits on the attack zone without self trigger */
+				GetMesh()->SetCollisionProfileName("SpyCharacterMeshB", true);
+				break;}
+	}
+}
+
+void ASpyCharacter::EquippedItemUpdated()
+{
+	if (ASpyPlayerController* PlayerController = GetController<ASpyPlayerController>())
+	{ PlayerController->C_DisplayCharacterInventory(); }
 }
 
 void ASpyCharacter::S_RequestInteract_Implementation()

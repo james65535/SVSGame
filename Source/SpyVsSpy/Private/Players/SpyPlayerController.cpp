@@ -66,14 +66,14 @@ void ASpyPlayerController::BeginPlay()
 			InputActions->NextTrapAction,
 			ETriggerEvent::Started,
 			this,
-			&ThisClass::RequestNextTrap);
+			&ThisClass::RequestEquipNextInventoryItem);
 
 		/** Previous Trap */
 		EIPlayerComponent->BindAction(
 			InputActions->PrevTrapAction,
 			ETriggerEvent::Started,
 			this,
-			&ThisClass::RequestPreviousTrap);
+			&ThisClass::RequestEquipPreviousInventoryItem);
 		
 		/** Interacting */
 		EIPlayerComponent->BindAction(
@@ -148,6 +148,19 @@ void ASpyPlayerController::EndMatch()
 		SpyPlayerHUD->ToggleDisplayGameTime(false);
 	}
 }
+
+// void ASpyCharacter::Look(const FInputActionValue& Value)
+// {
+// 	// input is a Vector2D
+// 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+//
+// 	if (Controller != nullptr)
+// 	{
+// 		// add yaw and pitch input to controller
+// 		AddControllerYawInput(LookAxisVector.X);
+// 		AddControllerPitchInput(LookAxisVector.Y);
+// 	}
+// }
 
 void ASpyPlayerController::RequestUpdatePlayerResults() const
 {
@@ -233,26 +246,29 @@ void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 	if (GetLocalRole() != ROLE_AutonomousProxy || !IsValid(SpyCharacter))
 	{ return; }
 
-	/** Find out what items the Spy has in inventory */
-	TArray<UInventoryBaseAsset*> InventoryAssets;
-	SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	
-	/** Grab name of held weapon so we can flag up to UI what is selected */
-	const FString HeldWeaponName =  IsValid(SpyCharacter->GetHeldWeapon()) ?
-		SpyCharacter->GetHeldWeapon()->GetName() :
-		"NotAName";
-	
-	TMap<UObject*, bool> DisplayedItems;
-	for (UObject* InventoryAsset : InventoryAssets)
+	if (const UInventoryBaseAsset* EquippedInventoryAsset = SpyCharacter->GetPlayerInventoryComponent()->GetEquippedItemAsset())
 	{
-		const bool bSelectedWeapon = InventoryAsset->GetName().Equals(HeldWeaponName) ?
-			true :
-			false;
+		/** Find out what items the Spy has in inventory */
+		TArray<UInventoryBaseAsset*> InventoryAssets;
+		SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
 		
-		DisplayedItems.Add(InventoryAsset, bSelectedWeapon);
-	}
+		/** Grab name of held weapon so we can flag up to UI what is selected */
+		const FString HeldWeaponName =  IsValid(SpyCharacter->GetEquippedItemAsset()) ?
+			SpyCharacter->GetEquippedItemAsset()->GetName() :
+			"NotAName";
+
+		TMap<UObject*, bool> DisplayedItems;
+		for (UInventoryBaseAsset* InventoryAsset : InventoryAssets)
+		{
+			const bool bSelectedWeapon = InventoryAsset->InventoryItemName.IsEqual(EquippedInventoryAsset->InventoryItemName) ?
+				true :
+				false;
+		
+			DisplayedItems.Add(InventoryAsset, bSelectedWeapon);
+		}
 	
-	SpyPlayerHUD->DisplayCharacterInventory(DisplayedItems);
+		SpyPlayerHUD->DisplayCharacterInventory(DisplayedItems);
+	}
 }
 
 void ASpyPlayerController::RequestTakeAllFromTargetInventory()
@@ -301,12 +317,12 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 	TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent();
 
 	if (!IsValid(TargetInteractionComponent.GetObjectRef()) ||
-		!IsValid(SpyCharacter->GetHeldWeapon()) ||
+		!IsValid(SpyCharacter->GetEquippedItemAsset()) ||
 		IsRunningClientOnly())
 	{ return false; }
 
 	// TODO determine if refactor into controlled character's inventory component is required
-	if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetHeldWeapon()))
+	if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetEquippedItemAsset()))
 	{
 		const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
 
@@ -430,20 +446,20 @@ void ASpyPlayerController::RequestMove(const FInputActionValue& ActionValue)
 	SpyCharacter->AddMovementInput(RightDirection, MovementVector.X);
 }
 
-void ASpyPlayerController::RequestNextTrap(const FInputActionValue& ActionValue)
+void ASpyPlayerController::RequestEquipNextInventoryItem(const FInputActionValue& ActionValue)
 {
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
-	SpyCharacter->RequestNextTrap(ActionValue);
+	SpyCharacter->RequestEquipNextInventoryItem(ActionValue);
 }
 
-void ASpyPlayerController::RequestPreviousTrap(const FInputActionValue& ActionValue)
+void ASpyPlayerController::RequestEquipPreviousInventoryItem(const FInputActionValue& ActionValue)
 {
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
-	SpyCharacter->RequestPreviousTrap(ActionValue);
+	SpyCharacter->RequestEquipPreviousInventoryItem(ActionValue);
 }
 
 void ASpyPlayerController::RequestInteract(const FInputActionValue& ActionValue)

@@ -75,13 +75,19 @@ void ASpyVsSpyGameState::BeginPlay()
 
 void ASpyVsSpyGameState::SetSpyMatchState(const ESpyMatchState InSpyMatchState)
 {
+	if (!HasAuthority())
+	{ return; }
+	
 	OldSpyMatchState = SpyMatchState;
 	SpyMatchState = InSpyMatchState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchState, this);
 	
+	UE_LOG(SVSLogDebug, Log, TEXT("GameState: ran SetSpyMatchState with value: %hhd"), InSpyMatchState);
+	
+	// TODO test and clean this up
 	/** Manual invocation of OnRep_GameState so server will also run the method */
-	if (HasAuthority())
-	{ OnRep_SpyMatchState(); }
+	// if (HasAuthority())
+	// { OnRep_SpyMatchState(); }
 }
 
 void ASpyVsSpyGameState::OnRep_SpyMatchState() const
@@ -145,35 +151,67 @@ void ASpyVsSpyGameState::SetSpyMatchTimeLength(const float InSecondsTotal)
 	SpyMatchTimeLength = InSecondsTotal;
 }
 
-
-
 void ASpyVsSpyGameState::SetSpyMatchStartTime(const float InMatchStartTime)
 {
 	SpyMatchStartTime = InMatchStartTime;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchStartTime, this);
 }
 
-void ASpyVsSpyGameState::NM_MatchStart_Implementation()
+void ASpyVsSpyGameState::OnRep_SpyMatchStartTime()
 {
+	UE_LOG(SVSLogDebug, Log, TEXT("GameState: ran OnRep_SpyMatchStartTime"));
+	OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
+}
+
+void ASpyVsSpyGameState::MatchStart()
+{
+	/** Set player status to playing */
 	ClearResults();
 	SetSpyMatchStartTime(GetServerWorldTimeSeconds());
 	SetSpyMatchState(ESpyMatchState::Playing);
-	UpdatePlayerStateWithMatchTimeLength(); // Here or delegate?
-	OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
+
+	for (APlayerState* PlayerState : PlayerArray)
+	{
+		ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState);
+		if (IsValid(SpyPlayerState) && !SpyPlayerState->IsSpectator())
+		{
+			SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength);
+
+			const EPlayerTeam PlayerTeam = (SpyPlayerState->GetPlayerId() % 2 == 0) ? EPlayerTeam::TeamA : EPlayerTeam::TeamB;
+			UE_LOG(SVSLogDebug, Log, TEXT("GameState: updated team for PlayerName: %s with PlayerID: %i to team: %hhd"),
+				*SpyPlayerState->GetPlayerName(),
+				SpyPlayerState->GetPlayerId(),
+				PlayerTeam);
+			SpyPlayerState->SetSpyPlayerTeam(PlayerTeam);
+			
+			SpyPlayerState->SetIsWinner(false);
+			SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Playing);
+		}
+		else
+		{
+			UE_LOG(SVSLogDebug, Log, TEXT("GameState: Match start found a spectatingplayer with PlayerID: %i"),
+			SpyPlayerState->GetPlayerId());
+		}
+	}
+	
+	// TODO cleanup
+	// UpdatePlayerStateWithMatchTimeLength(); // Here or delegate?
+	//OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
 }
 
 void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
 {
-	if (!IsValid(GetWorld()->GetAuthGameMode()))
-	{ return; }
-	
-	for (APlayerState* PlayerState : PlayerArray)
-	{
-		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
-		{ SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength); }
-		else
-		{ UE_LOG(SVSLog, Warning, TEXT("SpyGameState could not set player match time")); }
-	}
+	// TODO cleanup
+	// if (!IsValid(GetWorld()->GetAuthGameMode()))
+	// { return; }
+	//
+	// for (APlayerState* PlayerState : PlayerArray)
+	// {
+	// 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
+	// 	{ SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength); }
+	// 	else
+	// 	{ UE_LOG(SVSLog, Warning, TEXT("SpyGameState could not set player match time")); }
+	// }
 }
 
 void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, const bool bPlayerTimeExpired)
@@ -263,9 +301,8 @@ void ASpyVsSpyGameState::TryFinaliseScoreBoard()
 		SetAllPlayerGameStatus(EPlayerGameStatus::Finished);
 		
 		/** Results Replication Is Pushed to Mark Dirty */
-		SpyMatchState = ESpyMatchState::GameOver;
+		SetSpyMatchState(ESpyMatchState::GameOver);
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchState, this);
 		
 		/** if running a local game then need to call the OnRep function manually */
 		if (HasAuthority() && !IsRunningDedicatedServer())
@@ -295,6 +332,7 @@ bool ASpyVsSpyGameState::CheckAllResultsIn() const
 void ASpyVsSpyGameState::ClearResults()
 {
 	Results.Empty();
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 }
 
 ARoomManager* ASpyVsSpyGameState::GetRoomManager() const

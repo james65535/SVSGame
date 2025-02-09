@@ -9,15 +9,6 @@
 class UNiagaraSystem;
 class USoundCue;
 
-UENUM(BlueprintType)
-enum class EWeaponType : uint8
-{
-	None UMETA(DisplayName = "None"),
-	Trap UMETA(DisplayName = "Trap"),
-	Gun	UMETA(DisplayName = "Gun"),
-	Knife UMETA(DisplayName = "Knife"),
-	Club UMETA(DisplayName = "Club"),
-};
 
 /**
  * 
@@ -37,8 +28,9 @@ public:
 #pragma region="Getter/Setters"
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
 	float GetBaseDamage() const { return WeaponAttackBaseDamage; }
-	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	EWeaponType GetWeaponType() const { return WeaponType; }
+	// TODO cleanup or remove component
+	// UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
+	// EWeaponType GetWeaponType() const { return WeaponType; }
 #pragma endregion="Getter/Setters"
 
 protected:
@@ -51,8 +43,9 @@ protected:
 private:
 
 #pragma region="ItemProperties"
-	UPROPERTY(BlueprintReadOnly, EditInstanceOnly,Meta = (AllowPrivateAccess = "true"), Category = "SVS|Inventory|Combat")
-	EWeaponType WeaponType = EWeaponType::None;
+	// TODO cleanup or remove component
+	// UPROPERTY(BlueprintReadOnly, EditInstanceOnly,Meta = (AllowPrivateAccess = "true"), Category = "SVS|Inventory|Combat")
+	// EWeaponType WeaponType = EWeaponType::None;
 
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), EditInstanceOnly, Category = "SVS|Inventory|Combat")
 	float WeaponAttackBaseDamage = 0.0f;

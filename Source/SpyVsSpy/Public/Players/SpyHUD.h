@@ -18,39 +18,6 @@ enum class EPlayerMatchStatus : uint8;
 /**
  * 
  */
-// USTRUCT(BlueprintType, Category = "SVS|UI")
-// struct FItemDisplaySettings
-// {
-// 	GENERATED_BODY()
-// 	
-// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
-// 	FName ItemName;
-//
-// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
-// 	UTexture* IconImage;
-//
-// 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|UI")
-// 	bool CurrentlySelected;
-//
-// 	FItemDisplaySettings()
-// 	{
-// 		ItemName = "";
-// 		IconImage = nullptr;
-// 		CurrentlySelected = false;
-// 	}
-//
-// 	FItemDisplaySettings(const FName InItemName, UTexture* InIconImage, const bool InCurrentlySelected)
-// 	{
-// 		ItemName = InItemName;
-// 		IconImage = InIconImage;
-// 		CurrentlySelected = InCurrentlySelected;
-// 	}
-// };
-
-
-/**
- * 
- */
 UCLASS()
 class SPYVSSPY_API ASpyHUD : public AHUD
 {

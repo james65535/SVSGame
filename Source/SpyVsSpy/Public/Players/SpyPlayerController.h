@@ -147,9 +147,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
 	void RequestMove(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
-	void RequestNextTrap(const FInputActionValue& ActionValue);
+	void RequestEquipNextInventoryItem(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
-	void RequestPreviousTrap(const FInputActionValue& ActionValue);
+	void RequestEquipPreviousInventoryItem(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")
 	void RequestInteract(const FInputActionValue& ActionValue);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Movement")

@@ -4,7 +4,6 @@
 #include "AbilitySystem/AbilityTaskSuccessFailEvent.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "SVSLogger.h"
 
 UAbilityTaskSuccessFailEvent* UAbilityTaskSuccessFailEvent::WaitSuccessFailEvent(UGameplayAbility* OwningAbility, const FGameplayTag SuccessTag, const FGameplayTag FailTag, AActor* OptionalExternalTarget, const bool OnlyTriggerOnce,  const bool OnlyMatchExact)
 {
@@ -43,11 +42,11 @@ void UAbilityTaskSuccessFailEvent::Activate()
 		{
 			SuccessHandle = TargetAbilitySystemComponent->GenericGameplayEventCallbacks.FindOrAdd(SuccessTag).AddUObject(
 				this,
-				&UAbilityTaskSuccessFailEvent::SuccessEventCallback);
+				&ThisClass::SuccessEventCallback);
 
 			FailHandle = TargetAbilitySystemComponent->GenericGameplayEventCallbacks.FindOrAdd(FailTag).AddUObject(
 				this,
-				&UAbilityTaskSuccessFailEvent::FailEventCallback);
+				&ThisClass::FailEventCallback);
 		}
 		else
 		{
@@ -55,13 +54,13 @@ void UAbilityTaskSuccessFailEvent::Activate()
 				FGameplayTagContainer(SuccessTag),
 				FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(
 					this,
-					&UAbilityTaskSuccessFailEvent::SuccessEventContainerCallback));
+					&ThisClass::SuccessEventContainerCallback));
 
 			FailHandle = TargetAbilitySystemComponent->AddGameplayEventTagContainerDelegate(
 				FGameplayTagContainer(FailTag),
 				FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(
 					this,
-					&UAbilityTaskSuccessFailEvent::FailEventContainerCallback));
+					&ThisClass::FailEventContainerCallback));
 		}	
 	}
 	Super::Activate();
@@ -81,7 +80,7 @@ void UAbilityTaskSuccessFailEvent::SuccessEventContainerCallback(FGameplayTag Ma
 		TempPayload.EventTag = MatchingTag;
 		SuccessEventReceived.Broadcast(MoveTemp(TempPayload));
 	}
-	
+
 	if (OnlyTriggerOnce)
 	{ EndTask(); }
 }
@@ -123,7 +122,9 @@ void UAbilityTaskSuccessFailEvent::OnDestroy(bool AbilityEnding)
 		else
 		{ TargetAbilitySystemComponent->RemoveGameplayEventTagContainerDelegate(FGameplayTagContainer(FailTag), FailHandle); }
 	}
-	
+
+	SuccessEventReceived.RemoveAll(this);
+	FailEventReceived.RemoveAll(this);
 	
 	Super::OnDestroy(AbilityEnding);
 }
