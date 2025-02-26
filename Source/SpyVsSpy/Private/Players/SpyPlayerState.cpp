@@ -127,9 +127,6 @@ void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 
 void ASpyPlayerState::SetSpyPlayerTeam(const EPlayerTeam InSpyPlayerTeam)
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("PlayerState for %s PlayerID: %i ran SetPlayerTeam"),
-		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-		GetPlayerId());
 	SpyPlayerTeam = InSpyPlayerTeam;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyPlayerTeam, this);
 	/** to trigger on the server */
@@ -138,13 +135,6 @@ void ASpyPlayerState::SetSpyPlayerTeam(const EPlayerTeam InSpyPlayerTeam)
 
 void ASpyPlayerState::OnRep_SpyPlayerTeam()
 {
-	if (IsValid(GetPawn()))
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT("OnRep PlayerState for %s PlayerID: %i updated team to: %hhd"),
-			GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
-			GetPlayerId(),
-			SpyPlayerTeam);
-	}
 	OnSpyTeamUpdate.Broadcast(SpyPlayerTeam);
 }
 

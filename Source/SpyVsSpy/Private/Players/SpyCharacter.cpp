@@ -46,7 +46,7 @@ ASpyCharacter::ASpyCharacter()
 
 	PlayerInventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
 	PlayerInventoryComponent->SetIsReplicated(true);
-	PlayerInventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Player);
+	
 	
 	/** Don't rotate when the controller rotates. Let that just affect the camera. */
 	bUseControllerRotationPitch = false;
@@ -67,71 +67,6 @@ ASpyCharacter::ASpyCharacter()
 	
 	FollowCamera = CreateDefaultSubobject<UIsoCameraComponent>(TEXT("FollowCamera"));
 	
-	// TODO replace with held weapon info
-
-	// AttackZoneAlt = CreateDefaultSubobject<USkeletalMeshComponent>("AttackZoneSMr");
-	// if (IsValid(AttackZoneAlt))
-	// {
-	// 	if (FBodyInstance* AttackZoneBI = AttackZoneAlt->GetBodyInstance())
-	// 	{ AttackZoneBI->bAutoWeld = false;}
-	//
-	// 	AttackZoneAlt->SetupAttachment(GetMesh(), "hand_rSocket");
-	// 			// AttackZone->SetCapsuleRadius(80.0f);
-	// 	// AttackZone->SetCapsuleHalfHeight(40.0f);
-	//
-	// 	AttackZoneAlt->SetCollisionProfileName("CombatantPreset");
-	// 	// TODO cleanup
-	// 	/** Preset has Collision disabled - Query is enabled when attacking */
-	// 	AttackZoneAlt->SetCollisionObjectType(ECC_GameTraceChannel2);
-	// 	AttackZoneAlt->SetCollisionEnabled(ECollisionEnabled::QueryAndProbe);
-	// 	AttackZoneAlt->SetSimulatePhysics(true);
-	// 	AttackZoneAlt->PhysicsTransformUpdateMode = EPhysicsTransformUpdateMode::ComponentTransformIsKinematic;
-	// 	AttackZoneAlt->SetEnableGravity(false);
-	// 	AttackZoneAlt->SetNotifyRigidBodyCollision(true);
-	// 	AttackZoneAlt->SetGenerateOverlapEvents(false);
-	// 	AttackZoneAlt->CanCharacterStepUpOn = ECB_No;
-	// 	
-	// 	GetMesh()->PhysicsTransformUpdateMode = EPhysicsTransformUpdateMode::ComponentTransformIsKinematic;
-	// 		
-	// 	// TODO replace with oncomponenthit to get exact location of impact
-	// 	// AttackZone->OnComponentBeginOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentBeginOverlap);
-	// 	// AttackZone->OnComponentEndOverlap.AddUniqueDynamic(this, &ThisClass::OnAttackComponentEndOverlap);
-	//
-	// 	// TODO remove after troubleshooting
-	// 	//AttackZone->ShapeColor = FColor::Green;
-	// 	AttackZoneAlt->SetVisibility(true);
-	// 	AttackZoneAlt->SetHiddenInGame(false);
-	// 	
-	// 	
-	// 	AttackZoneAlt->SetIsReplicated(true);
-	// 	AttackHitLocation = FVector::ZeroVector;
-	//
-	//
-	// 	WeaponPhysicsConstraintComponent = CreateDefaultSubobject<UPhysicsConstraintComponent>("WeaponPhysicsConstraint");
-	// 	if (IsValid(WeaponPhysicsConstraintComponent) && IsValid(AttackZoneAlt))
-	// 	{
-	// 		WeaponPhysicsConstraintComponent->SetupAttachment(GetMesh(),"hand_rSocket");
-	// 		WeaponPhysicsConstraintComponent->ComponentName1.ComponentName = GetMesh()->GetFName();
-	// 		WeaponPhysicsConstraintComponent->ComponentName2.ComponentName = AttackZoneAlt->GetFName();
-	// 		WeaponPhysicsConstraintComponent->SetAngularTwistLimit(ACM_Locked, 0.0f);
-	// 		WeaponPhysicsConstraintComponent->SetAngularSwing1Limit(ACM_Locked, 0.0f);
-	// 		WeaponPhysicsConstraintComponent->SetAngularSwing2Limit(ACM_Locked, 0.0f);
-	// 		//WeaponPhysicsConstraintComponent->SetDisableCollision(true);
-	// 	}
-	// 	else
-	// 	{ UE_LOG(SVSLogDebug, Log, TEXT("WeaponPSC failed to be created")); }
-	// }
-	//
-	//
-	// WeaponMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("WeaponMeshComponent");
-	// // if (IsValid(WeaponMeshComponent))
-	// // {
-	// // 	WeaponMeshComponent->SetupAttachment(GetMesh(), FName("hand_rSocket"));
-	// // 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// // 	/** Visibility is enabled when the character has a weapon with a valid mesh in hand */
-	// // 	WeaponMeshComponent->SetVisibility(false);
-	// // }
-
 	HatMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("HatMeshComponent");
 	if (IsValid(HatMeshComponent))
 	{
@@ -186,6 +121,9 @@ void ASpyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	/** InventoryComponent performs some logic depending on this value */
+	PlayerInventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Player);
+	
 	// TODO check into whether this should be forced from server
 	/** Hide opponents character on local client */
 	GetLocalRole() == ROLE_SimulatedProxy ?
@@ -490,6 +428,9 @@ void ASpyCharacter::SetEnableDeathState(const bool bEnabled, const FVector& Resp
 		FVector(0.0f, 0.0f, -90.0f),
 		FRotator(0.0f, 270.0f, 0.0f));
 
+	/** Set weapon back to default */
+	InitializeEquippedItem();
+
 	/** Process character relocation after death bHasTeleported provides
 	 * entry into ProcessRoomChange for overlap delegates */
 	bHasTeleported = true;
@@ -778,6 +719,11 @@ void ASpyCharacter::S_RequestPrimaryAttack_Implementation()
 			static_cast<int32>(ESpyAbilityInputID::PrimaryAttackAction))->Handle);
 }
 
+void ASpyCharacter::InitializeEquippedItem()
+{
+	S_RequestEquipItem(EItemRotationDirection::Initial);
+}
+
 void ASpyCharacter::RequestEquipNextInventoryItem(const FInputActionValue& Value)
 {
 	if (GetLocalRole() != ROLE_AutonomousProxy)
@@ -799,14 +745,8 @@ void ASpyCharacter::S_RequestEquipItem_Implementation(const EItemRotationDirecti
 	if (!IsValid(GetPlayerInventoryComponent()))
 	{ return; }
 
-	PlayerInventoryComponent->EquipInventoryItem(
-	GetMesh(),
-	RightHandSocketName,
-	LeftHandSocketName,
-	InItemRotationDirection);
+	PlayerInventoryComponent->EquipInventoryItem(InItemRotationDirection);
 }
-
-
 
 void ASpyCharacter::RequestInteract()
 {

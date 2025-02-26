@@ -11,15 +11,19 @@
 #include "Items/Weapon.h"
 #include "UObject/PrimaryAssetId.h"
 #include "GameFramework/GameModeBase.h"
+#include "Items/TrapMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Players/SpyCharacter.h"
 #include "Players/SpyPlayerController.h"
 
-// Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
 {
 	SetIsReplicatedByDefault(true);
+	WeaponHandSocketName = "hand_rSocket";
+	TrapHandSocketName = "hand_lSocket";
+
+	DefaultEquippedItemType = EWeaponType::Club;
 }
 
 void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -29,15 +33,8 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	FDoRepLifetimeParams SharedParamsRepAlways;
 	SharedParamsRepAlways.bIsPushBased = true;
 	SharedParamsRepAlways.RepNotifyCondition = REPNOTIFY_Always;
-
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PrimaryAssetIdsToLoad, SharedParamsRepAlways);
-
-	FDoRepLifetimeParams SharedParamsRepChangedAutonomousOnly;
-	SharedParamsRepChangedAutonomousOnly.bIsPushBased = true;
-	SharedParamsRepChangedAutonomousOnly.RepNotifyCondition = REPNOTIFY_OnChanged;
-	SharedParamsRepChangedAutonomousOnly.Condition = COND_AutonomousOnly;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, EquippedItemIndex, SharedParamsRepChangedAutonomousOnly);
-
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, EquippedItemIndex, SharedParamsRepAlways);
 }
 
 void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
@@ -97,10 +94,6 @@ bool UInventoryComponent::RemoveInventoryItem(UInventoryItemComponent* InInvento
 
 void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("%d Actor: %s InventoryComponent is providing inventory list"),
-	GetOwner()->GetLocalRole(),
-	*GetOwner()->GetName());
-	
 	InInventoryItems = InventoryAssetsCollection;
 }
 
@@ -113,11 +106,6 @@ void UInventoryComponent::GetInventoryItemPIDs(TArray<FPrimaryAssetId>& Requeste
 	}
 }
 
-void UInventoryComponent::SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType)
-{
-	InventoryOwnerType = InInventoryOwnerType;
-}
-
 void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
 {
 	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
@@ -126,20 +114,14 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 		if (UInventoryBaseAsset* SpyItem = Cast<UInventoryBaseAsset>(AssetManagerObject))
 		{
 			const uint8 AddedItemIndex = InventoryAssetsCollection.AddUnique(SpyItem);
-			if (UInventoryWeaponAsset* SpyWeaponItem = Cast<UInventoryWeaponAsset>(SpyItem))
+
+			/** On Server set default first weapon actor and asset to club when we add it */
+			if (const UInventoryWeaponAsset* SpyWeaponItem = Cast<UInventoryWeaponAsset>(SpyItem))
 			{
-				if (SpyWeaponItem->WeaponType == EWeaponType::None)
-				{
-					// TODO refactor this
-					InventoryAssetsCollection.Swap(0, AddedItemIndex);
-					if (ASpyCharacter* CharacterOwner = Cast<ASpyCharacter>(GetOwner()))
-					{
-						EquipWeapon(
-							CharacterOwner->GetMesh(),
-							CharacterOwner->GetWeaponHandSocket(),
-							SpyWeaponItem);
-					}
-				}
+				const ASpyCharacter* CharacterOwner = Cast<ASpyCharacter>(GetOwner());
+				if (IsValid(CharacterOwner) &&
+					SpyWeaponItem->WeaponType == DefaultEquippedItemType)
+				{ InventoryAssetsCollection.Swap(0, AddedItemIndex); }
 			}
 		}
 		else
@@ -151,79 +133,161 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 	}
 }
 
-
-
-void UInventoryComponent::EquipInventoryItem(USceneComponent* OwnerComponent, const FName& WeaponHandSocket, const FName& TrapHandSocket, const EItemRotationDirection ItemRotationDirection)
+void UInventoryComponent::SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType)
 {
-	S_EquipInventoryItem_Implementation(OwnerComponent, WeaponHandSocket, TrapHandSocket, ItemRotationDirection);
+	InventoryOwnerType = InInventoryOwnerType;
+
+	/** If Inventory OwnerType is a Player then validate
+	 * inventory component has the correct socket names for trap and weapon hands */
+	if (InventoryOwnerType == EInventoryOwnerType::Player)
+	{
+		bool bHandSocketsValidated = false;
+		if (const ASpyCharacter* CharacterOwner = Cast<ASpyCharacter>( GetOwner()))
+		{
+			if (CharacterOwner->GetMesh()->GetSocketByName(WeaponHandSocketName) &&
+				CharacterOwner->GetMesh()->GetSocketByName(TrapHandSocketName))
+			{ bHandSocketsValidated = true; }
+		}
+		ensureAlwaysMsgf(
+			bHandSocketsValidated,
+			TEXT("Inventory Component could not match expected socket names for trap and weapon with owner character mesh"));
+	}
 }
 
-void UInventoryComponent::S_EquipInventoryItem_Implementation(USceneComponent* OwnerComponent,
-                                                              const FName& WeaponHandSocket, const FName& TrapHandSocket, const EItemRotationDirection ItemRotationDirection)
+void UInventoryComponent::EquipInventoryItem(const EItemRotationDirection ItemRotationDirection)
 {
-	/* Determine wither to increment up or down the collection */
-	uint8 IndexModifier = 1;
-	if (ItemRotationDirection == EItemRotationDirection::Previous)
-	{ IndexModifier = -1; }
-	
-	const uint8 NewEquippedItemIndex = EquippedItemIndex + IndexModifier;
-	if (!InventoryAssetsCollection.IsValidIndex(NewEquippedItemIndex) ||
-		!IsValid(OwnerComponent) ||
-		!IsValid(GetOwner()->GetWorld()))
+	S_EquipInventoryItem_Implementation(ItemRotationDirection);
+}
+
+void UInventoryComponent::S_EquipInventoryItem_Implementation(const EItemRotationDirection ItemRotationDirection)
+{
+	/* Determine whether to increment up or down the collection array */
+	int8 IndexModifier = 0;
+	switch (ItemRotationDirection)
+	{
+		case (EItemRotationDirection::Next) :
+			{
+				IndexModifier = 1;
+				break;
+			}
+		case (EItemRotationDirection::Previous) :
+			{
+				/* We don't want to decrement below 0 */
+				EquippedItemIndex > 0 ? IndexModifier = -1 : IndexModifier = 0;
+				break;
+			}
+		case (EItemRotationDirection::Initial) :
+			{ break; }
+	}
+
+	/** If initial then index is 0, otherwise adjust index up or down */
+	const uint8 NewEquippedItemIndex = ItemRotationDirection == EItemRotationDirection::Initial ?
+		0 :
+		EquippedItemIndex + IndexModifier;
+
+	/** Early return if index is not valid */
+	if (!IsValid(GetOwner()->GetWorld()) ||
+		!InventoryAssetsCollection.IsValidIndex(NewEquippedItemIndex))
 	{ return; }
 
-	/** UnEquip old weapon first and early return if SpawnedWeapon exists but we cannot unequip it */
-	UnEquipCurrentItem();
-
-	/** Attempt to Equip New Weapon */
+	/** UnEquip old weapon or trap first and early return if we cannot unequip it
+	 * Skip if we're equipping the default weapon at start of game */
+	if (ItemRotationDirection != EItemRotationDirection::Initial)
+	{
+		const bool bDidUnEquip = UnEquipCurrentItem();
+		if (!bDidUnEquip)
+		{ return; }
+	}
+	
+	/** Equip Item */
 	UInventoryBaseAsset* InventoryAsset = InventoryAssetsCollection[NewEquippedItemIndex];
-	/** Quantities can be positive or negative one for infinite */
+	/** Allowed quantities can be positive or negative one for infinite */
 	bool bEquipSucceeded = false;
 	if (IsValid(InventoryAsset) && InventoryAsset->Quantity != 0)
 	{
-		if (UInventoryTrapAsset* TrapAsset = Cast<UInventoryTrapAsset>(InventoryAsset))
-		{ bEquipSucceeded = EquipTrap(OwnerComponent, TrapHandSocket, TrapAsset); }
+		/** Do nothing for traps on server as they are just cosmetic */
+		if (IsValid(Cast<UInventoryTrapAsset>(InventoryAsset)))
+		{ bEquipSucceeded = true; }
 		else if (UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAsset))
-		{ bEquipSucceeded = EquipWeapon(OwnerComponent, WeaponHandSocket, WeaponAsset); }
+		{ bEquipSucceeded = EquipWeapon(WeaponAsset);	}
 	}
-
-	/** Update autonomous proxy of the change */
+	
+	/** Update clients of the change */
 	if (bEquipSucceeded)
 	{
+		EquippedItemAsset = InventoryAsset;
 		EquippedItemIndex = NewEquippedItemIndex;
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass,EquippedItemIndex, this);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, EquippedItemIndex, this);
 	}
-}
-
-bool UInventoryComponent::EquipTrap(USceneComponent* OwnerComponent, const FName& HandSocket, UInventoryTrapAsset* TrapAsset)
-{
-	bool bEquipResult = false;
-	if(IsValid(TrapAsset->TrapMesh) && !HandSocket.IsNone())
-	{
-		EquippedItemAsset = TrapAsset;
-		bEquipResult = true;
-	}
-
-	return bEquipResult;
 }
 
 void UInventoryComponent::OnRep_EquippedItemIndex()
 {
-	if (InventoryAssetsCollection.Num() == 0 ||
-		!InventoryAssetsCollection.IsValidIndex(EquippedItemIndex) ||
+	if (IsRunningDedicatedServer() ||
 		!IsValid(GetOwner()) ||
-		IsRunningDedicatedServer())
-	{ return; }
+		!InventoryAssetsCollection.IsValidIndex(EquippedItemIndex))
+	{
+		UE_LOG(SVSLog, Warning,
+			TEXT("Inventory Component ran OnRep_EquippedItemIndex with index: %i but has no owner"),
+			EquippedItemIndex);
+		return;
+	}
 
-	UnEquipCurrentItem();
-	EquippedItemAsset = InventoryAssetsCollection[EquippedItemIndex];
+	/** Client only cares about unequiping a trap asset since that is only equiped on the client */
+	if (Cast<UInventoryTrapAsset>(EquippedItemAsset))
+	{ UnEquipCurrentItem(); }
 	
+	if (const UInventoryTrapAsset* TrapAsset = Cast<UInventoryTrapAsset>(InventoryAssetsCollection[EquippedItemIndex]))
+	{ EquipTrap(TrapAsset); }
+
+	EquippedItemAsset = InventoryAssetsCollection[EquippedItemIndex];
 	OnEquippedUpdated.Broadcast();
 }
 
-bool UInventoryComponent::EquipWeapon(USceneComponent* OwnerComponent, const FName& HandSocket, UInventoryWeaponAsset* WeaponAsset)
+bool UInventoryComponent::EquipTrap(const UInventoryTrapAsset* TrapAsset)
 {
+	/** Create the visual representation of the trap to be held by the player */
+	if (ASpyCharacter* OwnerCharacter = Cast<ASpyCharacter>(GetOwner()))
+	{
+		UTrapMeshComponent* NewHeldTrap = NewObject<UTrapMeshComponent>(
+			OwnerCharacter,
+			UTrapMeshComponent::StaticClass());
+
+		if (IsValid(NewHeldTrap))
+		{
+			NewHeldTrap->TrapName = TrapAsset->InventoryItemName;
+			NewHeldTrap->RegisterComponent();
+			NewHeldTrap->SetStaticMesh(TrapAsset->TrapMesh);
+
+			const bool bDidAttach = NewHeldTrap->AttachToComponent(
+				OwnerCharacter->GetMesh(),
+				FAttachmentTransformRules::SnapToTargetIncludingScale,
+				TrapHandSocketName);
+
+			NewHeldTrap->SetRelativeTransform(TrapAsset->HeldTrapAttachTransform);
+
+			if (bDidAttach)
+			{ CurrentHeldTrap = NewHeldTrap; }
+			else
+			{
+				NewHeldTrap->DestroyComponent();
+				UE_LOG(SVSLog, Warning, TEXT("%s InventoryComponent could not attach trap visual component for asset: %s"),
+					*GetOwner()->GetName(),
+					*TrapAsset->InventoryItemName.ToString());
+			}
+			return bDidAttach;
+		}
+	}
+	return false;
+}
+
+bool UInventoryComponent::EquipWeapon(UInventoryWeaponAsset* WeaponAsset)
+{
+	const ASpyCharacter* CharacterOwner = Cast<ASpyCharacter>(GetOwner());
 	const TSubclassOf<AWeapon> WeaponClass = WeaponAsset->WeaponClass;
+	if (!IsValid(CharacterOwner) || !IsValid(WeaponClass))
+	{ return false; }
+	
 	AWeapon* NewWeapon = GetOwner()->GetWorld()->SpawnActorDeferred<AWeapon>(
 		WeaponClass,
 		FTransform::Identity,
@@ -233,13 +297,13 @@ bool UInventoryComponent::EquipWeapon(USceneComponent* OwnerComponent, const FNa
 
 	bool bEquipResult = false;
 
-	if (IsValid(NewWeapon) && !HandSocket.IsNone())
+	if (IsValid(NewWeapon))
 	{
 		NewWeapon->FinishSpawning(FTransform::Identity, /*bIsDefaultTransform=*/ true);
 		bEquipResult = NewWeapon->AttachToComponent(
-			OwnerComponent,
+			CharacterOwner->GetMesh(),
 			FAttachmentTransformRules::SnapToTargetIncludingScale,
-			HandSocket);
+			WeaponHandSocketName);
 
 		/** Needs to occur after attaching to character so that initial visibility of weapon can be established */
 		const bool bWeaponDidLoadProps = NewWeapon->LoadWeaponPropertyValuesFromDataAsset(WeaponAsset);
@@ -294,22 +358,33 @@ void UInventoryComponent::ResetEquipped()
 void UInventoryComponent::S_ResetEquipped_Implementation()
 {
 	UnEquipCurrentItem();
-	EquippedItemIndex = 0;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, EquippedItemIndex, this);
+	EquipInventoryItem(EItemRotationDirection::Initial);
 }
 
 bool UInventoryComponent::UnEquipCurrentItem()
 {
 	EquippedItemAsset = nullptr;
 
+	/** Assumes the Spy character is either holding a weapon or a trap, never both */
+	
+	/** Remove weapon actor from server */
 	if (IsValid(CurrentSpawnedWeapon.Get()) && IsRunningDedicatedServer())
-	{ return CurrentSpawnedWeapon->Destroy(); }
+	{ return CurrentSpawnedWeapon->Destroy(true); }
+	if (IsRunningDedicatedServer())
+	{ return true; } /** server only concerned with weapona actors */
 
-	return true;
+	/** Remove trap visual on clients */
+	if (IsValid(CurrentHeldTrap.Get()) && !IsRunningDedicatedServer())
+	{
+		CurrentHeldTrap->DestroyComponent();
+		return true;
+	}
+
+	return false;
 }
 
-void UInventoryComponent::EnableWeaponAttackPhase(const bool bEnableDebug)
+void UInventoryComponent::EnableWeaponAttackPhase(const bool bEnableAttackPhase)
 {
 	if (IsValid(CurrentSpawnedWeapon.Get()))
-	{ CurrentSpawnedWeapon->EnableOnTickComponentSweeps(bEnableDebug); }
+	{ CurrentSpawnedWeapon->EnableOnTickComponentSweeps(bEnableAttackPhase); }
 }

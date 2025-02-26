@@ -81,13 +81,6 @@ void ASpyVsSpyGameState::SetSpyMatchState(const ESpyMatchState InSpyMatchState)
 	OldSpyMatchState = SpyMatchState;
 	SpyMatchState = InSpyMatchState;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyMatchState, this);
-	
-	UE_LOG(SVSLogDebug, Log, TEXT("GameState: ran SetSpyMatchState with value: %hhd"), InSpyMatchState);
-	
-	// TODO test and clean this up
-	/** Manual invocation of OnRep_GameState so server will also run the method */
-	// if (HasAuthority())
-	// { OnRep_SpyMatchState(); }
 }
 
 void ASpyVsSpyGameState::OnRep_SpyMatchState() const
@@ -159,7 +152,6 @@ void ASpyVsSpyGameState::SetSpyMatchStartTime(const float InMatchStartTime)
 
 void ASpyVsSpyGameState::OnRep_SpyMatchStartTime()
 {
-	UE_LOG(SVSLogDebug, Log, TEXT("GameState: ran OnRep_SpyMatchStartTime"));
 	OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
 }
 
@@ -177,11 +169,9 @@ void ASpyVsSpyGameState::MatchStart()
 		{
 			SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength);
 
-			const EPlayerTeam PlayerTeam = (SpyPlayerState->GetPlayerId() % 2 == 0) ? EPlayerTeam::TeamA : EPlayerTeam::TeamB;
-			UE_LOG(SVSLogDebug, Log, TEXT("GameState: updated team for PlayerName: %s with PlayerID: %i to team: %hhd"),
-				*SpyPlayerState->GetPlayerName(),
-				SpyPlayerState->GetPlayerId(),
-				PlayerTeam);
+			const EPlayerTeam PlayerTeam = (SpyPlayerState->GetPlayerId() % 2 == 0) ?
+				EPlayerTeam::TeamA :
+				EPlayerTeam::TeamB;
 			SpyPlayerState->SetSpyPlayerTeam(PlayerTeam);
 			
 			SpyPlayerState->SetIsWinner(false);
@@ -189,14 +179,10 @@ void ASpyVsSpyGameState::MatchStart()
 		}
 		else
 		{
-			UE_LOG(SVSLogDebug, Log, TEXT("GameState: Match start found a spectatingplayer with PlayerID: %i"),
+			UE_LOG(SVSLog, Warning, TEXT("GameState: Match start found a spectatingplayer with PlayerID: %i"),
 			SpyPlayerState->GetPlayerId());
 		}
 	}
-	
-	// TODO cleanup
-	// UpdatePlayerStateWithMatchTimeLength(); // Here or delegate?
-	//OnStartMatchDelegate.Broadcast(SpyMatchStartTime);
 }
 
 void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
@@ -245,8 +231,6 @@ void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerSt
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 		FinaliseMatchEnd();
 	} 
-
-
 }
 
 void ASpyVsSpyGameState::FinaliseMatchEnd()
@@ -356,5 +340,5 @@ void ASpyVsSpyGameState::GetRequiredMissionItems(TArray<UInventoryBaseAsset*>& R
 void ASpyVsSpyGameState::OnRep_RoomManager()
 {
 	if(!IsValid(RoomManager) && HasAuthority())
-	{ UE_LOG(SVSLogDebug, Log, TEXT("Game State has an invalid Room Manager Reference")); }
+	{ UE_LOG(SVSLog, Warning, TEXT("Game State has an invalid Room Manager Reference")); }
 }

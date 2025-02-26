@@ -31,7 +31,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Inventory|Trap")
 	UStaticMesh* TrapMesh;
 	
-
 	/** Attach Transform for Weapon Actor */
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory|Trap")
 	FTransform HeldTrapAttachTransform;

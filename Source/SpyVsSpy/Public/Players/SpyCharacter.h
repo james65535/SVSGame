@@ -12,6 +12,7 @@
 #include "Items/InventoryBaseAsset.h"
 #include "SpyCharacter.generated.h"
 
+class UTrapMeshComponent;
 enum class EPlayerTeam : uint8;
 class UPhysicsConstraintComponent;
 class UInventoryWeaponAsset;
@@ -56,13 +57,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void ResetAttackHitFound() { bAttackHitFound = false; }
 	
-	// TODO refactor to reduce coupling
-	/** Hack for getting attack hit location to effect */
-	// UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
-	// FVector_NetQuantize AttackHitLocation;
-
-	FName GetWeaponHandSocket() const { return RightHandSocketName; };
-	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	void StartPrimaryAttackWindow();
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
@@ -89,6 +83,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	UInventoryBaseAsset* GetEquippedItemAsset() const;
 
+	void SetHeldTrapItem(UTrapMeshComponent* NewTrapMeshComponent) { HeldTrapMeshComponent = NewTrapMeshComponent; };
+
+	void InitializeEquippedItem();
+	
 	
 #pragma region="Team"
 	// TODO refactor and move to playerstate using an enum
@@ -172,6 +170,9 @@ private:
 
 	UFUNCTION()
 	void EquippedItemUpdated();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
+	UTrapMeshComponent* HeldTrapMeshComponent;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	USpyInteractionComponent* SpyInteractionComponent;
@@ -278,10 +279,7 @@ protected:
 	/** Internal Multicast Method for Apply Attack Impact Force Interface Override */
 	UFUNCTION(NetMulticast, Reliable)
 	void NM_ApplyAttackImpactForce(const FVector FromLocation, const FVector InAttackForce) const;
-
-	// TODO remove after refactor
-	// UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Abilities|Combat", meta = (AllowPrivateAccess = "true"))
-	// USkeletalMeshComponent* AttackZoneAlt;
+	
 	// TODO remove after finishing attack ability refactor
 	// UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|Abilities")
 	// UAnimMontage* AttackMontage;
@@ -294,18 +292,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities|Combat", meta = (AllowPrivateAccess = "true"))
 	FName CombatantTag = FName("Spy");
 
+	// TODO might not need this
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	UInventoryWeaponAsset* CurrentHeldWeaponAsset;
 	// TODO refactor much of this into inventory component and change this to equip item (weapon or trap)
 	UFUNCTION(Server, Reliable, Category = "SVS|Character")
 	void S_RequestEquipItem(const EItemRotationDirection InItemRotationDirection);
-
-	/** Weapons attach to the right hand socket */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities", meta = (AllowPrivateAccess = "true"))
-	FName RightHandSocketName;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities", meta = (AllowPrivateAccess = "true"))
-	/** Traps attach to the Left hand socket */
-	FName LeftHandSocketName;
 #pragma endregion="Combat"
 
 #pragma region="CharacterDeath"

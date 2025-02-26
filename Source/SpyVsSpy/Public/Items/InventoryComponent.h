@@ -6,6 +6,9 @@
 #include "Components/ActorComponent.h"
 #include "InventoryComponent.generated.h"
 
+enum class EWeaponType : uint8;
+class UTrapMeshComponent;
+class AStaticMeshActor;
 class UInventoryWeaponAsset;
 class UInventoryTrapAsset;
 class UInventoryItemComponent;
@@ -29,8 +32,9 @@ enum class EInventoryOwnerType : uint8
 UENUM(BlueprintType)
 enum class EItemRotationDirection : uint8
 {
+	Initial			UMETA(DisplayName = "Initial Item"),
 	Previous		UMETA(DisplayName = "Previous Item"),
-	Next			UMETA(DisplayName = "NextItem")
+	Next			UMETA(DisplayName = "Next Item")
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -42,7 +46,7 @@ public:
 
 	UInventoryComponent();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
+	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	EInventoryOwnerType GetInventoryOwnerType() const { return InventoryOwnerType; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
@@ -84,13 +88,13 @@ public:
 
 	/**
 	 * Equip either a Weapon or a Trap depending on the item retrieved by InventoryIndex. Will UnEquip before Equipping
-	 * @param OwnerComponent The component of the owner to attach any actors or components representing the Weapon or Trap
-	 * @param WeaponHandSocket The Name of the socket for which a Weapon should attach to
-	 * @param TrapHandSocket  The Name of the socket for which a Trap should attach to
 	 * @param ItemRotationDirection Whether to increment Collection Index by 1 or -1
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	void EquipInventoryItem(USceneComponent* OwnerComponent, const FName& WeaponHandSocket, const FName& TrapHandSocket, const EItemRotationDirection ItemRotationDirection);
+	void EquipInventoryItem(const EItemRotationDirection ItemRotationDirection);
+
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "SVS|Inventory")
+	EWeaponType DefaultEquippedItemType;
 
 	UInventoryBaseAsset* GetEquippedItemAsset() const { return EquippedItemAsset; };
 
@@ -98,11 +102,9 @@ public:
 	void ResetEquipped();
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	void EnableWeaponAttackPhase(const bool bEnableDebug);
+	void EnableWeaponAttackPhase(const bool bEnableAttackPhase);
 
 protected:
-
-	const uint8 MaxInventorySize = 8;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	EInventoryOwnerType InventoryOwnerType = EInventoryOwnerType::None;
@@ -120,31 +122,40 @@ protected:
 	UFUNCTION()
 	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);
 
-
 private:
 
 	UFUNCTION(Server, Reliable)
-	void S_EquipInventoryItem(USceneComponent* OwnerComponent, const FName& WeaponHandSocket, const FName& TrapHandSocket, const EItemRotationDirection ItemRotationDirection);
+	void S_EquipInventoryItem(const EItemRotationDirection ItemRotationDirection);
 
 	UFUNCTION(Server, Reliable)
 	void S_ResetEquipped();
 
-	/** Weapon Index with 0 equal to empty weapon */
+	/** Weapon Index with default weapon, 255 allows for initial rep when selecting 0 */
 	UPROPERTY(ReplicatedUsing = "OnRep_EquippedItemIndex")
-	uint8 EquippedItemIndex = 0;
+	uint8 EquippedItemIndex = 255;
 	UFUNCTION()
 	void OnRep_EquippedItemIndex();
+	const uint8 MaxInventorySize = 8;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	bool EquipWeapon(USceneComponent* OwnerComponent, const FName& HandSocket, UInventoryWeaponAsset* WeaponAsset);
+	bool EquipWeapon(UInventoryWeaponAsset* WeaponAsset);
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	bool EquipTrap(USceneComponent* OwnerComponent, const FName& HandSocket, UInventoryTrapAsset* TrapAsset);
+	bool EquipTrap(const UInventoryTrapAsset* TrapAsset);
 	
 	bool UnEquipCurrentItem();
+
+	/** Socket Name on Character Mesh to Attach a Weapon */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities", meta = (AllowPrivateAccess = "true"))
+	FName WeaponHandSocketName;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "SVS|Abilities", meta = (AllowPrivateAccess = "true"))
+	/** Socket Name on Character Mesh to Attach a Trap */
+	FName TrapHandSocketName;
 	
-	/** References to equiped weapon actor */
+	/** References to equipped weapon actor */
 	TWeakObjectPtr<AWeapon> CurrentSpawnedWeapon;
+	/** References to equipped trap mesh component */
+	TWeakObjectPtr<UTrapMeshComponent> CurrentHeldTrap;
 
 	/** Data Asset pertaining to the current Equipped Item */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")

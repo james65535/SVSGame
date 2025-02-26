@@ -246,27 +246,23 @@ void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 	if (GetLocalRole() != ROLE_AutonomousProxy || !IsValid(SpyCharacter))
 	{ return; }
 
-	if (const UInventoryBaseAsset* EquippedInventoryAsset = SpyCharacter->GetPlayerInventoryComponent()->GetEquippedItemAsset())
+	if (const UInventoryBaseAsset* EquippedItemAsset = SpyCharacter->GetPlayerInventoryComponent()->GetEquippedItemAsset())
 	{
 		/** Find out what items the Spy has in inventory */
 		TArray<UInventoryBaseAsset*> InventoryAssets;
 		SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-		
-		/** Grab name of held weapon so we can flag up to UI what is selected */
-		const FString HeldWeaponName =  IsValid(SpyCharacter->GetEquippedItemAsset()) ?
-			SpyCharacter->GetEquippedItemAsset()->GetName() :
-			"NotAName";
-
+	
+		/** Highlight the item which is currently equipped */	
 		TMap<UObject*, bool> DisplayedItems;
 		for (UInventoryBaseAsset* InventoryAsset : InventoryAssets)
 		{
-			const bool bSelectedWeapon = InventoryAsset->InventoryItemName.IsEqual(EquippedInventoryAsset->InventoryItemName) ?
+			const bool bItemEquipped = InventoryAsset->GetPrimaryAssetId() == EquippedItemAsset->GetPrimaryAssetId() ?
 				true :
 				false;
-		
-			DisplayedItems.Add(InventoryAsset, bSelectedWeapon);
-		}
 	
+			DisplayedItems.Add(InventoryAsset, bItemEquipped);
+		}
+
 		SpyPlayerHUD->DisplayCharacterInventory(DisplayedItems);
 	}
 }
@@ -302,9 +298,10 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 	
 	if (TargetInventoryPrimaryAssetIdCollection.Num() < 1)
 	{
-		UE_LOG(SVSLog, Warning, TEXT(
-			"Character %s tried to take items but inventory is empty"),
+		UE_LOG(SVSLog, Warning,
+			TEXT("Character %s tried to take items but inventory is empty"),
 			*SpyCharacter->GetName());
+
 		return;
 	}
 
@@ -326,10 +323,12 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 	{
 		const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
 
-		UE_LOG(SVSLogDebug, Warning, TEXT("Character %s was able to set trap on %s with success %s"),
+		UE_LOG(SVSLogDebug, Warning,
+			TEXT("Character %s was able to set trap on %s with success %s"),
 			*SpyCharacter->GetName(),
 			*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
 			bTrapSetSuccessful ? *FString("True") : *FString("False"));
+
 		return bTrapSetSuccessful;
 	}
 	return false;
@@ -355,6 +354,7 @@ void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeTo
 
 void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
 {
+	SpyCharacter->InitializeEquippedItem();
 	RequestInputMode(EPlayerInputMode::GameOnly);
 	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 
@@ -382,6 +382,7 @@ bool ASpyPlayerController::CanProcessRequest() const
 {
 	if (SpyGameState && SpyGameState->IsMatchInPlay())
 	{ return (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Playing); }
+
 	return false;
 }
 
