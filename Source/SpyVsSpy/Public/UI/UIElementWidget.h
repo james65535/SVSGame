@@ -65,7 +65,7 @@ public:
 	void UpdateOnFinish();
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere)
-	FText DisplayedMatchTime = FText();
+	FText RemainingMatchTimeSeconds = FText();
 
 	/**
 	 * Display Results of Finished Game

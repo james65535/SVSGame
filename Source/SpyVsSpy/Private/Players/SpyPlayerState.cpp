@@ -14,7 +14,6 @@
 #include "Players/SpyHUD.h"
 #include "Players/PlayerSaveGame.h"
 #include "Players/SpyPlayerController.h"
-#include "Items/InventoryComponent.h"
 
 ASpyPlayerState::ASpyPlayerState()
 {
@@ -47,13 +46,13 @@ void ASpyPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	PushedRepNotifyAlwaysParams.bIsPushBased = true;
 	PushedRepNotifyAlwaysParams.RepNotifyCondition = REPNOTIFY_Always;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, CurrentStatus, PushedRepNotifyAlwaysParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerRemainingMatchTime, PushedRepNotifyAlwaysParams);
-
-	FDoRepLifetimeParams PushedRepNotifyParams;
-	PushedRepNotifyParams.bIsPushBased = true;
-	PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_Always;
-	PushedRepNotifyParams.Condition = COND_None;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, SpyPlayerTeam, PushedRepNotifyParams)
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, PlayerRemainingMatchTimeSeconds, PushedRepNotifyAlwaysParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, SpyPlayerTeam, PushedRepNotifyAlwaysParams)
+	// FDoRepLifetimeParams PushedRepNotifyParams;
+	// PushedRepNotifyParams.bIsPushBased = true;
+	// PushedRepNotifyParams.RepNotifyCondition = REPNOTIFY_Always;
+	// PushedRepNotifyParams.Condition = COND_None;
+	// DOREPLIFETIME_WITH_PARAMS_FAST(ASpyPlayerState, SpyPlayerTeam, PushedRepNotifyParams)
 }
 
 void ASpyPlayerState::BeginPlay()
@@ -81,6 +80,11 @@ void ASpyPlayerState::BeginPlay()
 		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(
 			AttributeSet->GetHealthAttribute()).AddUObject(this, &ASpyPlayerState::HealthChanged);
 	}
+
+	/** Listen for match start announcements */
+	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+	{ SpyGameState->OnStartMatchDelegate.AddUObject(this, &ThisClass::StartMatchForPlayer); }
+	
 }
 
 UAbilitySystemComponent* ASpyPlayerState::GetAbilitySystemComponent() const
@@ -110,130 +114,144 @@ float ASpyPlayerState::GetMaxHealth() const
 
 void ASpyPlayerState::SetCurrentStatus(const EPlayerGameStatus PlayerGameStatus)
 {
-	if (!HasAuthority())
-	{ return; }
+	checkfSlow(
+		IsRunningDedicatedServer(),
+		"ASpyPlayerState::SetCurrentStatus cannot be called by a client");
 	
 	CurrentStatus = PlayerGameStatus;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, CurrentStatus, this);
 
+	UE_LOG(SVSLogDebug, Warning, TEXT("%i %s playerstate set currentstatus to %hhd"),
+		GetPlayerId(), *GetPlayerName(), CurrentStatus)
+	
 	/** If Player is Ready then notify game mode */
 	if (PlayerGameStatus == EPlayerGameStatus::Ready)
 	{
-		ASpyVsSpyGameMode* SVSGameMode = Cast<ASpyVsSpyGameMode>(GetWorld()->GetAuthGameMode());
-		check(SVSGameMode);
-		SVSGameMode->PlayerNotifyIsReady(this);
+		ASpyVsSpyGameMode* SvsGameMode = GetWorld()->GetAuthGameMode<ASpyVsSpyGameMode>();
+		check(SvsGameMode);
+		SvsGameMode->PlayerNotifyIsReady(this);
 	}
 }
 
 void ASpyPlayerState::SetSpyPlayerTeam(const EPlayerTeam InSpyPlayerTeam)
 {
+	checkfSlow(
+		IsRunningDedicatedServer(),
+		"ASpyPlayerState::SetSpyPlayerTeam cannot be called by a client");
+	
 	SpyPlayerTeam = InSpyPlayerTeam;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, SpyPlayerTeam, this);
-	/** to trigger on the server */
-	OnRep_SpyPlayerTeam();
+	OnSpyTeamUpdate.Broadcast(SpyPlayerTeam);
 }
 
-void ASpyPlayerState::OnRep_SpyPlayerTeam()
+void ASpyPlayerState::OnRep_SpyPlayerTeam() const
 {
 	OnSpyTeamUpdate.Broadcast(SpyPlayerTeam);
 }
 
+void ASpyPlayerState::StartMatchForPlayer(const float InMatchStartTime)
+{
+	if (IsRunningDedicatedServer())
+	{ SetPlayerRemainingMatchTime(InMatchStartTime, false); }
+	
+	if (ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(GetPlayerController()))
+	{ PlayerController->StartMatch(); }
+}
+
 void ASpyPlayerState::SetPlayerRemainingMatchTime(const float InMatchTimeLength, const bool bIncludeTimePenalty)
 {
-	/** Apply time penalty if method was requested with penalty flag */
-	if (bIncludeTimePenalty)
-	{ PlayerRemainingMatchTime = GetPlayerRemainingMatchTime() - PlayerMatchTimePenaltyInSeconds; }
-	else
-	{ PlayerRemainingMatchTime = InMatchTimeLength; }
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTime, this);
-
-	if (IsPlayerRemainingMatchTimeExpired())
-	{ PlayerMatchTimeExpired(); }
-	else
-	{ SetPlayerMatchTimer(); }
-}
-
-bool ASpyPlayerState::IsPlayerRemainingMatchTimeExpired() const
-{
-	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (GetWorld()->GetNetMode() == NM_Client || !IsValid(SpyGameState))
-	{ return true; }
+	checkfSlow(
+		IsRunningDedicatedServer(),
+		"ASpyPlayerState::SetPlayerRemainingMatchTime cannot be called by a client");
 	
-	if (GetPlayerRemainingMatchTime() - SpyGameState->GetSpyMatchElapsedTime() <= 0.0f)
-	{ return true; }
-	return false;
+	/** Set match time or update it with a time penalty */
+	if (!bIncludeTimePenalty)
+	{ PlayerRemainingMatchTimeSeconds = InMatchTimeLength; }
+	else
+	{ PlayerRemainingMatchTimeSeconds -= PlayerMatchTimePenaltyInSeconds; }
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PlayerRemainingMatchTimeSeconds, this);
+
+	/** Expire timer if it has run out */
+	IsPlayerMatchTimeExpired() ? SetPlayerMatchTimeExpired() : UpdatePlayerMatchTimer();
 }
 
-float ASpyPlayerState::GetPlayerRemainingMatchTime() const
+void ASpyPlayerState::OnRep_PlayerRemainingMatchTimeSeconds() const
 {
-	return PlayerRemainingMatchTime;
+	OnPlayerMatchTimeUpdated.Broadcast(PlayerRemainingMatchTimeSeconds);
 }
 
-void ASpyPlayerState::SetPlayerMatchTimer()
+bool ASpyPlayerState::IsPlayerMatchTimeExpired() const
 {
+	checkfSlow(
+		IsRunningDedicatedServer(),
+		"ASpyPlayerState::IsPlayerRemainingMatchTimeExpired cannot be called by a client");
+
 	const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
-	if (GetWorld()->GetNetMode() == NM_Client ||
-		!IsValid(SpyGameState) ||
-		GetCurrentStatus() != EPlayerGameStatus::Playing)
-	{ return; }
 
-	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
-	const float MatchPlayerTimeLeft = GetPlayerRemainingMatchTime() - ElapsedTime;
+	return PlayerRemainingMatchTimeSeconds - SpyGameState->GetSpyMatchElapsedTime() <= 0.5f;
+}
+
+void ASpyPlayerState::UpdatePlayerMatchTimer()
+{
+	GetWorld()->GetTimerManager().SetTimer(
+		PlayerMatchTimerHandle,
+		this,
+		&ThisClass::SetPlayerMatchTimeExpired,
+		PlayerRemainingMatchTimeSeconds,
+		false);
 	
-	UE_LOG(SVSLog, Warning, TEXT("%s Character: %s playerstate set matchdeadline to: %f"),
+	UE_LOG(SVSLogDebug, Warning, TEXT("%s Character: %s playerstate set matchdeadline to: %f"),
 		GetPawn()->IsLocallyControlled() ? *FString("Local") : *FString("Remote"),
 		*GetName(),
-		GetPlayerSpyMatchSecondsRemaining()); //MatchPlayerTimeLeft);
-
-	if (MatchPlayerTimeLeft >= 1.0f)
-	{
-		GetWorld()->GetTimerManager().SetTimer(
-			PlayerMatchTimerHandle,
-			this,
-			&ThisClass::PlayerMatchTimeExpired,
-			GetPlayerSpyMatchSecondsRemaining(), //MatchPlayerTimeLeft,
-			false);
-	}
+		PlayerRemainingMatchTimeSeconds);
 }
 
-float ASpyPlayerState::GetPlayerSpyMatchSecondsRemaining() const
-{
-	if (const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
-	{
-		const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
-		const float MatchPlayerTimeLeft = GetPlayerRemainingMatchTime() - ElapsedTime;
-		return MatchPlayerTimeLeft;
-	}
-	return 0.0f;
-}
+// float ASpyPlayerState::UpdateRemainingMatchTimeSeconds()
+// {
+// 	checkfSlow(
+// 		IsRunningDedicatedServer(),
+// 		"ASpyPlayerState::GetPlayerMatchSecondsRemaining cannot be run by clients");
+//
+// 	if (const ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+// 	{
+// 		const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+// 		PlayerRemainingMatchTimeSeconds -= ElapsedTime;
+//
+// 		if (PlayerRemainingMatchTimeSeconds > 0.5f)
+// 		{ return PlayerRemainingMatchTimeSeconds; }
+// 	}
+// 	return 0.0f;
+// }
 
-void ASpyPlayerState::PlayerMatchTimeExpired()
+void ASpyPlayerState::SetPlayerMatchTimeExpired()
 {
+	UE_LOG(SVSLogDebug, Warning, TEXT("%hhd %i %s playerstate timer expired"),
+		GetLocalRole(), GetLocalRole(), *GetPlayerName())
 	ASpyCharacter* SpyCharacter = GetPawn<ASpyCharacter>();
 	
-	/** just run this on the server */
 	if (!IsValid(SpyCharacter) ||
-		GetWorld()->GetNetMode() == NM_Client ||
+		GetLocalRole() == ROLE_SimulatedProxy ||
 		GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
+
+	if (IsRunningDedicatedServer())
+	{
+		if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
+		{
+			/** Player ran out of time so notify game that their match has ended */
+			GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
+			SpyGameState->RequestSubmitMatchResult(this, true);
+			SpyCharacter->DisableSpyCharacter();
+		}
+		else
+		{
+			UE_LOG(SVSLog, Warning, TEXT(
+				"Playerstate attempted PlayerMatchTimeExpired but GameState is null"));
+		}
+	}
 	
-	if (ASpyVsSpyGameState* SpyGameState = GetWorld()->GetGameState<ASpyVsSpyGameState>())
-	{
-		/** Player ran out of time so notify game that their match has ended */
-		GetWorld()->GetTimerManager().ClearTimer(PlayerMatchTimerHandle);
-		
-		SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired);
-		SpyGameState->RequestSubmitMatchResult(this, true);
-		// TODO below needs to be multicast
-		SpyCharacter->DisableSpyCharacter();
-		if (ASpyHUD* SpyHUD = Cast<ASpyHUD>(GetOwningController()))
-		{ SpyHUD->DisplayLevelMenu(); }
-	}
-	else
-	{
-		UE_LOG(SVSLog, Warning, TEXT(
-			"Playerstate attempted PlayerMatchTimeExpired but could not get a valid pointer to game state"));
-	}
+	if (ASpyPlayerController* PlayerController = Cast<ASpyPlayerController>(GetPlayerController()))
+	{ PlayerController->EndMatch(); }
 }
 
 void ASpyPlayerState::OnPlayerReachedEnd()
@@ -267,7 +285,10 @@ void ASpyPlayerState::OnRep_CurrentStatus()
 		
 	if (!IsValid(GetPlayerController()) || IsRunningDedicatedServer())
 	{ return; }
-
+	
+	UE_LOG(SVSLogDebug, Warning, TEXT("%hhd %s playerstate set onrep_currentstatus to %hhd"),
+		GetLocalRole(), *GetPlayerName(), CurrentStatus)
+	
 	if (const ASpyHUD* PlayerHUD = Cast<ASpyHUD>(GetPlayerController()->GetHUD()))
 	{ PlayerHUD->UpdateDisplayedPlayerStatus(CurrentStatus); }
 }

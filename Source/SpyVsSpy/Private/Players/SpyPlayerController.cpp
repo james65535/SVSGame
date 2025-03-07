@@ -106,9 +106,6 @@ void ASpyPlayerController::BeginPlay()
 
 	/** Game Starts with a UI */
 	C_RequestInputMode(EPlayerInputMode::UIOnly);
-
-	/** Listen for match start announcements */
-	SpyGameState->OnStartMatchDelegate.AddUObject(this, &ThisClass::StartMatchForPlayer);
 }
 
 void ASpyPlayerController::OnRep_Pawn()
@@ -127,6 +124,18 @@ void ASpyPlayerController::OnPossess(APawn* InPawn)
 	{ SpyCharacter = Cast<ASpyCharacter>(GetCharacter()); }
 }
 
+void ASpyPlayerController::SetSpyPlayerState(ASpyPlayerState* InPlayerState)
+{
+	SpyPlayerState = InPlayerState;
+	
+	if (IsRunningClientOnly())
+	{
+		SpyPlayerState->OnPlayerMatchTimeUpdated.AddUObject(
+			this,
+			&ThisClass::HUDDisplayGameTimeElapsedSeconds);
+	}
+}
+
 void ASpyPlayerController::OnRetrySelected()
 {
 	S_RestartLevel();
@@ -140,9 +149,9 @@ void ASpyPlayerController::OnReadySelected()
 void ASpyPlayerController::EndMatch()
 {
 	SpyCharacter->DisableSpyCharacter();
-	if (!IsRunningDedicatedServer())
+	if (IsRunningClientOnly())
 	{
-		GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
+		//GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle);
 		RequestInputMode(EPlayerInputMode::UIOnly);
 		SpyPlayerHUD->DisplayResults(SpyGameState->GetResults());
 		SpyPlayerHUD->ToggleDisplayGameTime(false);
@@ -164,7 +173,7 @@ void ASpyPlayerController::EndMatch()
 
 void ASpyPlayerController::RequestUpdatePlayerResults() const
 {
-	if (!IsRunningDedicatedServer())
+	if (IsRunningClientOnly())
 	{ SpyPlayerHUD->UpdateResults(SpyGameState->GetResults()); }
 }
 
@@ -334,49 +343,62 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 	return false;
 }
 
-void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
-{
-	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
-	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
-	
-	/** Player ran out of time so notify game that their match has ended */
-	if (TimeLeft <= 0.0f)
-	{ GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle); }
-
-	if (!IsRunningDedicatedServer())
-	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
-}
+// void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
+// {
+// 	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
+// 	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
+// 	
+// 	/** Player ran out of time so notify game that their match has ended */
+// 	if (TimeLeft <= 0.0f)
+// 	{ GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle); }
+//
+// 	if (!IsRunningDedicatedServer())
+// 	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
+// }
 
 void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const
 {
 	SpyPlayerHUD->SetMatchTimerSeconds(InTimeToDisplay);
 }
 
-void ASpyPlayerController::StartMatchForPlayer(const float InMatchStartTime)
+void ASpyPlayerController::StartMatch()
 {
 	SpyCharacter->InitializeEquippedItem();
 	RequestInputMode(EPlayerInputMode::GameOnly);
-	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
 
-	if (GetLocalRole() == ROLE_AutonomousProxy)
+	/** Update Player Displays with character info */
+	if (IsRunningClientOnly())
 	{
-		/** Handle Match Time - Most likely on 1 second repeat */
-		GetWorld()->GetTimerManager().SetTimer(
-			MatchClockDisplayTimerHandle,
-			this,
-			&ThisClass::CalculateGameTimeElapsedSeconds,
-			MatchClockDisplayRateSeconds,
-			true);
-	
-		/** Update Player Displays with character info */
-		SpyPlayerHUD->ToggleDisplayGameTime(true);
-		SpyPlayerHUD->DisplayCharacterHealth(
+		GetHUD<ASpyHUD>()->ToggleDisplayGameTime(true);
+		GetHUD<ASpyHUD>()->DisplayCharacterHealth(
 			SpyPlayerState->GetAttributeSet()->GetHealth(),
 			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
-
 		C_DisplayCharacterInventory();
 	}
 }
+// 	SpyCharacter->InitializeEquippedItem();
+// 	RequestInputMode(EPlayerInputMode::GameOnly);
+// 	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
+//
+// 	if (GetLocalRole() == ROLE_AutonomousProxy)
+// 	{
+// 		/** Handle Match Time - Most likely on 1 second repeat */
+// 		GetWorld()->GetTimerManager().SetTimer(
+// 			MatchClockDisplayTimerHandle,
+// 			this,
+// 			&ThisClass::CalculateGameTimeElapsedSeconds,
+// 			MatchClockDisplayRateSeconds,
+// 			true);
+// 	
+// 		/** Update Player Displays with character info */
+// 		SpyPlayerHUD->ToggleDisplayGameTime(true);
+// 		SpyPlayerHUD->DisplayCharacterHealth(
+// 			SpyPlayerState->GetAttributeSet()->GetHealth(),
+// 			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
+//
+// 		C_DisplayCharacterInventory();
+// 	}
+// }
 
 bool ASpyPlayerController::CanProcessRequest() const
 {
@@ -401,7 +423,10 @@ void ASpyPlayerController::SetInputContext(const TSoftObjectPtr<UInputMappingCon
 
 void ASpyPlayerController::UpdateHUDWithGameUIElements(const ESVSGameType InGameType) const
 {
-	checkfSlow(GameElementsRegistry, "PlayerController: Verify Controller Blueprint has a UI Elements registry set");
+	checkfSlow(
+		GameElementsRegistry,
+		"PlayerController: Verify Controller Blueprint has a UI Elements registry set");
+
 	if (InGameType == ESVSGameType::None) { return; }
 	
 	SpyPlayerHUD->SetGameUIAssets(GameElementsRegistry->GameTypeUIMapping.Find(InGameType)->LoadSynchronous());
@@ -481,11 +506,7 @@ void ASpyPlayerController::RequestPrimaryAttack(const FInputActionValue& ActionV
 
 void ASpyPlayerController::S_OnReadySelected_Implementation()
 {
-	if (GetWorld()->GetNetMode() != NM_Client)
-	{
-		checkfSlow(SpyPlayerState, "Player Controller attempted to access Spy Player State to set ready but it was null");
-		SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Ready);
-	}
+	SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Ready);
 }
 
 void ASpyPlayerController::C_ResetPlayer_Implementation()

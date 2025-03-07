@@ -185,76 +185,42 @@ void ASpyVsSpyGameState::MatchStart()
 	}
 }
 
-void ASpyVsSpyGameState::UpdatePlayerStateWithMatchTimeLength()
-{
-	// TODO cleanup
-	// if (!IsValid(GetWorld()->GetAuthGameMode()))
-	// { return; }
-	//
-	// for (APlayerState* PlayerState : PlayerArray)
-	// {
-	// 	if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
-	// 	{ SpyPlayerState->SetPlayerRemainingMatchTime(SpyMatchTimeLength); }
-	// 	else
-	// 	{ UE_LOG(SVSLog, Warning, TEXT("SpyGameState could not set player match time")); }
-	// }
-}
-
 void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerState, const bool bPlayerTimeExpired)
 {
 	FGameResult Result;
 	Result.Time = GetSpyMatchElapsedTime();
 	Result.Name = InSpyPlayerState->GetPlayerName();
 
-	if (InSpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::WaitingForAllPlayersFinish)
-	{
-		/** Process results for player since match has a winner */
-		Results.Add(Result);
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
-		return;
-	}
-	
-	const bool bMatchWinner = CheckSpyCompleteMission(InSpyPlayerState);
+	/** Process results for players who ran out of time */
 	if (bPlayerTimeExpired)
 	{
 		/** Process results for player since they ran out of time */
 		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::MatchTimeExpired);
-	}
-	else if (bMatchWinner && Results.Num() == 0)
-	{
-		/** Process player results and mark as winner of the match */
-		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
-		Result.bCompletedMission = true;
-		InSpyPlayerState->SetIsWinner(bMatchWinner);
-		Result.bIsWinner = bMatchWinner;
+		Result.bCompletedMission = false;
+		InSpyPlayerState->SetIsWinner(false);
+		Result.bIsWinner = false;
 		Results.Add(Result);
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
-		FinaliseMatchEnd();
-	} 
-}
-
-void ASpyVsSpyGameState::FinaliseMatchEnd()
-{
-	for (APlayerState* PlayerState : PlayerArray)
+	}
+	
+	/** We have our match winner */
+	if (HasAllMissionMaterials(InSpyPlayerState) && bPlayerTimeExpired)
 	{
-		if (ASpyPlayerState* SpyPlayerState = Cast<ASpyPlayerState>(PlayerState))
-		{
-			/** Process match results for all non winners */
-			const EPlayerGameStatus SpyPlayerGameStatus = SpyPlayerState->GetCurrentStatus();
-			if (SpyPlayerGameStatus == EPlayerGameStatus::Playing || SpyPlayerGameStatus == EPlayerGameStatus::MatchTimeExpired)
-			{
-				SpyPlayerState->SetCurrentStatus(EPlayerGameStatus::WaitingForAllPlayersFinish);
-				RequestSubmitMatchResult(SpyPlayerState, true);
-			}
-
-			SpyPlayerState->NM_EndMatch();
-		}
+		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
+		Result.bCompletedMission = true;
+		InSpyPlayerState->SetIsWinner(true);
+		Result.bIsWinner = true;
+		Results.Add(Result);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 	}
 
+	InSpyPlayerState->NM_EndMatch();
+
+	/** Try to end match if all results are in */
 	TryFinaliseScoreBoard();
 }
 
-bool ASpyVsSpyGameState::CheckSpyCompleteMission(const ASpyPlayerState* SpyPlayerState) const
+bool ASpyVsSpyGameState::HasAllMissionMaterials(const ASpyPlayerState* SpyPlayerState) const
 {
 	if (!IsValid(SpyPlayerState))
 	{ return false; }
@@ -262,16 +228,20 @@ bool ASpyVsSpyGameState::CheckSpyCompleteMission(const ASpyPlayerState* SpyPlaye
 	if (const ASpyCharacter* SpyCharacter = SpyPlayerState->GetPawn<ASpyCharacter>())
 	{
 		TArray<UInventoryBaseAsset*> PlayerInventory;
-		SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(PlayerInventory);
-		if (PlayerInventory.Num() > 0)
+		SpyCharacter->
+			GetPlayerInventoryComponent()->
+				GetInventoryItems(PlayerInventory);
+
+		if (PlayerInventory.Num() > 0 && RequiredMissionItems.Num() > 0)
 		{
+			uint8 AcquiredMissionItems = 0;
 			for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
 			{
-				if (!PlayerInventory.Contains(MissionItem))
-				{ return false; }
+				if (PlayerInventory.Contains(MissionItem))
+				{ AcquiredMissionItems++; }
 			}
-			/** Player has required mission items */
-			return true;
+		
+			return AcquiredMissionItems == RequiredMissionItems.Num();
 		}
 	}
 	return false;

@@ -17,7 +17,8 @@ class SPYVSSPY_API UTrapMeshComponent : public UStaticMeshComponent
 public:
 
 	UTrapMeshComponent();
-
+	virtual void BeginPlay() override;
+	
 	UPROPERTY()
 	FName TrapName = "";
 	

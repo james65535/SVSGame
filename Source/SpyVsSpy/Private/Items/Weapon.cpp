@@ -3,7 +3,6 @@
 
 #include "Items/Weapon.h"
 
-#include "SVSLogger.h"
 #include "Items/InventoryWeaponAsset.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"

@@ -40,6 +40,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSaveGameUpdate);
 /** Notify listeners that the spy has changed teams */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSpyTeamUpdate, const EPlayerTeam);
 
+/** Notify listeners remaining match play time has changed */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerMatchTimeUpdated, const float UpdatedMatchTimeSeconds);
+
 /**
  * 
  */
@@ -95,14 +98,13 @@ public:
 	/** Activities needed after finishing a match */
 	UFUNCTION(NetMulticast, Reliable)
 	void NM_EndMatch();
+
+	FOnPlayerMatchTimeUpdated OnPlayerMatchTimeUpdated;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	void SetPlayerRemainingMatchTime(const float InMatchTimeLength = 0.0f, const bool bIncludeTimePenalty = false);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
-	bool IsPlayerRemainingMatchTimeExpired() const;
-	
-	UFUNCTION(BlueprintPure, Category = "SVS|Player")
-	float GetPlayerRemainingMatchTime() const;
+	bool IsPlayerMatchTimeExpired() const;
 	
 protected:
 	
@@ -129,16 +131,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
 	FString DefaultSpyName = "SpyGuy";
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), Replicated, Category = "SVS|Player")
-	float PlayerRemainingMatchTime = 0.0f;
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
-	float PlayerMatchTimePenaltyInSeconds = 30.0f;
-	float GetPlayerSpyMatchSecondsRemaining() const;
-	
+	/** Delegate related to Game State match start of play */
+	void StartMatchForPlayer(const float InMatchStartTime);
 	/** Values Used for Display Match Time to the Player */
 	FTimerHandle PlayerMatchTimerHandle;
-	void PlayerMatchTimeExpired();
-	void SetPlayerMatchTimer();
+	void SetPlayerMatchTimeExpired();
+	void UpdatePlayerMatchTimer();
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_PlayerRemainingMatchTimeSeconds, Category = "SVS|Player")
+	float PlayerRemainingMatchTimeSeconds = 0.0f;
+	UFUNCTION()
+	void OnRep_PlayerRemainingMatchTimeSeconds() const;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|Player")
+	float PlayerMatchTimePenaltyInSeconds = 30.0f;
 
 private:
 	
@@ -150,7 +154,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess), ReplicatedUsing = OnRep_SpyPlayerTeam, Category = "SVS|Player")
 	EPlayerTeam SpyPlayerTeam = EPlayerTeam::None;
 	UFUNCTION()
-	void OnRep_SpyPlayerTeam();
+	void OnRep_SpyPlayerTeam() const;
 	
 	/** Game result winner state */
 	bool bIsWinner = false;

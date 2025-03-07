@@ -172,7 +172,7 @@ protected:
 	TArray<UInventoryBaseAsset*> RequiredMissionItems;
 
 	void FinaliseMatchEnd();
-	bool CheckSpyCompleteMission(const ASpyPlayerState* SpyPlayerState) const;
+	bool HasAllMissionMaterials(const ASpyPlayerState* SpyPlayerState) const;
 
 	/** Starting Match Time - Independent from game match time */
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")
@@ -188,8 +188,6 @@ protected:
 	float CountDownStartTime = 1.0f;
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, ReplicatedUsing = OnRep_SpyMatchStartTime, meta = (AllowPrivateAccess), Category = "SVS|GameState")
 	float SpyMatchStartTime = 0.0f;
-	UFUNCTION()
-	void UpdatePlayerStateWithMatchTimeLength();
 	
 private:
 	

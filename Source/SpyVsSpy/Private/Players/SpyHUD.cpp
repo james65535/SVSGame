@@ -84,16 +84,36 @@ void ASpyHUD::SetGameUIAssets(const TSoftObjectPtr<UUIElementAsset> InGameUIElem
 	DisplayUI();
 }
 
-void ASpyHUD::ToggleDisplayGameTime(const bool bIsDisplayed) const
+void ASpyHUD::ToggleDisplayGameTime(const bool bIsDisplayed)
 {
 	check(GameLevelWidget)
-	bIsDisplayed ? GameLevelWidget->DisplayGameTimer() : GameLevelWidget->HideGameTimer();
+	if (bIsDisplayed)
+	{GameLevelWidget->DisplayGameTimer();}
+	else
+	{
+		GetWorld()->GetTimerManager().ClearTimer(HudMatchTimerHandle);
+		GameLevelWidget->HideGameTimer();
+	}
 }
 
-void ASpyHUD::SetMatchTimerSeconds(const float InMatchTimerSeconds) const
+void ASpyHUD::SetMatchTimerSeconds(const float InMatchTimerSeconds)
 {
-	check(GameLevelWidget)
-	GameLevelWidget->DisplayedMatchTime = FText::AsNumber(InMatchTimerSeconds, &FloatDisplayFormat);
+	MatchTimeSeconds = InMatchTimerSeconds;
+	CachedMatchStartTime = GetWorld()->GetTimeSeconds();
+
+	/** Start the timer which will continuosly update displayed time in HUD */
+	GetWorld()->GetTimerManager().SetTimer(
+		HudMatchTimerHandle,
+		this,
+		&ThisClass::RefreshDisplayedMatchTime,
+		HudMatchTimerUpdateRateSeconds,
+		true);
+}
+
+void ASpyHUD::RefreshDisplayedMatchTime() const
+{
+	const float MatchSecondsRemaining = MatchTimeSeconds - (GetWorld()->GetTimeSeconds() - CachedMatchStartTime);
+	GameLevelWidget->RemainingMatchTimeSeconds = FText::AsNumber(MatchSecondsRemaining, &FloatDisplayFormat);
 }
 
 void ASpyHUD::DisplayMatchStartCountDownTime(const float InMatchStartCountDownTime) const

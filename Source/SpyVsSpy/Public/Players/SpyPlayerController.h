@@ -41,7 +41,7 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "SVS|Player")
 	FOnPlayerStateReceived OnPlayerStateReceived;
-	void SetSpyPlayerState(ASpyPlayerState* InPlayerState) { SpyPlayerState = InPlayerState; }
+	void SetSpyPlayerState(ASpyPlayerState* InPlayerState);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
 	ASpyPlayerState* GetSpyPlayerState() const { return SpyPlayerState; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Player")
@@ -64,6 +64,7 @@ public:
 	UFUNCTION(Client, Reliable, Category = "SVS|UI")
 	void C_StartGameCountDown(const float InCountDownDuration);
 
+	void StartMatch();
 	void EndMatch();
 	
 	/** Get the final results and call hud to display */
@@ -172,14 +173,14 @@ protected:
 	UPROPERTY()
 	ASpyPlayerState* SpyPlayerState;
 
-	/** Delegate related to Game State match start of play */
-	void StartMatchForPlayer(const float InMatchStartTime);
+	// /** Delegate related to Game State match start of play */
+	// void StartMatchForPlayer(const float InMatchStartTime);
 
 	/** Values Used for Display Match Time to the Player */
-	FTimerHandle MatchClockDisplayTimerHandle;
-	const float MatchClockDisplayRateSeconds = 1.0f;
-	float LocalClientCachedMatchStartTime = 0.0f;
-	void CalculateGameTimeElapsedSeconds();
+	// FTimerHandle MatchClockDisplayTimerHandle;
+	// const float MatchClockDisplayRateSeconds = 1.0f;
+	// float LocalClientCachedMatchStartTime = 0.0f;
+	// void CalculateGameTimeElapsedSeconds();
 	void HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const;
 #pragma endregion="Game"
 };

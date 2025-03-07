@@ -161,7 +161,7 @@ void UInventoryComponent::EquipInventoryItem(const EItemRotationDirection ItemRo
 
 void UInventoryComponent::S_EquipInventoryItem_Implementation(const EItemRotationDirection ItemRotationDirection)
 {
-	/* Determine whether to increment up or down the collection array */
+	/** Determine whether to increment up or down the collection array */
 	int8 IndexModifier = 0;
 	switch (ItemRotationDirection)
 	{
@@ -172,18 +172,20 @@ void UInventoryComponent::S_EquipInventoryItem_Implementation(const EItemRotatio
 			}
 		case (EItemRotationDirection::Previous) :
 			{
-				/* We don't want to decrement below 0 */
+				/** We don't want to decrement below 0 */
 				EquippedItemIndex > 0 ? IndexModifier = -1 : IndexModifier = 0;
 				break;
 			}
 		case (EItemRotationDirection::Initial) :
-			{ break; }
+			{
+				/** Zero out the EquippedIndex */
+				IndexModifier = EquippedItemIndex * -1; 
+				break;
+			}
 	}
 
 	/** If initial then index is 0, otherwise adjust index up or down */
-	const uint8 NewEquippedItemIndex = ItemRotationDirection == EItemRotationDirection::Initial ?
-		0 :
-		EquippedItemIndex + IndexModifier;
+	const uint8 NewEquippedItemIndex = EquippedItemIndex + IndexModifier;
 
 	/** Early return if index is not valid */
 	if (!IsValid(GetOwner()->GetWorld()) ||
@@ -192,11 +194,12 @@ void UInventoryComponent::S_EquipInventoryItem_Implementation(const EItemRotatio
 
 	/** UnEquip old weapon or trap first and early return if we cannot unequip it
 	 * Skip if we're equipping the default weapon at start of game */
-	if (ItemRotationDirection != EItemRotationDirection::Initial)
+
+	const bool bDidUnEquip = UnEquipCurrentItem();
+	if (!bDidUnEquip)
 	{
-		const bool bDidUnEquip = UnEquipCurrentItem();
-		if (!bDidUnEquip)
-		{ return; }
+		UE_LOG(SVSLog, Warning,
+			TEXT("Inventory Component could not unequip an item before equipping something new"));
 	}
 	
 	/** Equip Item */
@@ -366,15 +369,19 @@ bool UInventoryComponent::UnEquipCurrentItem()
 	EquippedItemAsset = nullptr;
 
 	/** Assumes the Spy character is either holding a weapon or a trap, never both */
-	
+	ensureAlwaysMsgf(
+		!IsValid(CurrentSpawnedWeapon.Get()) ||
+		!IsValid(CurrentHeldTrap.Get()),
+		TEXT("Invalid state: Inventory cannot have both trap and weapon equipped simultanesouly"));
+
 	/** Remove weapon actor from server */
-	if (IsValid(CurrentSpawnedWeapon.Get()) && IsRunningDedicatedServer())
-	{ return CurrentSpawnedWeapon->Destroy(true); }
+	if (IsRunningDedicatedServer() && IsValid(CurrentSpawnedWeapon.Get()))
+	{ return CurrentSpawnedWeapon->Destroy(); }
 	if (IsRunningDedicatedServer())
-	{ return true; } /** server only concerned with weapona actors */
+	{ return true; } /** server only concerned with weapon actors */
 
 	/** Remove trap visual on clients */
-	if (IsValid(CurrentHeldTrap.Get()) && !IsRunningDedicatedServer())
+	if (!IsRunningDedicatedServer() && IsValid(CurrentHeldTrap.Get()))
 	{
 		CurrentHeldTrap->DestroyComponent();
 		return true;

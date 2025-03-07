@@ -493,7 +493,7 @@ void ASpyCharacter::S_RequestDeath_Implementation()
 	SpyPlayerState->SetPlayerRemainingMatchTime(0.0f, true);
 	NM_SetEnableDeathState(true);
 	NM_RequestDeath();
-	if (!GetSpyPlayerState()->IsPlayerRemainingMatchTimeExpired())
+	if (!GetSpyPlayerState()->IsPlayerMatchTimeExpired())
 	{
 		// TODO could get rid of timer and respond to a notify
 		GetWorld()->GetTimerManager().SetTimer(

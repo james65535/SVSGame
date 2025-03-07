@@ -59,12 +59,22 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplayUI() const {  BaseUIWidget->DisplayGameModeUI(); };
-	
-	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void ToggleDisplayGameTime(const bool bIsDisplayed) const ;
-	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
-	void SetMatchTimerSeconds(const float InMatchTimerSeconds) const ;
 
+	/** Values Used for Display Match Time to the Player */
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void SetMatchTimerSeconds(const float InMatchTimerSeconds);
+	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
+	void ToggleDisplayGameTime(const bool bIsDisplayed);
+	float MatchTimeSeconds;
+	
+	/** Displayed Match Time Timer */
+	FTimerHandle HudMatchTimerHandle;
+	/** Timer Delegate */
+	void RefreshDisplayedMatchTime() const;
+	float CachedMatchStartTime = 0.0f;
+	const float HudMatchTimerUpdateRateSeconds = 0.5f;
+
+	/** Counts down til the start of game play */
 	UFUNCTION(BlueprintCallable, Category = "SVS|UI")
 	void DisplayMatchStartCountDownTime(const float InMatchStartCountDownTime) const ;
 	

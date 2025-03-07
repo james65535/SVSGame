@@ -5,9 +5,12 @@
 
 UTrapMeshComponent::UTrapMeshComponent()
 {
-	AlwaysLoadOnClient = true;
-	AlwaysLoadOnServer = false;
-	bOwnerNoSee = false;
-	SetIsReplicatedByDefault(false);
-	bHiddenInGame = false;
+}
+
+void UTrapMeshComponent::BeginPlay()
+{
+	/** This component is just cosmetic */
+	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SetSimulatePhysics(false);
+	Super::BeginPlay();
 }
