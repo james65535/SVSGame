@@ -712,6 +712,8 @@ void ASpyCharacter::RequestPrimaryAttack(const FInputActionValue& Value)
 	S_RequestPrimaryAttack();
 }
 
+
+
 void ASpyCharacter::S_RequestPrimaryAttack_Implementation()
 {
 	SpyAbilitySystemComponent->TryActivateAbility(
@@ -724,7 +726,17 @@ void ASpyCharacter::InitializeEquippedItem()
 	S_RequestEquipItem(EItemRotationDirection::Initial);
 }
 
-void ASpyCharacter::RequestEquipNextInventoryItem(const FInputActionValue& Value)
+void ASpyCharacter::RequestEquipInitialInventoryItem()
+{
+	/** Special case where we are only concerned about preventing
+	 * simulated proxies invoking the command */
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{ return; }
+
+	S_RequestEquipItem(EItemRotationDirection::Initial);
+}
+
+void ASpyCharacter::RequestEquipNextInventoryItem()
 {
 	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }
@@ -732,7 +744,7 @@ void ASpyCharacter::RequestEquipNextInventoryItem(const FInputActionValue& Value
 	S_RequestEquipItem(EItemRotationDirection::Next);
 }
 
-void ASpyCharacter::RequestEquipPreviousInventoryItem(const FInputActionValue& Value)
+void ASpyCharacter::RequestEquipPreviousInventoryItem()
 {
 	if (GetLocalRole() != ROLE_AutonomousProxy)
 	{ return; }

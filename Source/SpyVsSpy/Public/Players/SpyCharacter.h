@@ -87,7 +87,6 @@ public:
 
 	void InitializeEquippedItem();
 	
-	
 #pragma region="Team"
 	// TODO refactor and move to playerstate using an enum
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "SVS|Character")
@@ -145,14 +144,18 @@ public:
 	void RequestSprint(const FInputActionValue& Value);
 	/** Called for Primary Attack Input */
 	void RequestPrimaryAttack(const FInputActionValue& Value);
-	// TODO update these for refactor to inventorycomponent
+#pragma endregion="Movement"
+
+#pragma region="Items"
 	/** Called for Next Trap Input */
-	void RequestEquipNextInventoryItem(const FInputActionValue& Value);
+	void RequestEquipInitialInventoryItem();
+	/** Called for Next Trap Input */
+	void RequestEquipNextInventoryItem();
 	/** Called for Previous Trap Input */
-	void RequestEquipPreviousInventoryItem(const FInputActionValue& Value);
+	void RequestEquipPreviousInventoryItem();
 	/** Called for Interact Input */
 	void RequestInteract();
-#pragma endregion="Movement"
+#pragma endregion="Items"
 
 private:
 

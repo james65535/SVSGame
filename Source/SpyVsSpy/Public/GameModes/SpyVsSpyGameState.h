@@ -152,7 +152,8 @@ public:
 	
 	void SetRequiredMissionItems(const TArray<UInventoryBaseAsset*>& InRequiredMissionItems);
 	void GetRequiredMissionItems(TArray<UInventoryBaseAsset*>& RequestedRequiredMissionItems);
-	
+	bool HasRequiredMissionItems(const ACharacter* Character) const;
+
 	FGameTypeUpdateDelegate OnGameTypeUpdateDelegate;
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|GameState")

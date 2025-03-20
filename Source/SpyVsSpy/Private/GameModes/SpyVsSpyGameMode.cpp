@@ -121,6 +121,11 @@ void ASpyVsSpyGameMode::StartGame()
 		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass());
 		SpyItemWorldSubsystem->DistributeItems(SpyTrapItemTypeToDistributed, ASpyCharacter::StaticClass());
 	}
+	else
+	{
+		UE_LOG(SVSLog, Warning,
+			TEXT("GameMode could not verify all items are loaded in order to distribute them"));
+	}
 	
 	/** Start game for network clients */
 	SpyGameState->MatchStart();

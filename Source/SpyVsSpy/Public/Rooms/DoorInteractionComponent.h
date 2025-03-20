@@ -7,6 +7,7 @@
 #include "Components/TimelineComponent.h"
 #include "DoorInteractionComponent.generated.h"
 
+class ASpyCharacter;
 class UAudioComponent;
 class UTimelineComponent;
 
@@ -48,13 +49,16 @@ public:
 	/** @return Success Status */
 	virtual bool Interact_Implementation(AActor* InteractRequester) override;
 	virtual void SetInteractionEnabled(const bool bIsEnabled) override;
-	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
+	virtual UInventoryTrapAsset* GetActiveTrap_Implementation(AActor* InteractRequester) override;
 	virtual void RemoveActiveTrap_Implementation() override;
 	virtual bool HasInventory_Implementation() override;
 	virtual bool SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;
 	virtual void EnableInteractionVisualAid_Implementation(const bool bEnabled) override;
 	
 private:
+	
+	/** Adjust door panels depending on desired state set within editor */
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** Timeline for door open / close */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess="true"))
@@ -62,6 +66,8 @@ private:
 	FName DoorTransitionTrackName = "DoorTransitionTrack";
 	FName AppearTimelinePropertyName = "DoorTransitionAmount";
 	
+	UPROPERTY(BlueprintReadWrite, EditInstanceOnly, meta = (AllowPrivateAccess = "true"))
+	EDoorState DesiredDoorState = EDoorState::Closed;
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
 	EDoorState DoorState = EDoorState::Closed;
 	
@@ -79,6 +85,8 @@ private:
 	void DoorClosed();
 	/** Perform Door Opening/Closing Movements */
 	void TransitionDoor(float DoorOpenedAmount);
+
+	bool CheckMissionItems(AActor* InteractingActor) const;
 	
 	/** Timeline components for Opening / Closing Door */
 	UPROPERTY(EditAnywhere)

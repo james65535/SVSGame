@@ -199,20 +199,22 @@ void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerSt
 		Result.bCompletedMission = false;
 		InSpyPlayerState->SetIsWinner(false);
 		Result.bIsWinner = false;
-		Results.Add(Result);
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 	}
-	
-	/** We have our match winner */
-	if (HasAllMissionMaterials(InSpyPlayerState) && bPlayerTimeExpired)
+
+	ACharacter* PlayerCharacter = InSpyPlayerState->GetPawn<ACharacter>();
+	/** Complete results for match winner */
+	if (IsValid(PlayerCharacter) &&
+		!bPlayerTimeExpired &&
+		HasRequiredMissionItems(PlayerCharacter))
 	{
 		InSpyPlayerState->SetCurrentStatus(EPlayerGameStatus::Finished);
 		Result.bCompletedMission = true;
 		InSpyPlayerState->SetIsWinner(true);
 		Result.bIsWinner = true;
-		Results.Add(Result);
-		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 	}
+	
+	Results.Add(Result);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Results, this);
 
 	InSpyPlayerState->NM_EndMatch();
 
@@ -220,12 +222,9 @@ void ASpyVsSpyGameState::RequestSubmitMatchResult(ASpyPlayerState* InSpyPlayerSt
 	TryFinaliseScoreBoard();
 }
 
-bool ASpyVsSpyGameState::HasAllMissionMaterials(const ASpyPlayerState* SpyPlayerState) const
+bool ASpyVsSpyGameState::HasRequiredMissionItems(const ACharacter* Character) const
 {
-	if (!IsValid(SpyPlayerState))
-	{ return false; }
-
-	if (const ASpyCharacter* SpyCharacter = SpyPlayerState->GetPawn<ASpyCharacter>())
+	if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(Character))
 	{
 		TArray<UInventoryBaseAsset*> PlayerInventory;
 		SpyCharacter->
@@ -234,14 +233,21 @@ bool ASpyVsSpyGameState::HasAllMissionMaterials(const ASpyPlayerState* SpyPlayer
 
 		if (PlayerInventory.Num() > 0 && RequiredMissionItems.Num() > 0)
 		{
-			uint8 AcquiredMissionItems = 0;
 			for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
 			{
-				if (PlayerInventory.Contains(MissionItem))
-				{ AcquiredMissionItems++; }
+				if (PlayerInventory.Contains(MissionItem) == false)
+				{
+					UE_LOG(SVSLogDebug, Warning,
+						TEXT("SpyGameState RequiredMissionItems check found that spy did not have %s"),
+						*MissionItem->InventoryItemName.ToString())
+					return false;
+				}
+				UE_LOG(SVSLogDebug, Warning,
+					TEXT("SpyGameState RequiredMissionItems check found that spy does have %s"),
+					*MissionItem->InventoryItemName.ToString())
 			}
 		
-			return AcquiredMissionItems == RequiredMissionItems.Num();
+			return true;
 		}
 	}
 	return false;

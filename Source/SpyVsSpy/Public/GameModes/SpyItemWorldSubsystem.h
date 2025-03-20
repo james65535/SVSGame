@@ -51,7 +51,7 @@ public:
 	 * @return All requested items successfully loaded
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|ItemAssets")
-	bool AllItemsVerifiedLoaded() const { return bAllItemAssetsLoaded; }
+	bool AllItemsVerifiedLoaded() const { return VerifyAllItemAssetsLoaded(); }
 
 	/**
 	 * @brief Server only method to place items on furniture actors
@@ -59,7 +59,7 @@ public:
 	 * @param TargetActorClass Type class of actors to distribute items to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|ItemAssets")
-	void DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass);
+	bool DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass);
 
 protected:
 
@@ -83,17 +83,10 @@ protected:
 
 #pragma region="ItemLoadVerification"
 	/** Final verification of all requests being loaded */
-	void TryVerifyAllItemAssetsLoaded();
-
-	// TODO maintain load success state, bool GetLoadSuccess(), run are
-	// all assetsload for each load run
-	// TODO Use a deinit override to cleanup values and loaded assets from asset manager
-	/** Value field is the total number of assets to check of type defined by the Map Key Value */
-	TMap<FPrimaryAssetType, int32> TotalAssetsRequestedToLoadPerTypeMap;
-	bool bAllItemAssetsLoaded = false;
-	int32 TotalItemsRequested = 0;
-	int TotalObjectsRequestedForLoad;
-	int32 TotalItemsRequestedAndLoaded = 0;
+	bool VerifyAllItemAssetsLoaded() const;
+	
+	/** Key is the AssetType to validate and value is the number of assets of that type requested */
+	TMap<FPrimaryAssetType, uint8> TotalAssetsRequestedToLoadPerTypeMap;
 #pragma endregion="ItemLoadVerification"
 	
 	// UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = "SVS|ItemAssets")

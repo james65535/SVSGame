@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Furniture")
 	UInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|Furniture")
+	bool IsMissionDoor() const { return bIsMissionDoor; }
+
 protected:
 
 	virtual void BeginPlay() override;
@@ -47,6 +50,9 @@ protected:
 	/** Responds to adjacent room occupancy changes by processing visibility requests */
 	UFUNCTION(BlueprintCallable)
 	void OnRoomOccupancyChange(const ASVSRoom* InRoomActor, const bool bIsRoomHidden );
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere,  meta = (AllowPrivateAccess))
+	bool bIsMissionDoor = false;
 	
 };
 

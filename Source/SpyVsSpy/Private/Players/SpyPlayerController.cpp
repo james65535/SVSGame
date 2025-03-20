@@ -338,23 +338,12 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 			*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
 			bTrapSetSuccessful ? *FString("True") : *FString("False"));
 
+		/** Reset character's held item */
+		SpyCharacter->RequestEquipInitialInventoryItem();
 		return bTrapSetSuccessful;
 	}
 	return false;
 }
-
-// void ASpyPlayerController::CalculateGameTimeElapsedSeconds()
-// {
-// 	const float ElapsedTime = SpyGameState->GetSpyMatchElapsedTime();
-// 	const float TimeLeft = SpyPlayerState->GetPlayerRemainingMatchTime() - ElapsedTime;
-// 	
-// 	/** Player ran out of time so notify game that their match has ended */
-// 	if (TimeLeft <= 0.0f)
-// 	{ GetWorld()->GetTimerManager().ClearTimer(MatchClockDisplayTimerHandle); }
-//
-// 	if (!IsRunningDedicatedServer())
-// 	{ HUDDisplayGameTimeElapsedSeconds(TimeLeft); }
-// }
 
 void ASpyPlayerController::HUDDisplayGameTimeElapsedSeconds(const float InTimeToDisplay) const
 {
@@ -477,7 +466,7 @@ void ASpyPlayerController::RequestEquipNextInventoryItem(const FInputActionValue
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
-	SpyCharacter->RequestEquipNextInventoryItem(ActionValue);
+	SpyCharacter->RequestEquipNextInventoryItem();
 }
 
 void ASpyPlayerController::RequestEquipPreviousInventoryItem(const FInputActionValue& ActionValue)
@@ -485,7 +474,7 @@ void ASpyPlayerController::RequestEquipPreviousInventoryItem(const FInputActionV
 	if (!CanProcessRequest() || !IsValid(SpyCharacter))
 	{ return; }
 
-	SpyCharacter->RequestEquipPreviousInventoryItem(ActionValue);
+	SpyCharacter->RequestEquipPreviousInventoryItem();
 }
 
 void ASpyPlayerController::RequestInteract(const FInputActionValue& ActionValue)

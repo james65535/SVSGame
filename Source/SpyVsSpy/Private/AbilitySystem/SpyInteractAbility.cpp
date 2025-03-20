@@ -82,7 +82,7 @@ bool USpyInteractAbility::RequestTriggerTrap()
 				{
 					Payload.Target = TargetActor;
 					if (const UInventoryTrapAsset* TrapAsset = TargetInteractionComponent->
-						Execute_GetActiveTrap(TargetInteractionComponent.GetObject()))
+						Execute_GetActiveTrap(TargetInteractionComponent.GetObject(), SpyCharacter))
 					{
 						TrapTriggerTaskResultTag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
 					

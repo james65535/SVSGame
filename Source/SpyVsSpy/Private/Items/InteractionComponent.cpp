@@ -47,7 +47,7 @@ AActor* UInteractionComponent::GetInteractableOwner_Implementation()
 	return GetOwner();
 }
 
-UInventoryTrapAsset* UInteractionComponent::GetActiveTrap_Implementation()
+UInventoryTrapAsset* UInteractionComponent::GetActiveTrap_Implementation(AActor* InteractRequester)
 {
 	return nullptr;
 }

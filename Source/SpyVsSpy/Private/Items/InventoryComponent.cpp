@@ -37,7 +37,7 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, EquippedItemIndex, SharedParamsRepAlways);
 }
 
-void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
+bool UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
 {
 	PrimaryAssetIdsToLoad.Append(InPrimaryAssetIdsToLoad);
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
@@ -45,14 +45,22 @@ void UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPr
 	if (IsValid(GetWorld()->GetAuthGameMode()))
 	{
 		for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
-		{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
+		{
+			const bool bDidLoad = LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad);
+			checkfSlow(bDidLoadAsset, "Inventory Component could not load Asset from Asset ID");
+		}
+		return true;
 	}
+	return false;
 }
 
 void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 {
 	for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
-	{ LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad); }
+	{
+		const bool bDidLoadAsset = LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad);
+		checkfSlow(bDidLoadAsset, "Inventory Component could not load Asset from Asset ID");
+	}
 
 	/** If this load is done on a client while they are playing then display contents of inventory in UI */
 	const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner());
@@ -70,7 +78,10 @@ bool UInventoryComponent::AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAsse
 	if (PrimaryAssetIdsToLoad.Num() >= 1)
 	{
 		for (FPrimaryAssetId PrimaryAssetId : PrimaryAssetIdCollectionToLoad)
-		{ LoadInventoryAssetFromAssetId(PrimaryAssetId); }
+		{
+			const bool bDidLoad = LoadInventoryAssetFromAssetId(PrimaryAssetId);
+			checkfSlow(bDidLoad, "InventoryComponent Could not load Asset from Asset ID")
+		}
 		
 		return true;
 	}
@@ -106,7 +117,7 @@ void UInventoryComponent::GetInventoryItemPIDs(TArray<FPrimaryAssetId>& Requeste
 	}
 }
 
-void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
+bool UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId)
 {
 	if (const UAssetManager* AssetManager = UAssetManager::GetIfValid())
 	{
@@ -123,14 +134,15 @@ void UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 					SpyWeaponItem->WeaponType == DefaultEquippedItemType)
 				{ InventoryAssetsCollection.Swap(0, AddedItemIndex); }
 			}
+
+			return true;
 		}
-		else
-		{
-			UE_LOG(SVSLog, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but cast failed for object: %s"),
-				*GetOwner()->GetName(),
-				IsValid(AssetManagerObject) ? *AssetManagerObject->GetName() : *FString("Null object"));
-		}
+
+		UE_LOG(SVSLog, Log, TEXT("Actor: %s InventoryComponent tried to load asset from PID but cast failed for object: %s"),
+			*GetOwner()->GetName(),
+			IsValid(AssetManagerObject) ? *AssetManagerObject->GetName() : *FString("Null object"));
 	}
+	return false;
 }
 
 void UInventoryComponent::SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType)

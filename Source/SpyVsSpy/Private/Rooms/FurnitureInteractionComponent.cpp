@@ -36,7 +36,7 @@ void UFurnitureInteractionComponent::GetInventoryListing_Implementation(
 	GetOwner<ASpyFurniture>()->GetInventoryComponent()->GetInventoryItemPIDs(RequestedPrimaryAssetIds, RequestedPrimaryAssetType);
 }
 
-UInventoryTrapAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementation()
+UInventoryTrapAsset* UFurnitureInteractionComponent::GetActiveTrap_Implementation(AActor* InteractRequester)
 {
 	if (!IsValid(GetOwner<ASpyFurniture>()) ||
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))

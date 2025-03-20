@@ -8,6 +8,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/TimelineComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameFramework/Character.h"
+#include "GameModes/SpyVsSpyGameState.h"
 #include "Items/InventoryComponent.h"
 #include "Items/InventoryTrapAsset.h"
 #include "Rooms/SVSDynamicDoor.h"
@@ -76,8 +78,13 @@ bool UDoorInteractionComponent::Interact_Implementation(AActor* InteractRequeste
 			}
 		case EDoorState::Locked:
 			{
-				// UnlockDoor();
-				return true;
+				if(CheckMissionItems(InteractRequester))
+				{
+					NM_OpenDoor();
+					return true;
+				}
+				
+				return false;
 			}
 		case EDoorState::Disabled:
 			{ return false; }
@@ -111,22 +118,29 @@ void UDoorInteractionComponent::SetInteractionEnabled(const bool bIsEnabled)
 	DoorState = EDoorState::Disabled;
 }
 
-UInventoryTrapAsset* UDoorInteractionComponent::GetActiveTrap_Implementation()
+UInventoryTrapAsset* UDoorInteractionComponent::GetActiveTrap_Implementation(AActor* InteractRequester)
 {
-	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
-	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
+	const ASVSDynamicDoor* OwningDoor = GetOwner<ASVSDynamicDoor>();
+	if (!IsValid(OwningDoor) ||
+		!IsValid(OwningDoor->GetInventoryComponent()))
+	{ return nullptr; }
+
+	/** Don't trigger traps for players who have all mission items if this is a mission door */
+	if (OwningDoor->IsMissionDoor() && CheckMissionItems(InteractRequester))
 	{ return nullptr; }
 	
-	return GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->GetRiggedTrapAsset();
+	return OwningDoor->GetInventoryComponent()->GetRiggedTrapAsset();
 }
 
 void UDoorInteractionComponent::RemoveActiveTrap_Implementation()
 {
-	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
-	!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()))
+	const ASVSDynamicDoor* OwningDoor = GetOwner<ASVSDynamicDoor>();
+	if (!IsValid(OwningDoor) ||
+		OwningDoor->IsMissionDoor() ||
+		!IsValid(OwningDoor->GetInventoryComponent()))
 	{ return; }
 
-	GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetRiggedTrapAsset(nullptr);
+	OwningDoor->GetInventoryComponent()->SetRiggedTrapAsset(nullptr);
 }
 
 bool UDoorInteractionComponent::HasInventory_Implementation()
@@ -136,8 +150,10 @@ bool UDoorInteractionComponent::HasInventory_Implementation()
 
 bool UDoorInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap)
 {
-	if (!IsValid(GetOwner<ASVSDynamicDoor>()) ||
-		!IsValid(GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()) ||
+	const ASVSDynamicDoor* OwningDoor = GetOwner<ASVSDynamicDoor>();
+	if (!IsValid(OwningDoor) ||
+		OwningDoor->IsMissionDoor() ||
+		!IsValid(OwningDoor->GetInventoryComponent()) ||
 		!IsValid(InActiveTrap))
 	{ return false; }
 
@@ -147,7 +163,7 @@ bool UDoorInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset
 		if (DoorState == EDoorState::Opened)
 		{ Interact_Implementation(nullptr); }
 		
-		GetOwner<ASVSDynamicDoor>()->GetInventoryComponent()->SetRiggedTrapAsset(InActiveTrap);
+		OwningDoor->GetInventoryComponent()->SetRiggedTrapAsset(InActiveTrap);
 		
 		return true;
 	}
@@ -189,6 +205,16 @@ void UDoorInteractionComponent::TransitionDoor(float const DoorOpenedAmount)
 	{ DoorPanel->SetRelativeRotation(CurrentRotation); }
 }
 
+bool UDoorInteractionComponent::CheckMissionItems(AActor* InteractingActor) const
+{
+	const ASpyVsSpyGameState* GameState = GetWorld()->GetGameState<ASpyVsSpyGameState>();
+	const ACharacter* InteractingCharacter = Cast<ACharacter>(InteractingActor);
+	if (IsValid(GameState) && IsValid(InteractingCharacter))
+	{ return GameState->HasRequiredMissionItems(InteractingCharacter);}
+
+	return false;
+}
+
 void UDoorInteractionComponent::DoorTransitionTimelineUpdate(float const OpenAmount)
 {
 	TransitionDoor(OpenAmount);
@@ -221,4 +247,47 @@ void UDoorInteractionComponent::EnableInteractionVisualAid_Implementation(const 
 		Door->GetStaticMeshComponent()->SetRenderCustomDepth(bEnabled);
 		Door->GetStaticMeshComponent()->SetCustomDepthStencilValue(bEnabled ? 2 : 0);
 	}
+}
+
+void UDoorInteractionComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ?
+		PropertyChangedEvent.Property->GetFName() :
+		NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, DesiredDoorState))
+	{
+		if (UStaticMeshComponent* DoorPanel = Cast<ASVSDynamicDoor>(GetOwner())->GetDoorPanelMesh())
+		{
+			switch (DesiredDoorState)
+			{
+			case EDoorState::Opened:
+				{
+					DoorPanel->SetRelativeRotation(FRotator(FRotator::ZeroRotator));
+					DoorState = EDoorState::Opened;
+					break;
+				}
+			case EDoorState::Closed:
+				{
+					DoorPanel->SetRelativeRotation(FRotator(0.0f, 270.0f, 0.0f));
+					DoorState = EDoorState::Closed;
+					break;
+				}
+			case EDoorState::Locked:
+				{
+					DoorPanel->SetRelativeRotation(FRotator(0.0f, 270.0f, 0.0f));
+					DoorState = EDoorState::Locked;
+					break;
+				}
+			default:
+				{
+					DoorPanel->SetRelativeRotation(FRotator(0.0f, 270.0f, 0.0f));
+					DoorState = EDoorState::Closed;
+					break;
+				}
+			}
+		}
+	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

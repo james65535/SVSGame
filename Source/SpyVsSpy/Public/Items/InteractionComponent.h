@@ -41,7 +41,7 @@ protected:
 
 	virtual AActor* GetInteractableOwner_Implementation() override;
 
-	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
+	virtual UInventoryTrapAsset* GetActiveTrap_Implementation(AActor* InteractRequester) override;
 	virtual void RemoveActiveTrap_Implementation() override;
 	
 	virtual bool HasInventory_Implementation() override;

@@ -61,7 +61,7 @@ public:
 	 * @param InPrimaryAssetIdsToLoad 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad);
+	bool SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	bool AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAssetIdCollectionToLoad);
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
@@ -120,7 +120,7 @@ protected:
 	void OnRep_PrimaryAssetIdsToLoad();
 	
 	UFUNCTION()
-	void LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);
+	bool LoadInventoryAssetFromAssetId(const FPrimaryAssetId& InInventoryAssetId);
 
 private:
 

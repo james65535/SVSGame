@@ -25,7 +25,7 @@ public:
 
 	virtual UInventoryComponent* GetInventory_Implementation() override;
 	virtual void GetInventoryListing_Implementation(TArray<FPrimaryAssetId>& RequestedPrimaryAssetIds, const FPrimaryAssetType RequestedPrimaryAssetType) override;
-	virtual UInventoryTrapAsset* GetActiveTrap_Implementation() override;
+	virtual UInventoryTrapAsset* GetActiveTrap_Implementation(AActor* InteractRequester) override;
 	virtual void RemoveActiveTrap_Implementation() override;
 	virtual bool HasInventory_Implementation() override;
 	virtual bool SetActiveTrap_Implementation(UInventoryTrapAsset* InActiveTrap) override;

@@ -36,16 +36,14 @@ void USpyItemWorldSubsystem::LoadSpyItemAssets(const TArray<FPrimaryAssetId>& In
 	/** Update Associated Map so that we can do verification later on */
 	if (!TotalAssetsRequestedToLoadPerTypeMap.Contains(InAssetType))
 	{
-		bAllItemAssetsLoaded = false;
-		TotalAssetsRequestedToLoadPerTypeMap.Add(InAssetType, InItemAssetIdContainer.Num());
-		TotalItemsRequested += InItemAssetIdContainer.Num();
+		TotalAssetsRequestedToLoadPerTypeMap.Add(
+			InAssetType,
+			InItemAssetIdContainer.Num());
 	}
 	else
 	{ return; }
 	
 	/** Request load of items */
-	// todo add switch for fireonlyonce, perhaps set this func to a bool type
-	TotalObjectsRequestedForLoad = InItemAssetIdContainer.Num();
 	for (FPrimaryAssetId AssetID : InItemAssetIdContainer)
 	{ LoadItemAssetFromAssetId(AssetID, InAssetType); }
 }
@@ -71,29 +69,11 @@ void USpyItemWorldSubsystem::LoadItemAssetFromAssetId(const FPrimaryAssetId& InI
 void USpyItemWorldSubsystem::OnItemAssetLoadFromAssetId(const FPrimaryAssetId InItemAssetId)
 {
 	UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InItemAssetId));
-	if (!IsValid(InventoryAsset))
-	{ return; }
-
-	// TODO remove
-	/** Update Item's ItemID based upon location in registry array.  Assumes asset manager will not create dupes */
-	// const uint8 RegistryIndex = ItemRegistry.AddUnique(InventoryAsset);
-	// InventoryAsset->ItemID = RegistryIndex;
-	
-	TotalItemsRequestedAndLoaded++;
-	if (TotalItemsRequestedAndLoaded == TotalItemsRequested)
-	{ TryVerifyAllItemAssetsLoaded(); }
-	
-	UE_LOG(SVSLogDebug, Log, TEXT(
-		"Asset manager on assetload check totalitemsrequestedandloaded: %i and totalitemsrequested: %i"),
-			TotalItemsRequestedAndLoaded,
-			TotalItemsRequested);
+	checkfSlow(IsValid(InventoryAsset), "SpyItemWorldSubSystem: Cound not load an asset from an asset ID")
 }
 
-void USpyItemWorldSubsystem::TryVerifyAllItemAssetsLoaded()
+bool USpyItemWorldSubsystem::VerifyAllItemAssetsLoaded() const
 {
-	/** Success Count per FoundAssetType, incremented if successful */
-	int PerFoundAssetTypeCountCheckSuccessTotal = 0;
-	
 	TArray<FPrimaryAssetType> FoundAssetTypesToCheck;
 	TotalAssetsRequestedToLoadPerTypeMap.GetKeys(FoundAssetTypesToCheck);
 	for (FPrimaryAssetType FoundAssetType : FoundAssetTypesToCheck)
@@ -101,38 +81,30 @@ void USpyItemWorldSubsystem::TryVerifyAllItemAssetsLoaded()
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(FoundAssetType, AssetManagerObjectList);
 
-		const int32 ExpectedCount = *TotalAssetsRequestedToLoadPerTypeMap.Find(FoundAssetType);
-		if (AssetManagerObjectList.Num() == ExpectedCount)
-		{ PerFoundAssetTypeCountCheckSuccessTotal++; }
+		const uint8 ExpectedAssetsTotal = *TotalAssetsRequestedToLoadPerTypeMap.Find(FoundAssetType);
+		const uint8 FoundAssetsTotal = AssetManagerObjectList.Num();
 
-		for (const UObject* ManagerObjectListItem : AssetManagerObjectList)
-		{
-			UE_LOG(SVSLogDebug, Log, TEXT("Asset manager has object: %s of class: %s with expected type: %s"),
-				*ManagerObjectListItem->GetName(),
-				*ManagerObjectListItem->GetClass()->GetName(),
-				*FoundAssetType.ToString());
-		}
-	}
-	
-	if (TotalAssetsRequestedToLoadPerTypeMap.Num() != PerFoundAssetTypeCountCheckSuccessTotal)
-	{
-		UE_LOG(SVSLogDebug, Log, TEXT(
-			"SpyItemSubsystem could not get a consistent counter between AssetsToLoad: %i and AssetsLoaded %i"),
-			TotalAssetsRequestedToLoadPerTypeMap.Num(),
-			PerFoundAssetTypeCountCheckSuccessTotal);
+		UE_LOG(SVSLogDebug, Warning,
+			TEXT("SpyItemSubSystem: Asset verification for type %s requested %i and found %i"),
+			*FoundAssetType.ToString(),
+			ExpectedAssetsTotal,
+			FoundAssetsTotal);
+
+		if (ExpectedAssetsTotal > FoundAssetsTotal)
+		{ return false; }
 	}
 
-	bAllItemAssetsLoaded = (TotalAssetsRequestedToLoadPerTypeMap.Num() == PerFoundAssetTypeCountCheckSuccessTotal);
+	return true;
 }
 
-void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass)
+bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass)
 {
 	/** Runs on Server Only */
 	if (!IsRunningDedicatedServer() ||
 		!IsValid(TargetActorClass) ||
 		!ItemToDistributeAssetType.IsValid() ||
 		!AllItemsVerifiedLoaded())
-	{ return; }
+	{ return false; }
 	
 	// TODO refactor this with proper usage of tsubclassof
 	if (TargetActorClass == ASpyCharacter::StaticClass())
@@ -155,40 +127,45 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 					AssetToAdd->GetPrimaryAssetId());
 			}
 		}
-
-		UE_LOG(SVSLogDebug, Log, TEXT("SpyItemSubsystem distribute items found %i actors and %i items"),
-			WorldActors.Num(),
-			InventoryBaseAssetPrimaryAssetIdCollection.Num());
 		
 		for (AActor* WorldActor : WorldActors)
 		{
 			if (const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(WorldActor))
 			{
-				SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(
-					InventoryBaseAssetPrimaryAssetIdCollection);
+				const bool bInventorySetIdsToLoad = SpyCharacter->
+					GetPlayerInventoryComponent()->
+						SetPrimaryAssetIdsToLoad(InventoryBaseAssetPrimaryAssetIdCollection);
+				if (bInventorySetIdsToLoad == false)
+				{ return false; }
 			}
 			else
 			{
-				UE_LOG(SVSLog, Warning, TEXT(
-					"SpyItemSubsystem could not find a actor for items of type: %s"),
+				UE_LOG(SVSLog, Warning,
+					TEXT("SpyItemSubsystem could not find a actor for items of type: %s"),
 					*ItemToDistributeAssetType.GetName().ToString());
+				return false;
 			}
 		}
+		return true;
 	}
-	else if (TargetActorClass == ASpyFurniture::StaticClass())
+	if (TargetActorClass == ASpyFurniture::StaticClass())
 	{
 		TArray<AActor*> FurnitureWorldActors;
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpyFurniture::StaticClass(), FurnitureWorldActors);
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
+
+		checkfSlow(
+			FurnitureWorldActors.Num() >= AssetManagerObjectList.Num(),
+			"SpyWorldSubsystem requires more furniture than items to distribute");
 		
 		for (const UObject* AssetManagerObject : AssetManagerObjectList)
 		{
 			const uint8 MaxTries = FurnitureWorldActors.Num();
 			for (uint8 TryIndex = 0; TryIndex < MaxTries; TryIndex++)
 			{
-				const uint8 RandomIndexMax = FurnitureWorldActors.Num() - 1;
-				const int32 RandomIndex = FMath::RandRange(0, RandomIndexMax);
+				const uint8 RandomIndexLimit = FurnitureWorldActors.Num() - 1;
+				const int32 RandomIndex = FMath::RandRange(0, RandomIndexLimit);
 				const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(FurnitureWorldActors[RandomIndex]);
 				const UFurnitureInteractionComponent* FurnitureInteractionComponent = SpyFurniture->GetInteractionComponent();
 
@@ -197,7 +174,13 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 					const FPrimaryAssetId ObjectPrimaryAssetId = AssetManagerObject->GetPrimaryAssetId();
 					TArray<FPrimaryAssetId> AssetPrimaryIdsToAdd;
 					AssetPrimaryIdsToAdd.AddUnique(ObjectPrimaryAssetId);
-					SpyFurniture->GetInventoryComponent()->SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+					const bool bInventorySetIdsToLoad = SpyFurniture->
+						GetInventoryComponent()->
+							SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+
+					if (bInventorySetIdsToLoad == false)
+					{ return false; }
+
 					break;
 				}
 
@@ -207,8 +190,11 @@ void USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 				{
 					UE_LOG(SVSLog, Warning, TEXT(
 						"SpyItemSubsystem failed to remove actor from distribution array after trying to use it"));
+					return false;
 				}
 			}
 		}
+		return true;
 	}
+	return false;
 }
