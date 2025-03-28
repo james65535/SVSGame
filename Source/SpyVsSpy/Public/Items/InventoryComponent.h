@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "InventoryComponent.generated.h"
 
+class ADynamicRoom;
 enum class EWeaponType : uint8;
 class UTrapMeshComponent;
 class AStaticMeshActor;
@@ -58,14 +59,18 @@ public:
 	/**
 	 * @brief Standard way to add assets to inventory as this list replicates to clients and
 	 * clients then load assets from asset manager
-	 * @param InPrimaryAssetIdsToLoad 
+	 * @param InPrimaryAssetIdsToLoad
+	 * @param bAppendAssetIds Set to true to add AssetIds to existing collection
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	bool SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad);
+	bool SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad, bool bAppendAssetIds = false);
+	/**
+	 * @brief Standard way to remove assets from inventory as this list replicates for client update
+	 * @param InPrimaryAssetIdsToRemove 
+	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	bool AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAssetIdCollectionToLoad);
-	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	bool RemoveInventoryItem(UInventoryItemComponent* InInventoryItem);
+	bool SetPrimaryAssetIdsToRemove(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToRemove);
+
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const;
 
@@ -84,7 +89,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
 	void SetRiggedTrapAsset(UInventoryTrapAsset* InRiggedTrapAsset) { RiggedTrapAsset = InRiggedTrapAsset; }
-
 
 	/**
 	 * Equip either a Weapon or a Trap depending on the item retrieved by InventoryIndex. Will UnEquip before Equipping

@@ -134,7 +134,9 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 			{
 				const bool bInventorySetIdsToLoad = SpyCharacter->
 					GetPlayerInventoryComponent()->
-						SetPrimaryAssetIdsToLoad(InventoryBaseAssetPrimaryAssetIdCollection);
+						SetPrimaryAssetIdsToLoad(
+							InventoryBaseAssetPrimaryAssetIdCollection,
+							true);
 				if (bInventorySetIdsToLoad == false)
 				{ return false; }
 			}
@@ -164,6 +166,7 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 			const uint8 MaxTries = FurnitureWorldActors.Num();
 			for (uint8 TryIndex = 0; TryIndex < MaxTries; TryIndex++)
 			{
+				// TODO refactor so that item placement tries other furniture if first random does not work
 				const uint8 RandomIndexLimit = FurnitureWorldActors.Num() - 1;
 				const int32 RandomIndex = FMath::RandRange(0, RandomIndexLimit);
 				const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(FurnitureWorldActors[RandomIndex]);
@@ -176,7 +179,9 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 					AssetPrimaryIdsToAdd.AddUnique(ObjectPrimaryAssetId);
 					const bool bInventorySetIdsToLoad = SpyFurniture->
 						GetInventoryComponent()->
-							SetPrimaryAssetIdsToLoad(AssetPrimaryIdsToAdd);
+							SetPrimaryAssetIdsToLoad(
+								AssetPrimaryIdsToAdd,
+								true);
 
 					if (bInventorySetIdsToLoad == false)
 					{ return false; }
@@ -196,5 +201,79 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		}
 		return true;
 	}
+	return false;
+}
+
+bool USpyItemWorldSubsystem::RelocateInventoryAssetIds(UInventoryComponent* SourceInventory,
+	TArray<UInventoryComponent*>& TargetInventories, TArray<FPrimaryAssetId>& InventoryAssetIds)
+{
+	if (!IsValid(SourceInventory) ||
+		TargetInventories.IsEmpty() ||
+		InventoryAssetIds.IsEmpty())
+	{
+		UE_LOG(SVSLog, Warning, TEXT(
+			"SpyItemSubsystem: RelocateInventoryAssetIds failed and early returned"));
+		return false;
+	}
+	UE_LOG(SVSLogDebug, Warning,
+		TEXT("SpyItemSubsystem: RelocateInventoryAssetIds has been run for character: %s"),
+		*SourceInventory->GetOwner()->GetName());
+	
+	/** Create a collection mapping all AssetIds to relocate with Target Inventories so that
+	 * we can update each inventory in one goes and thus save on network replication for
+	 * the inventories */
+	TMap<UInventoryComponent*, TArray<FPrimaryAssetId>> TargetInventoryAssetIdsPairing;
+	for (UInventoryComponent* TargetInventory : TargetInventories)
+	{
+		if (IsValid(TargetInventory))
+		{ TargetInventoryAssetIdsPairing.Add(TargetInventory, TArray<FPrimaryAssetId>()); }
+	}
+	TArray<UInventoryComponent*> InventoryPairingKeys;
+	TargetInventoryAssetIdsPairing.GenerateKeyArray(InventoryPairingKeys);
+	
+	/** Attempt an even distribution of AssetIds across the collection of target inventories
+	 * allowing for target inventories to receive multiple AssetIds if need be */
+	uint8 InventoryIndex = 0;
+	for (FPrimaryAssetId InventoryAssetId : InventoryAssetIds)
+	{
+		/** Move on to the next AssetId if this one is not valid */
+		if (!InventoryAssetId.IsValid())
+		{
+			UE_LOG(SVSLogDebug, Warning,
+				TEXT("SpyItemSubsystem found an invalid asset during RelocateInventoryAssetIds"));
+			continue;
+		}
+
+		TargetInventoryAssetIdsPairing.Find(InventoryPairingKeys[InventoryIndex])->
+			Add(InventoryAssetId);
+		/** Increment index so that next AssetId will use the next Inventory or
+		 * restart at the beginning of the TargetInventory array */
+		InventoryIndex >= (InventoryPairingKeys.Num() - 1) ?
+			InventoryIndex = 0 :
+			InventoryIndex++;
+	}
+
+	/** Add to each target inventory the corresponding AssetIds */
+	uint8 LoadErrorCount = 0;
+	for (TPair<UInventoryComponent*, TArray<FPrimaryAssetId>> TargetInventory : TargetInventoryAssetIdsPairing)
+	{
+		const bool bDidInventoryLoad = TargetInventory.Key->SetPrimaryAssetIdsToLoad(
+			TargetInventory.Value,
+			true);
+
+		if (bDidInventoryLoad == false)
+		{ LoadErrorCount++; }
+	}
+
+	// Todo the following assumes it is ok remove AssetIds which were previously found to be invalid
+	/** Remove AssetIds from Source */
+	const bool bDidRemoveIds = SourceInventory->SetPrimaryAssetIdsToRemove(InventoryAssetIds);
+	if (bDidRemoveIds == true || LoadErrorCount == 0)
+	{ return true; }
+
+	UE_LOG(SVSLog, Warning, TEXT(
+		"SpyItemSubsystem RelocateAssetIds errored with Failed to remove from Source: %s and number of failed target lods: %i"),
+		bDidRemoveIds ? *FString("True") : *FString("False"),
+		LoadErrorCount);
 	return false;
 }

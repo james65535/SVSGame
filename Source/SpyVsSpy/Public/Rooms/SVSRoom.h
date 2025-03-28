@@ -100,7 +100,7 @@ public:
 	bool IsRoomLocallyHidden() const { return bRoomLocallyHiddenInGame; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Room")
 	void SetRoomLocallyHidden(const bool bLocallyHiddenEnabled) { bRoomLocallyHiddenInGame = bLocallyHiddenEnabled; }
-	
+
 	FOnRoomOccupancyChange OnRoomOccupancyChange;
 
 	// TODO Could update this to accomodate team play

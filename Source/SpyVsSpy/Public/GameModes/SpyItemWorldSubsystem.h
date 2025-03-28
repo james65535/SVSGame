@@ -7,6 +7,7 @@
 #include "SpyItemWorldSubsystem.generated.h"
 
 
+class UInventoryComponent;
 class ASpyFurniture;
 
 USTRUCT(BlueprintType, Category = "SVS|ItemAssets")
@@ -27,7 +28,7 @@ struct FSpyItemAssetType
 
 /**
  * This class is a singleton which handles the loading/unloading of items
- * locally (for both server and clients).  The class acts as an Spy Item
+ * locally (for both server and clients).  The class acts as a Spy Item
  * orientated wrapper for asset manager and should be used exclusively
  * through deterministic programming approaches to keep all networked systems in sync.
  */
@@ -61,6 +62,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|ItemAssets")
 	bool DistributeItems(const FPrimaryAssetType& ItemToDistributeAssetType, const TSubclassOf<AActor> TargetActorClass);
 
+	UFUNCTION(BlueprintCallable, Category = "SVS|ItemAssets")
+	bool RelocateInventoryAssetIds(UInventoryComponent* SourceInventory, TArray<UInventoryComponent*>& TargetInventories, TArray<FPrimaryAssetId>& InventoryAssetIds);
+	
 protected:
 
 	/** Class Overrides */

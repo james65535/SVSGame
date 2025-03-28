@@ -18,12 +18,15 @@
 #include "AbilitySystem/SpyAbilitySystemComponent.h"
 #include "AbilitySystem/SpyAttributeSet.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "GameModes/SpyItemWorldSubsystem.h"
 #include "GameModes/SpyVsSpyGameMode.h"
 #include "Items/InventoryComponent.h"
+#include "Items/InventoryMissionAsset.h"
 #include "Items/InventoryWeaponAsset.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Rooms/RoomManager.h"
+#include "Rooms/SpyFurniture.h"
 #include "Rooms/SVSRoom.h"
 #include "SpyVsSpy/SpyVsSpy.h"
 
@@ -485,41 +488,65 @@ void ASpyCharacter::RequestDeath()
 
 void ASpyCharacter::S_RequestDeath_Implementation()
 {
+	/** Remove mission items upon death and leave them in the current room */
+	TArray<FPrimaryAssetId> MissionItemIds;
+	GetPlayerInventoryComponent()->GetInventoryItemPIDs(
+		MissionItemIds,
+		FPrimaryAssetType(FName("InventoryMissionAsset")));
 
+	/** Use the SpyItemSubSystem to handle item relocation */
+	USpyItemWorldSubsystem* ItemSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>();
+	if (IsValid(ItemSubsystem) && !MissionItemIds.IsEmpty())
+	{
+		TArray<AFurnitureBase*> FurnitureTargets;
+		CurrentRoom->GetFurnitureCollection_Implementation(FurnitureTargets);
+		TArray<UInventoryComponent*> TargetInventories;
+		for (AFurnitureBase* FurnitureTarget : FurnitureTargets)
+		{
+			const ASpyFurniture* SpyFurniture = Cast<ASpyFurniture>(FurnitureTarget);
+			if (IsValid(SpyFurniture) && IsValid(SpyFurniture->GetInventoryComponent()))
+			{ TargetInventories.Add(SpyFurniture->GetInventoryComponent()); }
+		}
+		
+		const bool bDidRelocateItems = ItemSubsystem->RelocateInventoryAssetIds(
+			GetPlayerInventoryComponent(),
+			TargetInventories,
+			MissionItemIds);
+		if (bDidRelocateItems == false)
+		{
+			UE_LOG(SVSLog, Warning,
+				TEXT("SpyCharacter: %s failed to relocate mission items upon death"),
+				*GetName())
+		}
+	}
+
+	// TODO verify if it is ok for NM_RequestDeath to occur after this check
+	/** If spy is still playing then proceed with operations concerning respawning */
 	if (SpyPlayerState->GetCurrentStatus() != EPlayerGameStatus::Playing)
 	{ return; }
 
 	/** Apply a time penalty to the player for dying */
 	SpyPlayerState->SetPlayerRemainingMatchTime(0.0f, true);
 	NM_SetEnableDeathState(true);
+	
+	RemoveCharacterAbilities();
+	
 	NM_RequestDeath();
+	
 	if (!GetSpyPlayerState()->IsPlayerMatchTimeExpired())
 	{
 		// TODO could get rid of timer and respond to a notify
 		GetWorld()->GetTimerManager().SetTimer(
-				FinishDeathTimerHandle,
-				this,
-				&ThisClass::FinishDeath,
-				FinishDeathDelaySeconds,
-				false);
+			FinishDeathTimerHandle,
+			this,
+			&ThisClass::FinishDeath,
+			FinishDeathDelaySeconds,
+			false);
 	}
 }
 
 void ASpyCharacter::NM_RequestDeath_Implementation()
 {
-	// TODO maybe make this server only
-	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
-		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
-	{
-		SetSpyHidden(true);
-		// TODO there should be a more elegant way to get them out of the way, collision, etc...
-		SetActorLocation(FVector(0.0f, 0.0f, 2000.0f));
-	}
-	
-	/** Only runs on Server */
-	if (GetLocalRole() == ROLE_Authority && GetLocalRole() != ROLE_AutonomousProxy)
-	{ RemoveCharacterAbilities(); } // TODO is this needed with cancelallabilities below?
-
 	if (GetLocalRole() != ROLE_SimulatedProxy || (IsValid(SpyAbilitySystemComponent)))
 	{
 		/** Ability Component System related work */
@@ -530,6 +557,16 @@ void ASpyCharacter::NM_RequestDeath_Implementation()
 			EffectTagsToRemove);
 		// TODO see about moving this to enabledeathstate
 		SpyAbilitySystemComponent->AddLooseGameplayTag(SpyStateDeadTag);
+	}
+
+	// TODO evaluate moving to server only
+	/** If spy has died and no longer in a playing state then remove them from map */
+	if (SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::Finished ||
+		SpyPlayerState->GetCurrentStatus() == EPlayerGameStatus::MatchTimeExpired)
+	{
+		SetSpyHidden(true);
+		// TODO there should be a more elegant way to get them out of the way, collision, etc...
+		SetActorLocation(FVector(0.0f, 0.0f, 2000.0f));
 	}
 }
 

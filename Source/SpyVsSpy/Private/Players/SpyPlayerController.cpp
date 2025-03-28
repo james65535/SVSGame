@@ -8,6 +8,7 @@
 #include "EnhancedInput/Public/EnhancedInputComponent.h"
 #include "EnhancedInput/Public/EnhancedInputSubsystems.h"
 #include "EnhancedInput/Public/InputActionValue.h"
+#include "GameModes/SpyItemWorldSubsystem.h"
 #include "Players/SpyHUD.h"
 #include "Players/SpyPlayerState.h"
 #include "Players/SpyCharacter.h"
@@ -299,13 +300,15 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 	}
 
 	/** Get the collection of PIDs from target inventory via the interaction component */
+	TScriptInterface<IInteractInterface> InteractObjectInterface = SpyCharacter->
+		GetInteractionComponent()->GetLatestInteractableComponent();
 	TArray<FPrimaryAssetId> TargetInventoryPrimaryAssetIdCollection;
-	SpyCharacter->
-		GetInteractionComponent()->GetLatestInteractableComponent()->Execute_GetInventoryListing(
-			SpyCharacter->GetInteractionComponent()->GetLatestInteractableComponent().GetObjectRef(),
-			TargetInventoryPrimaryAssetIdCollection, FPrimaryAssetType(FName("InventoryMissionAsset")));
+	InteractObjectInterface->Execute_GetInventoryListing(
+		InteractObjectInterface.GetObjectRef(),
+		TargetInventoryPrimaryAssetIdCollection,
+		FPrimaryAssetType(FName("InventoryMissionAsset")));
 	
-	if (TargetInventoryPrimaryAssetIdCollection.Num() < 1)
+	if (TargetInventoryPrimaryAssetIdCollection.IsEmpty())
 	{
 		UE_LOG(SVSLog, Warning,
 			TEXT("Character %s tried to take items but inventory is empty"),
@@ -314,8 +317,22 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 		return;
 	}
 
-	/** sets the collection of primary asset ids to load which then replicates to clients for load procedures */
-	SpyCharacter->GetPlayerInventoryComponent()->SetPrimaryAssetIdsToLoad(TargetInventoryPrimaryAssetIdCollection);
+	/** Use the SpyItemSubSystem to handle item relocation */
+	if (USpyItemWorldSubsystem* ItemSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>())
+	{
+		TArray<UInventoryComponent*> TargetInventory = {SpyCharacter->GetPlayerInventoryComponent()};
+		UInventoryComponent* SourceInventory = InteractObjectInterface->Execute_GetInventory(InteractObjectInterface.GetObjectRef());
+		const bool bDidRelocate = ItemSubsystem->RelocateInventoryAssetIds(
+			SourceInventory,
+			TargetInventory,
+			TargetInventoryPrimaryAssetIdCollection);
+		if (bDidRelocate == false)
+		{
+			UE_LOG(SVSLog, Warning,
+				TEXT("Character %s S_RequestTakeAllFromTargetInventory relocate failed"),
+				*SpyCharacter->GetName());
+		}
+	}
 }
 
 bool ASpyPlayerController::RequestPlaceTrap() const
@@ -365,29 +382,6 @@ void ASpyPlayerController::StartMatch()
 		C_DisplayCharacterInventory();
 	}
 }
-// 	SpyCharacter->InitializeEquippedItem();
-// 	RequestInputMode(EPlayerInputMode::GameOnly);
-// 	LocalClientCachedMatchStartTime = InMatchStartTime - GetWorld()->DeltaTimeSeconds;
-//
-// 	if (GetLocalRole() == ROLE_AutonomousProxy)
-// 	{
-// 		/** Handle Match Time - Most likely on 1 second repeat */
-// 		GetWorld()->GetTimerManager().SetTimer(
-// 			MatchClockDisplayTimerHandle,
-// 			this,
-// 			&ThisClass::CalculateGameTimeElapsedSeconds,
-// 			MatchClockDisplayRateSeconds,
-// 			true);
-// 	
-// 		/** Update Player Displays with character info */
-// 		SpyPlayerHUD->ToggleDisplayGameTime(true);
-// 		SpyPlayerHUD->DisplayCharacterHealth(
-// 			SpyPlayerState->GetAttributeSet()->GetHealth(),
-// 			SpyPlayerState->GetAttributeSet()->GetMaxHealth());
-//
-// 		C_DisplayCharacterInventory();
-// 	}
-// }
 
 bool ASpyPlayerController::CanProcessRequest() const
 {

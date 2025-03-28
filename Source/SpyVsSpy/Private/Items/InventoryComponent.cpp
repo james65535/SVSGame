@@ -6,7 +6,6 @@
 #include "SVSLogger.h"
 #include "Engine/AssetManager.h"
 #include "Items/InventoryBaseAsset.h"
-#include "Items/InventoryItemComponent.h"
 #include "Items/InventoryTrapAsset.h"
 #include "Items/Weapon.h"
 #include "UObject/PrimaryAssetId.h"
@@ -37,8 +36,12 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, EquippedItemIndex, SharedParamsRepAlways);
 }
 
-bool UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad)
+bool UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToLoad, bool bAppendAssetIds)
 {
+	/** Start with fresh array if not appending new elements to existing collection */
+	if (bAppendAssetIds == false)
+	{ PrimaryAssetIdsToLoad.Empty(); }
+
 	PrimaryAssetIdsToLoad.Append(InPrimaryAssetIdsToLoad);
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
 
@@ -54,14 +57,30 @@ bool UInventoryComponent::SetPrimaryAssetIdsToLoad(TArray<FPrimaryAssetId>& InPr
 	return false;
 }
 
+bool UInventoryComponent::SetPrimaryAssetIdsToRemove(TArray<FPrimaryAssetId>& InPrimaryAssetIdsToRemove)
+{
+	uint8 RemoveErrorCount = 0;
+	for (FPrimaryAssetId PrimaryAssetId : InPrimaryAssetIdsToRemove)
+	{
+		const uint8 RemovedInstances = PrimaryAssetIdsToLoad.Remove(PrimaryAssetId);
+		if (RemovedInstances == 0)
+		{ RemoveErrorCount++; }
+	}
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, PrimaryAssetIdsToLoad, this);
+
+	return (RemoveErrorCount == 0);
+}
+
 void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 {
+	InventoryAssetsCollection.Empty();
+
 	for (const FPrimaryAssetId& PrimaryAssetIdToLoad : PrimaryAssetIdsToLoad)
 	{
 		const bool bDidLoadAsset = LoadInventoryAssetFromAssetId(PrimaryAssetIdToLoad);
 		checkfSlow(bDidLoadAsset, "Inventory Component could not load Asset from Asset ID");
 	}
-
+	
 	/** If this load is done on a client while they are playing then display contents of inventory in UI */
 	const ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetOwner());
 	if (IsValid(SpyCharacter) &&
@@ -71,36 +90,6 @@ void UInventoryComponent::OnRep_PrimaryAssetIdsToLoad()
 		if (ASpyPlayerController* SpyPlayerController = Cast<ASpyPlayerController>(SpyCharacter->GetController()))
 		{ SpyPlayerController->C_DisplayCharacterInventory(); }
 	}
-}
-
-bool UInventoryComponent::AddInventoryItems(TArray<FPrimaryAssetId>& PrimaryAssetIdCollectionToLoad)
-{
-	if (PrimaryAssetIdsToLoad.Num() >= 1)
-	{
-		for (FPrimaryAssetId PrimaryAssetId : PrimaryAssetIdCollectionToLoad)
-		{
-			const bool bDidLoad = LoadInventoryAssetFromAssetId(PrimaryAssetId);
-			checkfSlow(bDidLoad, "InventoryComponent Could not load Asset from Asset ID")
-		}
-		
-		return true;
-	}
-	return false;
-}
-
-bool UInventoryComponent::RemoveInventoryItem(UInventoryItemComponent* InInventoryItem)
-{
-	if (!IsValid(InInventoryItem)) { return false; }
-	
-	// TODO validation checks
-
-	// TODO Implement
-	// if(InventoryCollection.RemoveSingle(InInventoryItem) == 1)
-	// {
-	// 	InInventoryItem->DestroyComponent();
-	// 	return true;
-	// }
-	return false;
 }
 
 void UInventoryComponent::GetInventoryItems(TArray<UInventoryBaseAsset*>& InInventoryItems) const
