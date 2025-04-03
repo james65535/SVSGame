@@ -22,22 +22,25 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "SVS|Inventory")
 	uint8 ItemID;
 	
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="1"), Category = "SVS|Inventory")
 	FName InventoryItemName;
 
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="2"),Category = "SVS|Inventory")
 	FText InventoryItemDescription;
 
 	/** Image to be used for visual depiction in Inventory */
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="3"),Category = "SVS|Inventory")
 	UTexture2D* ItemInventoryImage;
 	
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="4"),Category = "SVS|Inventory")
 	TSubclassOf<UInventoryItemComponent> ItemClass;
 
 	/** -1 Signifies unlimited */
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "SVS|Inventory")
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="5"),Category = "SVS|Inventory")
 	int Quantity = -1;
+
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (DisplayPriority="6"),Category = "SVS|Inventory")
+	bool bNotForDistribution = false;
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("InventoryBaseAsset", GetFName()); }
 	

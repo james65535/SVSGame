@@ -67,7 +67,6 @@ void USpyInteractionComponent::OnOverlapEnd(UPrimitiveComponent* OverlappedCompo
 		LatestInteractableComponentFound->Execute_GetInteractableOwner(
 			LatestInteractableComponentFound.GetObjectRef()) == OtherActor)
 	{ SetLatestInteractableComponentFound(nullptr); }
-	UE_LOG(SVSLogDebug, Log, TEXT("%s Character: %s no longer overlapping with actor: %s"), (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy) ? *FString("Local") : *FString("Remote"), *GetOwner()->GetName(), *OtherActor->GetName());
 }
 
 bool USpyInteractionComponent::CanInteract() const

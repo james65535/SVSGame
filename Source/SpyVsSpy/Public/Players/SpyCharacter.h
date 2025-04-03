@@ -10,6 +10,7 @@
 #include "Players/SpyCombatantInterface.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "Items/InventoryBaseAsset.h"
+#include "Items/UHeldItemMeshComponent.h"
 #include "SpyCharacter.generated.h"
 
 class UTrapMeshComponent;
@@ -83,7 +84,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SVS|Abilities|Combat")
 	UInventoryBaseAsset* GetEquippedItemAsset() const;
 
-	void SetHeldTrapItem(UTrapMeshComponent* NewTrapMeshComponent) { HeldTrapMeshComponent = NewTrapMeshComponent; };
+	void SetHeldTrapItem(UHeldItemMeshComponent* NewHeldItemMeshComponent) { HeldItemMeshComponent = NewHeldItemMeshComponent; };
 
 	void InitializeEquippedItem();
 	
@@ -175,7 +176,7 @@ private:
 	void EquippedItemUpdated();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
-	UTrapMeshComponent* HeldTrapMeshComponent;
+	UHeldItemMeshComponent* HeldItemMeshComponent;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"), Category = "SVS|Character")
 	USpyInteractionComponent* SpyInteractionComponent;

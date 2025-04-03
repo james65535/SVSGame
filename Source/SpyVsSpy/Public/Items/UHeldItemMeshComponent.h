@@ -4,22 +4,22 @@
 
 #include "CoreMinimal.h"
 #include "Components/StaticMeshComponent.h"
-#include "TrapMeshComponent.generated.h"
+#include "UHeldItemMeshComponent.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SPYVSSPY_API UTrapMeshComponent : public UStaticMeshComponent
+class SPYVSSPY_API UHeldItemMeshComponent : public UStaticMeshComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UTrapMeshComponent();
+	UHeldItemMeshComponent();
 	virtual void BeginPlay() override;
 	
 	UPROPERTY()
-	FName TrapName = "";
+	FName HeldItemName = "";
 	
 };

@@ -50,11 +50,13 @@ public:
 protected:
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
-	FPrimaryAssetType SpyMissionItemTypeToDistributed = FName("InventoryMissionAsset");
+	FPrimaryAssetType MissionAssetTypeToDistribute = FName("InventoryMissionAsset");
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
-	FPrimaryAssetType SpyWeaponItemTypeToDistributed = FName("InventoryWeaponAsset");
+	FPrimaryAssetType WeaponAssetTypeToDistribute = FName("InventoryWeaponAsset");
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
-	FPrimaryAssetType SpyTrapItemTypeToDistributed = FName("InventoryTrapAsset");
+	FPrimaryAssetType TrapAssetTypeToDistribute = FName("InventoryTrapAsset");
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
+	FPrimaryAssetType TrapDisarmAssetTypeToDistribute = FName("InventoryTrapDisarmAsset");
 	
 	UPROPERTY(BlueprintReadOnly, VisibleInstanceOnly, meta = (AllowPrivateAccess), Category = "SVS|GameMode")
 	ARoomManager* RoomManager;

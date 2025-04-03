@@ -6,11 +6,11 @@
 #include "SVSLogger.h"
 #include "Engine/AssetManager.h"
 #include "Items/InventoryBaseAsset.h"
-#include "Items/InventoryTrapAsset.h"
 #include "Items/Weapon.h"
 #include "UObject/PrimaryAssetId.h"
 #include "GameFramework/GameModeBase.h"
-#include "Items/TrapMeshComponent.h"
+#include "Items/InventoryBaseHeldAsset.h"
+#include "Items/UHeldItemMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Players/SpyCharacter.h"
@@ -134,13 +134,13 @@ bool UInventoryComponent::LoadInventoryAssetFromAssetId(const FPrimaryAssetId& I
 	return false;
 }
 
-void UInventoryComponent::SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType)
+void UInventoryComponent::SetObjectTypeAssociation(const EObjectTypeAssociation InObjectTypeAssociation)
 {
-	InventoryOwnerType = InInventoryOwnerType;
+	ObjectTypeAssociation = InObjectTypeAssociation;
 
 	/** If Inventory OwnerType is a Player then validate
 	 * inventory component has the correct socket names for trap and weapon hands */
-	if (InventoryOwnerType == EInventoryOwnerType::Player)
+	if (ObjectTypeAssociation == EObjectTypeAssociation::Player)
 	{
 		bool bHandSocketsValidated = false;
 		if (const ASpyCharacter* CharacterOwner = Cast<ASpyCharacter>( GetOwner()))
@@ -209,8 +209,8 @@ void UInventoryComponent::S_EquipInventoryItem_Implementation(const EItemRotatio
 	bool bEquipSucceeded = false;
 	if (IsValid(InventoryAsset) && InventoryAsset->Quantity != 0)
 	{
-		/** Do nothing for traps on server as they are just cosmetic */
-		if (IsValid(Cast<UInventoryTrapAsset>(InventoryAsset)))
+		/** Do nothing for helds items on server as they are just cosmetic */
+		if (IsValid(Cast<UInventoryBaseHeldAsset>(InventoryAsset)))
 		{ bEquipSucceeded = true; }
 		else if (UInventoryWeaponAsset* WeaponAsset = Cast<UInventoryWeaponAsset>(InventoryAsset))
 		{ bEquipSucceeded = EquipWeapon(WeaponAsset);	}
@@ -237,47 +237,47 @@ void UInventoryComponent::OnRep_EquippedItemIndex()
 		return;
 	}
 
-	/** Client only cares about unequiping a trap asset since that is only equiped on the client */
-	if (Cast<UInventoryTrapAsset>(EquippedItemAsset))
+	/** Client only cares about unequiping held items since that is only equiped on the client */
+	if (Cast<UInventoryBaseHeldAsset>(EquippedItemAsset))
 	{ UnEquipCurrentItem(); }
 	
-	if (const UInventoryTrapAsset* TrapAsset = Cast<UInventoryTrapAsset>(InventoryAssetsCollection[EquippedItemIndex]))
-	{ EquipTrap(TrapAsset); }
+	if (const UInventoryBaseHeldAsset* HeldItem = Cast<UInventoryBaseHeldAsset>(InventoryAssetsCollection[EquippedItemIndex]))
+	{ EquipHeldItem(HeldItem); }
 
 	EquippedItemAsset = InventoryAssetsCollection[EquippedItemIndex];
 	OnEquippedUpdated.Broadcast();
 }
 
-bool UInventoryComponent::EquipTrap(const UInventoryTrapAsset* TrapAsset)
+bool UInventoryComponent::EquipHeldItem(const UInventoryBaseHeldAsset* NewHeldItemAsset)
 {
 	/** Create the visual representation of the trap to be held by the player */
 	if (ASpyCharacter* OwnerCharacter = Cast<ASpyCharacter>(GetOwner()))
 	{
-		UTrapMeshComponent* NewHeldTrap = NewObject<UTrapMeshComponent>(
+		UHeldItemMeshComponent* NewHeldItem = NewObject<UHeldItemMeshComponent>(
 			OwnerCharacter,
-			UTrapMeshComponent::StaticClass());
+			UHeldItemMeshComponent::StaticClass());
 
-		if (IsValid(NewHeldTrap))
+		if (IsValid(NewHeldItem))
 		{
-			NewHeldTrap->TrapName = TrapAsset->InventoryItemName;
-			NewHeldTrap->RegisterComponent();
-			NewHeldTrap->SetStaticMesh(TrapAsset->TrapMesh);
+			NewHeldItem->HeldItemName = NewHeldItemAsset->InventoryItemName;
+			NewHeldItem->RegisterComponent();
+			NewHeldItem->SetStaticMesh(NewHeldItemAsset->HeldItemMesh);
 
-			const bool bDidAttach = NewHeldTrap->AttachToComponent(
+			const bool bDidAttach = NewHeldItem->AttachToComponent(
 				OwnerCharacter->GetMesh(),
 				FAttachmentTransformRules::SnapToTargetIncludingScale,
 				TrapHandSocketName);
 
-			NewHeldTrap->SetRelativeTransform(TrapAsset->HeldTrapAttachTransform);
+			NewHeldItem->SetRelativeTransform(NewHeldItemAsset->HeldTrapAttachTransform);
 
 			if (bDidAttach)
-			{ CurrentHeldTrap = NewHeldTrap; }
+			{ CurrentHeldItem = NewHeldItem; }
 			else
 			{
-				NewHeldTrap->DestroyComponent();
-				UE_LOG(SVSLog, Warning, TEXT("%s InventoryComponent could not attach trap visual component for asset: %s"),
+				NewHeldItem->DestroyComponent();
+				UE_LOG(SVSLog, Warning, TEXT("%s InventoryComponent could not attach Held Item Mesh Component for asset: %s"),
 					*GetOwner()->GetName(),
-					*TrapAsset->InventoryItemName.ToString());
+					*NewHeldItemAsset->InventoryItemName.ToString());
 			}
 			return bDidAttach;
 		}
@@ -372,7 +372,7 @@ bool UInventoryComponent::UnEquipCurrentItem()
 	/** Assumes the Spy character is either holding a weapon or a trap, never both */
 	ensureAlwaysMsgf(
 		!IsValid(CurrentSpawnedWeapon.Get()) ||
-		!IsValid(CurrentHeldTrap.Get()),
+		!IsValid(CurrentHeldItem.Get()),
 		TEXT("Invalid state: Inventory cannot have both trap and weapon equipped simultanesouly"));
 
 	/** Remove weapon actor from server */
@@ -382,9 +382,9 @@ bool UInventoryComponent::UnEquipCurrentItem()
 	{ return true; } /** server only concerned with weapon actors */
 
 	/** Remove trap visual on clients */
-	if (!IsRunningDedicatedServer() && IsValid(CurrentHeldTrap.Get()))
+	if (!IsRunningDedicatedServer() && IsValid(CurrentHeldItem.Get()))
 	{
-		CurrentHeldTrap->DestroyComponent();
+		CurrentHeldItem->DestroyComponent();
 		return true;
 	}
 

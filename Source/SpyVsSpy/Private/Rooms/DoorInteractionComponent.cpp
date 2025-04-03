@@ -157,7 +157,7 @@ bool UDoorInteractionComponent::SetActiveTrap_Implementation(UInventoryTrapAsset
 		!IsValid(InActiveTrap))
 	{ return false; }
 
-	if (InActiveTrap->InventoryOwnerType == EInventoryOwnerType::Door)
+	if (InActiveTrap->ObjectTypeAssociation == EObjectTypeAssociation::Door)
 	{
 		/** Close door when trap is set as Quality of Life feature for players */
 		if (DoorState == EDoorState::Opened)

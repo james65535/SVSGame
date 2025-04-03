@@ -3,15 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Items/InventoryBaseAsset.h"
+#include "InventoryBaseHeldAsset.h"
 #include "InventoryTrapDisarmAsset.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class SPYVSSPY_API UInventoryTrapDisarmAsset : public UInventoryBaseAsset
+class SPYVSSPY_API UInventoryTrapDisarmAsset : public UInventoryBaseHeldAsset
 {
 	GENERATED_BODY()
-	
+
+public:
+
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("InventoryTrapDisarmAsset", GetFName()); }
 };

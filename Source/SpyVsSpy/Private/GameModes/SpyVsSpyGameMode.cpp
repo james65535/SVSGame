@@ -117,9 +117,10 @@ void ASpyVsSpyGameMode::StartGame()
 	USpyItemWorldSubsystem* SpyItemWorldSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>();
 	if (IsValid(SpyItemWorldSubsystem) && SpyItemWorldSubsystem->AllItemsVerifiedLoaded())
 	{
-		SpyItemWorldSubsystem->DistributeItems(SpyMissionItemTypeToDistributed, ASpyFurniture::StaticClass());
-		SpyItemWorldSubsystem->DistributeItems(SpyWeaponItemTypeToDistributed, ASpyCharacter::StaticClass());
-		SpyItemWorldSubsystem->DistributeItems(SpyTrapItemTypeToDistributed, ASpyCharacter::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(MissionAssetTypeToDistribute, ASpyFurniture::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(WeaponAssetTypeToDistribute, ASpyCharacter::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(TrapAssetTypeToDistribute, ASpyCharacter::StaticClass());
+		SpyItemWorldSubsystem->DistributeItems(TrapDisarmAssetTypeToDistribute, ASpyCharacter::StaticClass());
 	}
 	else
 	{

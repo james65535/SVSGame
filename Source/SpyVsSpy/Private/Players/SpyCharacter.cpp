@@ -125,7 +125,7 @@ void ASpyCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	/** InventoryComponent performs some logic depending on this value */
-	PlayerInventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Player);
+	PlayerInventoryComponent->SetObjectTypeAssociation(EObjectTypeAssociation::Player);
 	
 	// TODO check into whether this should be forced from server
 	/** Hide opponents character on local client */

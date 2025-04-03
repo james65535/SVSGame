@@ -236,17 +236,8 @@ bool ASpyVsSpyGameState::HasRequiredMissionItems(const ACharacter* Character) co
 			for (UInventoryBaseAsset* MissionItem : RequiredMissionItems)
 			{
 				if (PlayerInventory.Contains(MissionItem) == false)
-				{
-					UE_LOG(SVSLogDebug, Warning,
-						TEXT("SpyGameState RequiredMissionItems check found that spy did not have %s"),
-						*MissionItem->InventoryItemName.ToString())
-					return false;
-				}
-				UE_LOG(SVSLogDebug, Warning,
-					TEXT("SpyGameState RequiredMissionItems check found that spy does have %s"),
-					*MissionItem->InventoryItemName.ToString())
+				{ return false; }
 			}
-		
 			return true;
 		}
 	}

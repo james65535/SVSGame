@@ -1,13 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Items/TrapMeshComponent.h"
+#include "Items/UHeldItemMeshComponent.h"
 
-UTrapMeshComponent::UTrapMeshComponent()
+UHeldItemMeshComponent::UHeldItemMeshComponent()
 {
 }
 
-void UTrapMeshComponent::BeginPlay()
+void UHeldItemMeshComponent::BeginPlay()
 {
 	/** This component is just cosmetic */
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);

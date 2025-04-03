@@ -15,7 +15,7 @@ ASVSDynamicDoor::ASVSDynamicDoor()
 
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
 	if (IsValid(InventoryComponent))
-	{ InventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Door); }
+	{ InventoryComponent->SetObjectTypeAssociation(EObjectTypeAssociation::Door); }
 	
 	DoorInteractionComponent = CreateDefaultSubobject<UDoorInteractionComponent>("Door Interaction Component");
 	DoorInteractionComponent->SetIsReplicated(true);

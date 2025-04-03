@@ -80,9 +80,6 @@ protected:
 
 	/** Asset Manager Async Load Delegate */
 	void OnItemAssetLoadFromAssetId(const FPrimaryAssetId InItemAssetId);
-
-	// TODO remove
-	//TArray<UInventoryBaseAsset*> ItemRegistry;
 #pragma endregion="AssetManagerWrapper"
 
 #pragma region="ItemLoadVerification"

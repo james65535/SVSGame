@@ -12,7 +12,7 @@ ASpyFurniture::ASpyFurniture()
 {
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>("Inventory Component");
 	if (IsValid(InventoryComponent))
-	{ InventoryComponent->SetInventoryOwnerType(EInventoryOwnerType::Furniture); }
+	{ InventoryComponent->SetObjectTypeAssociation(EObjectTypeAssociation::Furniture); }
 	
 	FurnitureInteractionComponent = CreateDefaultSubobject<UFurnitureInteractionComponent>("Interaction Component");
 	FurnitureInteractionComponent->SetIsReplicated(true);

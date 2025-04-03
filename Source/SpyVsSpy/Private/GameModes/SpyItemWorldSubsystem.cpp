@@ -68,8 +68,10 @@ void USpyItemWorldSubsystem::LoadItemAssetFromAssetId(const FPrimaryAssetId& InI
 
 void USpyItemWorldSubsystem::OnItemAssetLoadFromAssetId(const FPrimaryAssetId InItemAssetId)
 {
-	UInventoryBaseAsset* InventoryAsset = Cast<UInventoryBaseAsset>(AssetManager->GetPrimaryAssetObject(InItemAssetId));
-	checkfSlow(IsValid(InventoryAsset), "SpyItemWorldSubSystem: Cound not load an asset from an asset ID")
+	checkfSlow(
+		IsValid(Cast<UInventoryBaseAsset>(
+			AssetManager->GetPrimaryAssetObject(InItemAssetId))),
+		"SpyItemWorldSubSystem: Cound not load an asset from an asset ID");
 }
 
 bool USpyItemWorldSubsystem::VerifyAllItemAssetsLoaded() const
@@ -105,6 +107,10 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		!ItemToDistributeAssetType.IsValid() ||
 		!AllItemsVerifiedLoaded())
 	{ return false; }
+
+	UE_LOG(SVSLogDebug, Warning, TEXT("ItemWorldSubsystem::DistributeItems: AssetType: %s Target: %s"),
+		*ItemToDistributeAssetType.ToString(),
+		*TargetActorClass->GetName());
 	
 	// TODO refactor this with proper usage of tsubclassof
 	if (TargetActorClass == ASpyCharacter::StaticClass())
@@ -121,11 +127,17 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		TArray<FPrimaryAssetId> InventoryBaseAssetPrimaryAssetIdCollection;
 		for (UObject* AssetManagerObject : AssetManagerObjectList)
 		{
-			if (const UInventoryBaseAsset* AssetToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject))
-			{
-				InventoryBaseAssetPrimaryAssetIdCollection.AddUnique(
-					AssetToAdd->GetPrimaryAssetId());
-			}
+			const UInventoryBaseAsset* AssetToAdd = Cast<UInventoryBaseAsset>(AssetManagerObject);
+			ensureAlwaysMsgf(
+					IsValid(AssetToAdd),
+					TEXT("SpyItemSubsystem: DistributeItems received an object which is not a child of class UInventoryBaseAsset"));
+
+			/** Skips items marked not for distribution */
+			if (AssetToAdd->bNotForDistribution == true)
+			{ continue; }
+			
+			InventoryBaseAssetPrimaryAssetIdCollection.AddUnique(
+				AssetToAdd->GetPrimaryAssetId());
 		}
 		
 		for (AActor* WorldActor : WorldActors)
@@ -143,7 +155,7 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 			else
 			{
 				UE_LOG(SVSLog, Warning,
-					TEXT("SpyItemSubsystem could not find a actor for items of type: %s"),
+					TEXT("SpyItemSubsystem could not find an actor for items of type: %s"),
 					*ItemToDistributeAssetType.GetName().ToString());
 				return false;
 			}
@@ -157,9 +169,9 @@ bool USpyItemWorldSubsystem::DistributeItems(const FPrimaryAssetType& ItemToDist
 		TArray<UObject*> AssetManagerObjectList;
 		AssetManager->GetPrimaryAssetObjectList(ItemToDistributeAssetType, AssetManagerObjectList);
 
-		checkfSlow(
+		ensureAlwaysMsgf(
 			FurnitureWorldActors.Num() >= AssetManagerObjectList.Num(),
-			"SpyWorldSubsystem requires more furniture than items to distribute");
+			TEXT("SpyWorldSubsystem requires more furniture than items to distribute"));
 		
 		for (const UObject* AssetManagerObject : AssetManagerObjectList)
 		{

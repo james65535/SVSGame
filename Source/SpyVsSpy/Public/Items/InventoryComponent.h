@@ -6,6 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "InventoryComponent.generated.h"
 
+class UInventoryBaseHeldAsset;
+class UHeldItemMeshComponent;
 class ADynamicRoom;
 enum class EWeaponType : uint8;
 class UTrapMeshComponent;
@@ -20,7 +22,7 @@ DECLARE_MULTICAST_DELEGATE(FOnInventoryUpdated);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquippedUpdated);
 
 UENUM(BlueprintType)
-enum class EInventoryOwnerType : uint8
+enum class EObjectTypeAssociation : uint8
 {
 	None			UMETA(DisplayName = "None"),
 	Player			UMETA(DisplayName = "Player"),
@@ -49,9 +51,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	EInventoryOwnerType GetInventoryOwnerType() const { return InventoryOwnerType; }
+	EObjectTypeAssociation GetObjectTypeAssociation() const { return ObjectTypeAssociation; }
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory")
-	void SetInventoryOwnerType(const EInventoryOwnerType InInventoryOwnerType);
+	void SetObjectTypeAssociation(const EObjectTypeAssociation InObjectTypeAssociation);
 
 	/** Let listeners know the Equipped Weapon or Trap has changed */
 	FOnEquippedUpdated OnEquippedUpdated;
@@ -111,7 +113,7 @@ public:
 protected:
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
-	EInventoryOwnerType InventoryOwnerType = EInventoryOwnerType::None;
+	EObjectTypeAssociation ObjectTypeAssociation = EObjectTypeAssociation::None;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")
 	TArray<UInventoryBaseAsset*> InventoryAssetsCollection;
@@ -145,7 +147,7 @@ private:
 	bool EquipWeapon(UInventoryWeaponAsset* WeaponAsset);
 
 	UFUNCTION(BlueprintCallable, Category = "SVS|Inventory|Combat")
-	bool EquipTrap(const UInventoryTrapAsset* TrapAsset);
+	bool EquipHeldItem(const UInventoryBaseHeldAsset* NewHeldItemAsset);
 	
 	bool UnEquipCurrentItem();
 
@@ -159,7 +161,7 @@ private:
 	/** References to equipped weapon actor */
 	TWeakObjectPtr<AWeapon> CurrentSpawnedWeapon;
 	/** References to equipped trap mesh component */
-	TWeakObjectPtr<UTrapMeshComponent> CurrentHeldTrap;
+	TWeakObjectPtr<UHeldItemMeshComponent> CurrentHeldItem;
 
 	/** Data Asset pertaining to the current Equipped Item */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (AllowPrivateAccess), Category = "SVS|Inventory")

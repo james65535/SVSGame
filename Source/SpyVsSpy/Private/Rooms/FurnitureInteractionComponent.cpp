@@ -68,7 +68,7 @@ bool UFurnitureInteractionComponent::SetActiveTrap_Implementation(UInventoryTrap
 		!IsValid(GetOwner<ASpyFurniture>()->GetInventoryComponent()))
 	{ return false; }
 
-	if (InActiveTrap->InventoryOwnerType == EInventoryOwnerType::Furniture)
+	if (InActiveTrap->ObjectTypeAssociation == EObjectTypeAssociation::Furniture)
 	{
 		GetOwner<ASpyFurniture>()->GetInventoryComponent()->SetRiggedTrapAsset(InActiveTrap);
 		return true;

@@ -256,17 +256,19 @@ void ASpyPlayerController::C_DisplayCharacterInventory_Implementation()
 	if (GetLocalRole() != ROLE_AutonomousProxy || !IsValid(SpyCharacter))
 	{ return; }
 
+	/** Highlight the item which is currently equipped */	
 	if (const UInventoryBaseAsset* EquippedItemAsset = SpyCharacter->GetPlayerInventoryComponent()->GetEquippedItemAsset())
 	{
 		/** Find out what items the Spy has in inventory */
 		TArray<UInventoryBaseAsset*> InventoryAssets;
 		SpyCharacter->GetPlayerInventoryComponent()->GetInventoryItems(InventoryAssets);
-	
-		/** Highlight the item which is currently equipped */	
+
+		/** Pass in true for the item which is equipped */
 		TMap<UObject*, bool> DisplayedItems;
 		for (UInventoryBaseAsset* InventoryAsset : InventoryAssets)
 		{
-			const bool bItemEquipped = InventoryAsset->GetPrimaryAssetId() == EquippedItemAsset->GetPrimaryAssetId() ?
+			const bool bItemEquipped =
+				InventoryAsset->GetPrimaryAssetId() == EquippedItemAsset->GetPrimaryAssetId() ?
 				true :
 				false;
 	
@@ -302,7 +304,9 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 	/** Get the collection of PIDs from target inventory via the interaction component */
 	TScriptInterface<IInteractInterface> InteractObjectInterface = SpyCharacter->
 		GetInteractionComponent()->GetLatestInteractableComponent();
+	
 	TArray<FPrimaryAssetId> TargetInventoryPrimaryAssetIdCollection;
+
 	InteractObjectInterface->Execute_GetInventoryListing(
 		InteractObjectInterface.GetObjectRef(),
 		TargetInventoryPrimaryAssetIdCollection,
@@ -320,12 +324,17 @@ void ASpyPlayerController::S_RequestTakeAllFromTargetInventory_Implementation()
 	/** Use the SpyItemSubSystem to handle item relocation */
 	if (USpyItemWorldSubsystem* ItemSubsystem = GetWorld()->GetSubsystem<USpyItemWorldSubsystem>())
 	{
-		TArray<UInventoryComponent*> TargetInventory = {SpyCharacter->GetPlayerInventoryComponent()};
-		UInventoryComponent* SourceInventory = InteractObjectInterface->Execute_GetInventory(InteractObjectInterface.GetObjectRef());
+		TArray<UInventoryComponent*> TargetInventory =
+			{SpyCharacter->GetPlayerInventoryComponent()};
+
+		UInventoryComponent* SourceInventory = InteractObjectInterface->
+			Execute_GetInventory(InteractObjectInterface.GetObjectRef());
+
 		const bool bDidRelocate = ItemSubsystem->RelocateInventoryAssetIds(
 			SourceInventory,
 			TargetInventory,
 			TargetInventoryPrimaryAssetIdCollection);
+		
 		if (bDidRelocate == false)
 		{
 			UE_LOG(SVSLog, Warning,
@@ -348,12 +357,6 @@ bool ASpyPlayerController::RequestPlaceTrap() const
 	if (UInventoryTrapAsset* HeldTrap = Cast<UInventoryTrapAsset>(SpyCharacter->GetEquippedItemAsset()))
 	{
 		const bool bTrapSetSuccessful = TargetInteractionComponent->Execute_SetActiveTrap(TargetInteractionComponent.GetObjectRef(), HeldTrap);
-
-		UE_LOG(SVSLogDebug, Warning,
-			TEXT("Character %s was able to set trap on %s with success %s"),
-			*SpyCharacter->GetName(),
-			*TargetInteractionComponent->Execute_GetInteractableOwner(TargetInteractionComponent.GetObjectRef())->GetName(),
-			bTrapSetSuccessful ? *FString("True") : *FString("False"));
 
 		/** Reset character's held item */
 		SpyCharacter->RequestEquipInitialInventoryItem();

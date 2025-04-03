@@ -10,6 +10,7 @@
 #include "AbilitySystem/SpyDamageEffect.h"
 #include "Items/InteractInterface.h"
 #include "Items/InventoryTrapAsset.h"
+#include "Items/InventoryTrapDisarmAsset.h"
 #include "Players/SpyCharacter.h"
 #include "Players/SpyInteractionComponent.h"
 #include "Players/SpyPlayerController.h"
@@ -29,11 +30,12 @@ void USpyInteractAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	{ return; }
 
 	/** Create task to determine if interact is interrupted by a triggered trap */
-		CheckTrapTriggeredTask = UAbilityTaskSuccessFailEvent::WaitSuccessFailEvent(
-		this,
-		FGameplayTag::RequestGameplayTag("TrapTrigger.Hit"),
-		FGameplayTag::RequestGameplayTag("TrapTrigger.NoHit"),
-		nullptr, true, true);
+	CheckTrapTriggeredTask = UAbilityTaskSuccessFailEvent::WaitSuccessFailEvent(
+	this,
+	FGameplayTag::RequestGameplayTag("TrapTrigger.Hit"),
+	FGameplayTag::RequestGameplayTag("TrapTrigger.NoHit"),
+	nullptr, true, true);
+
 	CheckTrapTriggeredTask->SuccessEventReceived.AddDynamic(this, &ThisClass::OnTrapTriggered);
 	CheckTrapTriggeredTask->FailEventReceived.AddDynamic(this, &ThisClass::OnTrapNotTriggered);
 
@@ -66,62 +68,82 @@ bool USpyInteractAbility::RequestTriggerTrap()
 	FGameplayEventData Payload = FGameplayEventData();
 	Payload.Instigator = AbilityActor;
 	Payload.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromActor(GetActorInfo().AvatarActor.Get());
-
-	if (ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetActorInfo().AvatarActor.Get()))
+	
+	/** Determine if we can find a valid trap on the furniture and adjust Payload and Tags */
+	ASpyCharacter* SpyCharacter = Cast<ASpyCharacter>(GetActorInfo().AvatarActor.Get());
+	if (!IsValid(SpyCharacter) ||
+		!IsValid(SpyCharacter->GetInteractionComponent()) ||
+		!SpyCharacter->GetInteractionComponent()->CanInteract())
+	{ return false; }
+	
+	const TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->
+		GetInteractionComponent()->
+		GetLatestInteractableComponent();
+	if (IsValid(TargetInteractionComponent.GetObject()))
 	{
-		/** Determine if we can find a valid trap on the furniture and adjust Payload and Tags */
-		if (IsValid(SpyCharacter->GetInteractionComponent()) &&
-			SpyCharacter->GetInteractionComponent()->CanInteract())
+		AActor* TargetActor = TargetInteractionComponent->
+			Execute_GetInteractableOwner(TargetInteractionComponent.GetObject());
+		Payload.Target = TargetActor;
+		const UInventoryTrapAsset* TrapAsset = TargetInteractionComponent->
+			Execute_GetActiveTrap(TargetInteractionComponent.GetObject(), SpyCharacter);
+		if (IsValid(TrapAsset))
 		{
-			if (const TScriptInterface<IInteractInterface> TargetInteractionComponent = SpyCharacter->
-				GetInteractionComponent()->
-				GetLatestInteractableComponent())
+			/** Depending on disarmed this will be
+			 * modified to prevent damager occuring */
+			UGameplayEffect* DamageEffect = SpyTrapDamageEffectClass->GetDefaultObject<UGameplayEffect>();
+
+			/** Check if victim has the correct disarm tool equippped */
+			const UInventoryTrapDisarmAsset* DisarmAsset =
+				Cast<UInventoryTrapDisarmAsset>(
+					SpyCharacter->GetPlayerInventoryComponent()->GetEquippedItemAsset());
+			if (IsValid(DisarmAsset) &&
+				DisarmAsset->ObjectTypeAssociation == TrapAsset->ObjectTypeAssociation)
+			{ DamageEffect->ChanceToApplyToTarget = 0.0f; }
+			else
 			{
-				if (AActor* TargetActor = TargetInteractionComponent->
-					Execute_GetInteractableOwner(TargetInteractionComponent.GetObject()))
-				{
-					Payload.Target = TargetActor;
-					if (const UInventoryTrapAsset* TrapAsset = TargetInteractionComponent->
-						Execute_GetActiveTrap(TargetInteractionComponent.GetObject(), SpyCharacter))
-					{
-						TrapTriggerTaskResultTag = FGameplayTag::RequestGameplayTag("TrapTrigger.Hit");
-					
-						/** Carry out effects for Damage Calculation */
-						FActiveGameplayEffectHandle DamageGameplayEffectHandle = ApplyGameplayEffectToOwner(
-							GetCurrentAbilitySpecHandle(),
-							GetCurrentActorInfo(),
-							GetCurrentActivationInfo(),
-							SpyTrapDamageEffectClass->GetDefaultObject<UGameplayEffect>(),
-							1,
-							1);
-
-						/** Carry out effects for VFX */
-						FGameplayEffectContextHandle GameplayEffectContextHandle;
-						GameplayEffectContextHandle.AddInstigator(SpyCharacter, TargetActor);
-						
-						FGameplayCueParameters GameplayCueParameters = FGameplayCueParameters(GameplayEffectContextHandle);
-						GameplayCueParameters.Instigator = SpyCharacter;
-						GameplayCueParameters.EffectCauser = TargetActor;
-						GameplayCueParameters.SourceObject = TrapAsset;
-
-						UAbilitySystemComponent* const AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo_Checked();
-						AbilitySystemComponent->ExecuteGameplayCue(TrapAsset->GameplayTriggerTag, GameplayCueParameters);
-						
-						/** add vfx tag to payload so it can be used later */
-						Payload.TargetTags.AddTag(TrapAsset->GameplayTriggerTag);
-					
-						/** Remove trap from Furniture */
-						TargetInteractionComponent->Execute_RemoveActiveTrap(TargetInteractionComponent.GetObject());
-					}
-				} 
+				TrapTriggerTaskResultTag = FGameplayTag::RequestGameplayTag(
+					"TrapTrigger.Hit");
+				DamageEffect->ChanceToApplyToTarget = 1.0f;
 			}
-		}
+			
+			/** Setup Effects for Damage Calculation */
+			FActiveGameplayEffectHandle DamageGameplayEffectHandle = ApplyGameplayEffectToOwner(
+				GetCurrentAbilitySpecHandle(),
+				GetCurrentActorInfo(),
+				GetCurrentActivationInfo(),
+				DamageEffect,
+				1,
+				1);
+
+			/** Carry out effects for VFX */
+			FGameplayEffectContextHandle GameplayEffectContextHandle;
+			GameplayEffectContextHandle.AddInstigator(SpyCharacter, TargetActor);
+			
+			FGameplayCueParameters CueParams = FGameplayCueParameters(GameplayEffectContextHandle);
+			CueParams.Instigator = SpyCharacter;
+			CueParams.EffectCauser = TargetActor;
+			CueParams.SourceObject = TrapAsset;
+
+			UAbilitySystemComponent* const AbilitySystemComponent =
+				GetAbilitySystemComponentFromActorInfo_Checked();
+
+			AbilitySystemComponent->ExecuteGameplayCue(
+				TrapAsset->GameplayTriggerTag, CueParams);
+			
+			/** add vfx tag to payload so it can be used later */
+			Payload.TargetTags.AddTag(TrapAsset->GameplayTriggerTag);
+		
+			/** Remove trap from Furniture */
+			TargetInteractionComponent->Execute_RemoveActiveTrap(
+				TargetInteractionComponent.GetObject());
+		} 
 	}
 	
 	/** Send result tag as part of a gameplay event */
 	SendGameplayEvent(TrapTriggerTaskResultTag, Payload);
 	
-	return TrapTriggerTaskResultTag.MatchesTag(FGameplayTag::RequestGameplayTag("TrapTrigger.Hit"));
+	return TrapTriggerTaskResultTag.MatchesTag(
+		FGameplayTag::RequestGameplayTag("TrapTrigger.Hit"));
 }
 
 void USpyInteractAbility::OnTrapTriggered(FGameplayEventData Payload)
